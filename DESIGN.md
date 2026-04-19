@@ -29,18 +29,20 @@ This file describes **intent and invariants**. For current values (pinned tags, 
 
 Actual package list lives in `build_files/build.sh`. Categories:
 
-- **Hyprland ecosystem** from `solopasha/hyprland` COPR (hyprland, hyprlock, hypridle, hyprpaper, hyprcursor, hyprsunset, xdg-desktop-portal-hyprland, etc.). `hyprland-guiutils` is built from source — see "Source-built hyprland-guiutils" below.
-- **Session/greeter** (Qt6 only) — `sddm` + the Qt6 modules the astronaut theme needs. Qt5 is deliberately excluded.
-- **Desktop apps:** ghostty + kitty (kitty is kept because Hyprland-Dots references it, ghostty is user default), waybar, rofi-wayland, swaync, nautilus, clipboard, screenshot, network/BT applets, audio UIs, portals, polkit (mate-polkit as agent), display helpers, uwsm, gvfs.
-- **Developer tooling:** VS Code (layered RPM), `make` + C/C++ headers + sqlite-devel + python3-pip for occasional pip-builds-from-source. Everything else (rg/fd/fzf/jq/btop/lazygit/yazi/…) deferred to `brew` per uBlue-DX philosophy.
+- **Hyprland ecosystem** from `solopasha/hyprland` COPR (hyprland, hyprlock, hypridle, hyprpaper, swww, hyprcursor, hyprsunset, xdg-desktop-portal-hyprland, etc.). `hyprland-guiutils` and `awww` are built from source — see "Source builds" below.
+- **Session/greeter** — `sddm` + the Qt6 modules the astronaut theme needs.
+- **Hyprland-Dots runtime deps:** the full set of packages the Dots scripts and configs expect — wallust (theming engine, from `errornointernet/packages` COPR), mpv + mpv-mpris, cava, btop, nvtop, fastfetch, gnome-system-monitor, qalculate-gtk, loupe, nwg-look, ddcutil, gtk-murrine-engine.
+- **Desktop apps:** ghostty + kitty (kitty is kept because Hyprland-Dots references it, ghostty is user default), waybar, rofi-wayland, swaync, quickshell, nautilus, clipboard, screenshot, network/BT applets, audio UIs, portals, polkit (mate-polkit as agent), display helpers, uwsm, gvfs.
+- **Qt theming:** `qt5ct` + `kvantum-qt5` (Qt5), `qt6ct` + `qt6-qt5compat` (Qt6). Both generations are included so Hyprland-Dots' `DarkLight.sh` theme switching works fully and any future Qt5 apps render themed.
+- **Developer tooling:** VS Code (layered RPM), `make` + C/C++ headers + sqlite-devel + python3-pip for occasional pip-builds-from-source. Everything else (rg/fd/fzf/jq/lazygit/yazi/…) deferred to `brew` per uBlue-DX philosophy.
 - **Container stack:** full uBlue Bluefin-DX parity — `podman-compose`/`podman-tui`/`flatpak-builder` plus Docker CE via the disable-then-`--enablerepo` pattern.
 - **GPU compute:** ROCm user-space (`rocm-hip`, `rocm-opencl`, `rocm-smi`) for AMD scientific compute.
 - **Fonts + theming:** Fedora fonts plus `che/nerd-fonts` COPR's all-families `nerd-fonts` package (installed isolated so the COPR is not left enabled), icons, `kvantum`.
 
 ### Repo enablement policy
 
-- **Left enabled** on the running system — so `rpm-ostree upgrade` picks up live updates: `solopasha/hyprland`, `pgdev/ghostty`, Microsoft VS Code, Docker CE (repo file `enabled=0` by default, `--enablerepo=docker-ce-stable` at install time).
-- **Enabled → install → disabled** during build: `che/nerd-fonts` via the `copr_install_isolated` helper copied from [`ublue-os/bluefin`](https://github.com/ublue-os/bluefin/blob/main/build_files/shared/copr-helpers.sh). No `.repo` file survives in the final image.
+- **Left enabled** on the running system — so `rpm-ostree upgrade` picks up live updates: `solopasha/hyprland`, `pgdev/ghostty`, `errornointernet/quickshell`, Microsoft VS Code, Docker CE (repo file `enabled=0` by default, `--enablerepo=docker-ce-stable` at install time).
+- **Enabled → install → disabled** during build via `copr_install_isolated` (from [`ublue-os/bluefin`](https://github.com/ublue-os/bluefin/blob/main/build_files/shared/copr-helpers.sh)): `che/nerd-fonts` (nerd-fonts), `ublue-os/packages` (bazaar, uupd), `errornointernet/packages` (wallust). No `.repo` file survives in the final image.
 
 ### Inherited from `base-main`
 
@@ -56,7 +58,7 @@ Actual package list lives in `build_files/build.sh`. Categories:
 
 ### Deliberately omitted
 
-`earlyoom` (systemd-oomd handles this better on modern Fedora), `cmake`/`meson`/`ninja-build`/`python3-devel` (not compiling C/C++), libvirt/qemu (VM scope), cockpit, kernel tracing tools.
+`earlyoom` (systemd-oomd handles this better on modern Fedora), libvirt/qemu (VM scope), cockpit, kernel tracing tools.
 
 A few things that couldn't ship from Fedora repos were pushed to user action: `yazi` via brew, `eduvpn-client` via pipx/Flatpak, cursor themes via Hyprland-Dots' own install.
 
@@ -70,10 +72,10 @@ The full Hyprland-Dots tree is cloned unpinned (master) during each build and co
 
 ### Baked-in overrides
 
-`build.sh` applies two sed/append patches on top of the cloned Hyprland-Dots tree before copying to `/etc/skel`:
+`build.sh` applies sed patches on top of the cloned Hyprland-Dots tree before copying to `/etc/skel`:
 
 1. **Default terminal:** `$term = kitty` → `$term = ghostty` in `UserConfigs/01-UserDefaults.conf`. Kitty stays installed because the theme switcher references it.
-2. **Qtutils warning suppression:** append a `misc { disable_hyprland_guiutils_check = true }` block to `UserConfigs/UserSettings.conf`. See "Qtutils workaround" below.
+2. **Default file manager:** `$files = thunar` → `$files = nautilus` in `UserConfigs/01-UserDefaults.conf`. Nautilus is shipped instead of thunar.
 
 ### Applying the skel to existing `$HOME`
 
@@ -86,9 +88,12 @@ ujust sync-skel-config overwrite=1  # clobber existing files from the new skel
 
 The recipe lives at `/usr/share/ublue-os/just/60-custom.just` — uBlue's sanctioned extension point (`base-main`'s justfile already `import?`'s this path).
 
-### Source-built hyprland-guiutils
+### Source builds
 
-`hyprland-guiutils` (pinned tag) is the successor to the archived `hyprland-qtutils`. It provides `hyprland-dialog` and other GUI utilities that Hyprland expects at runtime. It uses `hyprtoolkit` (Wayland-native toolkit, available in the solopasha COPR) — **not** Qt6 — so it has no private-ABI issues. Built from source because the COPR doesn't package it yet.
+Two packages are built from source at image build time because they aren't available as pre-built packages:
+
+- **`hyprland-guiutils`** (pinned tag, C++/CMake) — successor to the archived `hyprland-qtutils`. Provides `hyprland-dialog` and other GUI utilities that Hyprland expects at runtime. Uses `hyprtoolkit` (Wayland-native toolkit, available in the solopasha COPR) — **not** Qt6 — so it has no private-ABI issues. Built from source because the COPR doesn't package it yet.
+- **`awww`** (pinned tag, Rust/Cargo) — preferred wallpaper daemon for Hyprland-Dots (`swww` is the fallback). Not packaged in any COPR. Build deps: `rust`, `cargo`, `wayland-protocols`, `lz4-devel`, `wayland-devel`.
 
 `hyprpolkitagent` is skipped: it still depends on `hyprland-qt-support`, which has a Qt6 private-ABI mismatch on Fedora 43 (the COPR builds against Qt6.9, Fedora ships Qt6.10). `mate-polkit` is used as the polkit agent instead; Hyprland-Dots' `Polkit.sh` auto-detects it. Tracked in [issue #1](https://github.com/oameye/atomic-hyprland/issues/1).
 
@@ -149,20 +154,19 @@ Key properties: `build.sh` is bind-mounted so it never persists in the image; ca
 
 ### `build.sh` responsibilities (in order)
 
-1. Enable live-use COPRs (`solopasha/hyprland`, `pgdev/ghostty`) via curl-to-`/etc/yum.repos.d/`.
+1. Enable live-use COPRs (`solopasha/hyprland`, `pgdev/ghostty`, `errornointernet/quickshell`) via curl-to-`/etc/yum.repos.d/`.
 2. Define the `copr_install_isolated` helper (verbatim from [`ublue-os/bluefin`](https://github.com/ublue-os/bluefin/blob/main/build_files/shared/copr-helpers.sh)).
 3. Drop the VS Code repo file and the Docker CE repo file (latter `enabled=0`).
-4. `dnf5 -y install --setopt=install_weak_deps=False` the full package set; then install Docker CE via `--enablerepo=docker-ce-stable`.
+4. `dnf5 -y install --setopt=install_weak_deps=False` the full package set; then Docker CE, nerd-fonts, bazaar/uupd, and wallust via isolated COPR installs.
 5. `rpm-ostree override remove firefox firefox-langpacks`.
-6. **Build `hyprland-guiutils` from source** (provides `hyprland-dialog` etc.; uses `hyprtoolkit`, not Qt6).
+6. **Source builds** — `hyprland-guiutils` (C++/CMake) and `awww` (Rust/Cargo).
 7. **SDDM greeter + theme + Hyprland-Dots rice** (all in one scratch dir):
    - Clone `HyDE-Project/sddm-hyprland` at pinned tag → `make install PREFIX=/usr`.
    - Clone `Keyitdev/sddm-astronaut-theme` at pinned commit → install into `/usr/share/sddm/themes/`, copy its fonts, sed the variant.
    - Clone `LinuxBeginnings/Hyprland-Dots` unpinned → copy `config/` → `/etc/skel/.config/`, apply baked-in overrides (ghostty default, nautilus default).
-8. Install `nerd-fonts` via `copr_install_isolated "che/nerd-fonts" "nerd-fonts"`.
-9. Pre-add Flathub system-wide (`flatpak remote-add --if-not-exists --system flathub …`).
-10. Enable systemd units (sddm, docker/podman sockets, update timers, dx-groups, zen-browser).
-11. Clean `/var/cache/dnf`, `/var/lib/dnf`, `/var/lib/blueman`, `/tmp/*` for image-size hygiene and bootc lint compliance.
+8. Pre-add Flathub system-wide (`flatpak remote-add --if-not-exists --system flathub …`).
+9. Enable systemd units (sddm, docker/podman sockets, update timers, dx-groups, flatpak-preinstall, uupd).
+10. Clean `/var/cache/dnf`, `/var/lib/dnf`, `/var/lib/blueman`, `/tmp/*` for image-size hygiene and bootc lint compliance.
 
 ### CI
 
@@ -174,6 +178,8 @@ GitHub Actions builds on push to `main`, PRs, weekly schedule, and manual dispat
 |---|---|---|
 | `HyDE-Project/sddm-hyprland` | Pinned tag | Greeter should not change visually under the user |
 | `Keyitdev/sddm-astronaut-theme` | Pinned commit + variant | Same |
+| `hyprwm/hyprland-guiutils` | Pinned tag | Source build — deliberate version bumps |
+| `LGFae/awww` | Pinned tag | Source build — deliberate version bumps |
 | `LinuxBeginnings/Hyprland-Dots` | Unpinned (master) | Fast-moving rice; weekly CI picks up upstream automatically |
 | Fedora / COPRs / Docker CE / VS Code | Unpinned | Normal package manager behaviour |
 
@@ -202,6 +208,8 @@ Files and patterns copied from upstream rather than invented. If the upstream so
 | `atomic-hyprland-dx-groups` script + service | `ublue-os/bluefin` → `system_files/dx/usr/{bin,lib/systemd/system}/bluefin-dx-groups{,.service}` |
 | SDDM Wayland-compositor integration | `HyDE-Project/sddm-hyprland` |
 | SDDM theme | `Keyitdev/sddm-astronaut-theme` |
+| `hyprland-guiutils` source build | `hyprwm/hyprland-guiutils` |
+| `awww` source build | `LGFae/awww` (Codeberg) |
 | Full rice in `/etc/skel/.config/` | `LinuxBeginnings/Hyprland-Dots` |
 
 ## Risks & mitigations

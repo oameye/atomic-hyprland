@@ -28,7 +28,7 @@ The full LinuxBeginnings Hyprland-Dots rice is shipped in `/etc/skel`. **New use
 >
 > After this first sync, use the default (`ujust sync-skel-config`, no `overwrite=1`) for routine runs — it will preserve any customizations you've made.
 
-The default terminal is `ghostty` (we patch Hyprland-Dots' `$term` at build time).
+The default terminal is `ghostty` and the default file manager is `nautilus` (we patch Hyprland-Dots' `$term` and `$files` at build time).
 
 ### Why isn't this step automatic?
 

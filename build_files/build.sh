@@ -14,6 +14,10 @@ SDDM_ASTRONAUT_VARIANT="astronaut"
 # (Wayland-native), not Qt6, so it has no private-ABI issues.
 HYPR_GUIUTILS_TAG="v0.2.1"
 
+# awww — preferred wallpaper daemon for Hyprland-Dots (swww is the fallback).
+# Not packaged in any COPR; built from source with cargo.
+AWWW_TAG="v0.9.5"
+
 ############################################
 # 1. Enable COPR repos
 #    solopasha/hyprland, pgdev/ghostty, errornointernet/quickshell stay
@@ -78,6 +82,7 @@ PACKAGES=(
     # is used as the polkit agent instead.
     hyprland hyprlock hypridle hyprpaper hyprshot hyprpicker hyprcursor
     hyprsunset xdg-desktop-portal-hyprland
+    swww
 
     # Session / greeter (Qt6 only -- we avoid Qt5).
     # Keyitdev/sddm-astronaut-theme is cloned into /usr/share/sddm/themes/
@@ -90,7 +95,6 @@ PACKAGES=(
     # Desktop apps (Hyprland-Dots expected runtime -- compiled against
     # LinuxBeginnings/Fedora-Hyprland's install-scripts package list).
     # Deliberately skipped from that upstream list:
-    #   - all qt5-* + kvantum-qt5 + qt5ct (user directive: no Qt5)
     #   - xfce-polkit (mate-polkit replaces)
     #   - thunar + thunar-archive-plugin (we ship nautilus; $files patched
     #     to nautilus at build time)
@@ -106,13 +110,16 @@ PACKAGES=(
     network-manager-applet blueman bluez-tools python3-cairo
     pavucontrol playerctl pamixer pulseaudio-utils
     pipewire-alsa pipewire-utils
+    mpv mpv-mpris cava
     xdg-desktop-portal-gtk polkit mate-polkit
-    brightnessctl wlr-randr uwsm wlogout
+    brightnessctl ddcutil wlr-randr uwsm wlogout
+    nwg-look loupe gtk-murrine-engine
     gvfs gvfs-mtp gvfs-smb
     xdg-user-dirs xdg-utils yad libnotify acpi inxi
     dbus-tools bc ImageMagick jq nano rsync unzip wget2
     python3-requests python3-pyquery python3-pip
-    qt6ct
+    btop nvtop fastfetch gnome-system-monitor qalculate-gtk
+    qt5ct qt6ct qt6-qt5compat kvantum-qt5
 
     # Developer tooling.
     # eduvpn-client dropped -- not in F43 repos; install post-boot via
@@ -156,6 +163,11 @@ copr_install_isolated "che/nerd-fonts" "nerd-fonts"
 # isolated transaction since both live in ublue-os/packages COPR.
 copr_install_isolated "ublue-os/packages" "bazaar" "uupd"
 
+# wallust -- color scheme generator from wallpapers, core of the Hyprland-Dots
+# theming pipeline. Isolated install from errornointernet/packages COPR
+# (same pattern as JaKooLit/Fedora-Hyprland).
+copr_install_isolated "errornointernet/packages" "wallust"
+
 echo "Packages installed."
 
 ############################################
@@ -165,20 +177,23 @@ rpm-ostree override remove firefox firefox-langpacks || true
 # `|| true` -- base-main may not ship Firefox in all variants; tolerate absence.
 
 ############################################
-# 6. Build hyprland-guiutils from source.
-#    Successor to the archived hyprland-qtutils — provides hyprland-dialog
-#    and other GUI utilities Hyprland expects at runtime. Uses hyprtoolkit
-#    (Wayland-native from the solopasha COPR), not Qt6.
-#    The COPR doesn't package hyprland-guiutils yet, so we build it here.
+# 6. Source builds (hyprland-guiutils + awww).
 ############################################
 BUILD_DEPS=(
+    # hyprland-guiutils (C++/CMake)
     cmake
     hyprlang-devel hyprutils-devel hyprtoolkit-devel
     pixman-devel libxkbcommon-devel libdrm-devel
+    # awww (Rust/Cargo)
+    rust cargo
+    wayland-protocols lz4-devel wayland-devel
 )
 dnf5 -y install --setopt=install_weak_deps=False "${BUILD_DEPS[@]}"
 
 BUILD_WORK=$(mktemp -d)
+
+# 6a. hyprland-guiutils — successor to the archived hyprland-qtutils.
+#     Provides hyprland-dialog etc. Uses hyprtoolkit (Wayland-native), not Qt6.
 git clone --depth 1 --branch "${HYPR_GUIUTILS_TAG}" \
     https://github.com/hyprwm/hyprland-guiutils.git "${BUILD_WORK}/hyprland-guiutils"
 cmake -S "${BUILD_WORK}/hyprland-guiutils" -B "${BUILD_WORK}/hyprland-guiutils/build" \
@@ -186,8 +201,17 @@ cmake -S "${BUILD_WORK}/hyprland-guiutils" -B "${BUILD_WORK}/hyprland-guiutils/b
     -DCMAKE_INSTALL_PREFIX=/usr
 cmake --build "${BUILD_WORK}/hyprland-guiutils/build" -j"$(nproc)"
 cmake --install "${BUILD_WORK}/hyprland-guiutils/build"
+
+# 6b. awww — preferred wallpaper daemon for Hyprland-Dots (swww is fallback).
+#     Not packaged in any COPR; built from source with cargo.
+git clone --depth 1 --branch "${AWWW_TAG}" \
+    https://codeberg.org/LGFae/awww.git "${BUILD_WORK}/awww"
+cargo build --release --manifest-path "${BUILD_WORK}/awww/Cargo.toml"
+install -Dm755 "${BUILD_WORK}/awww/target/release/awww" /usr/bin/awww
+install -Dm755 "${BUILD_WORK}/awww/target/release/awww-daemon" /usr/bin/awww-daemon
+
 rm -rf "${BUILD_WORK}"
-echo "hyprland-guiutils built and installed."
+echo "Source builds complete (hyprland-guiutils, awww)."
 
 ############################################
 # 7. SDDM Wayland-compositor integration (sddm-hyprland) + theme.

@@ -3,12 +3,13 @@ Description=Preinstall Flatpaks
 After=network-online.target
 Wants=network-online.target
 ConditionPathExists=/usr/bin/flatpak
+ConditionPathExists=/usr/share/flatpak/preinstall.d
 Documentation=man:flatpak-preinstall(1)
 StartLimitIntervalSec=600
 
 [Service]
 Type=oneshot
-ExecStart=/usr/bin/flatpak preinstall -y
+ExecStart=/usr/bin/atomic-hyprland-flatpak-preinstall
 RemainAfterExit=true
 Restart=on-failure
 RestartSec=30

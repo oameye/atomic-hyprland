@@ -1,4 +1,5 @@
-# Installed on first boot by flatpak-preinstall.service.
+# Installed by atomic-hyprland-flatpak-preinstall when the preinstall
+# manifest changes.
 # Format: https://man.archlinux.org/man/flatpak-preinstall.1
 # Uninstallation is opt-in (user removes with `flatpak uninstall`).
 

@@ -242,6 +242,11 @@ cmake --install "${BUILD_WORK}/hyprpolkitagent/build"
 rm -rf "${BUILD_WORK}"
 echo "Source builds complete (hyprland-guiutils, awww, hyprland-qt-support, hyprpolkitagent)."
 
+# Build-only toolchains and cargo registry state do not belong in the final
+# image. Strip them back out once the compiled artifacts are installed.
+dnf5 -y remove --no-autoremove "${BUILD_DEPS[@]}"
+rm -rf /root/.cargo /root/.rustup
+
 ############################################
 # 7. SDDM Wayland-compositor integration (sddm-hyprland) + theme.
 ############################################
@@ -303,9 +308,9 @@ systemctl enable podman-auto-update.timer
 systemctl --global enable flatpak-user-update.timer
 systemctl --global enable podman-auto-update.timer
 systemctl enable atomic-hyprland-dx-groups.service
-# flatpak-preinstall.service reads /usr/share/flatpak/preinstall.d/*.preinstall
-# and runs `flatpak preinstall -y` once on first boot. We ship zen-browser
-# there. Adding more apps later is dropping another .preinstall file.
+# flatpak-preinstall.service hashes /usr/share/flatpak/preinstall.d/*.preinstall
+# and only runs `flatpak preinstall -y` when that manifest changes. We ship
+# zen-browser there. Adding more apps later is dropping another .preinstall file.
 systemctl enable flatpak-preinstall.service
 # uupd timer runs the universal updater (rpm-ostree + flatpak + brew) on a
 # schedule. `uupd` command is also available for manual runs.

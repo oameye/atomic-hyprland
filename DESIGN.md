@@ -83,10 +83,10 @@ The full Hyprland-Dots tree is cloned unpinned (master) during each build and co
 
 ```sh
 ujust sync-skel-config              # safe -- skips files that already exist
-ujust sync-skel-config overwrite=1  # clobber existing files from the new skel
+ujust sync-skel-config overwrite=1  # replace managed files from the new skel
 ```
 
-The recipe lives at `/usr/share/ublue-os/just/60-custom.just` — uBlue's sanctioned extension point (`base-main`'s justfile already `import?`'s this path).
+`overwrite=1` treats only the shipped skel subtrees as managed: on the first forced sync it refreshes those subtrees wholesale, and on later forced syncs it also prunes files that prior overwrite runs synced but upstream has since removed, without treating the rest of `$HOME` as managed. The recipe lives at `/usr/share/ublue-os/just/60-custom.just` — uBlue's sanctioned extension point (`base-main`'s justfile already `import?`'s this path).
 
 ### Source builds
 
@@ -96,6 +96,8 @@ Four packages are built from source at image build time because they aren't clea
 - **`awww`** (pinned tag, Rust/Cargo) — preferred wallpaper daemon for Hyprland-Dots (`swww` is the fallback). Not packaged in any COPR. Build deps: `rust`, `cargo`, `wayland-protocols`, `lz4-devel`, `wayland-devel`.
 - **`hyprland-qt-support`** (pinned tag, C++/CMake) — QML style plugin. The solopasha COPR build is linked against Qt6.9 private API; Fedora 43 ships Qt6.10, so `dnf` can't resolve the COPR package. Building from source compiles against the system Qt6.10 and sidesteps the ABI mismatch. Installed to `/usr/lib64/qt6/qml/` (Fedora's Qt6 QML path). Build deps: `qt6-qtbase-devel`, `qt6-qtdeclarative-devel`, `hyprlang-devel`.
 - **`hyprpolkitagent`** (pinned tag, C++/CMake) — Hyprland-native polkit authentication agent. Same COPR/Qt6-ABI constraint as `hyprland-qt-support` (which it depends on at runtime). Build deps: `qt6-qtbase-devel`, `qt6-qtdeclarative-devel`, `polkit-devel`, `polkit-qt6-1-devel`, `hyprutils-devel`.
+
+All build-only toolchains and devel packages are explicitly removed again after installation so the final image only keeps the compiled artifacts.
 
 ## SDDM greeter
 
@@ -107,7 +109,7 @@ Pre-baked at image build time because SDDM themes and the Hyprland-compositor-ho
 
 ## Browser
 
-No browser is layered as RPM; `base-main`'s Firefox is `override remove`d. [Zen Browser](https://zen-browser.app/) is auto-installed on first boot via the upstream `flatpak-preinstall.service` (shipped by the `flatpak` RPM), which reads `*.preinstall` files from `/usr/share/flatpak/preinstall.d/`. We ship `files/usr/share/flatpak/preinstall.d/zen-browser.preinstall`; adding more Flatpaks later is dropping another file in that directory. Flathub is pre-added system-wide during build. Known Flatpak-browser trade-offs (`~/.var/app/…` paths, portal-mediated file access, sandboxed native-messaging) are accepted.
+No browser is layered as RPM; `base-main`'s Firefox is `override remove`d. [Zen Browser](https://zen-browser.app/) is installed by a small wrapper around `flatpak preinstall -y` that hashes `/usr/share/flatpak/preinstall.d/*.preinstall` and only reruns when that manifest changes. We ship `files/usr/share/flatpak/preinstall.d/zen-browser.preinstall`; adding more Flatpaks later is dropping another file in that directory. Flathub is pre-added system-wide during build. Known Flatpak-browser trade-offs (`~/.var/app/…` paths, portal-mediated file access, sandboxed native-messaging) are accepted.
 
 ## Build & release
 
@@ -120,6 +122,7 @@ build_files/
   build.sh                     # bind-mounted into the build, never lands in image
 files/                         # COPY'd into final image
   etc/sddm.conf.d/*.conf
+  usr/bin/atomic-hyprland-flatpak-preinstall
   usr/bin/atomic-hyprland-dx-groups
   usr/lib/systemd/system/atomic-hyprland-dx-groups.service
   usr/lib/sysusers.d/atomic-hyprland.conf
@@ -159,7 +162,7 @@ Key properties: `build.sh` is bind-mounted so it never persists in the image; ca
 3. Drop the VS Code repo file and the Docker CE repo file (latter `enabled=0`).
 4. `dnf5 -y install --setopt=install_weak_deps=False` the full package set; then Docker CE, nerd-fonts, bazaar/uupd, and wallust via isolated COPR installs.
 5. `rpm-ostree override remove firefox firefox-langpacks`.
-6. **Source builds** — `hyprland-guiutils` (C++/CMake) and `awww` (Rust/Cargo).
+6. **Source builds** — `hyprland-guiutils`, `awww`, `hyprland-qt-support`, and `hyprpolkitagent`; then remove the build-only toolchains again.
 7. **SDDM greeter + theme + Hyprland-Dots rice** (all in one scratch dir):
    - Clone `HyDE-Project/sddm-hyprland` at pinned tag → `make install PREFIX=/usr`.
    - Clone `Keyitdev/sddm-astronaut-theme` at pinned commit → install into `/usr/share/sddm/themes/`, copy its fonts, sed the variant.

@@ -21,7 +21,7 @@ jobs:
       packages: write
       pull-requests: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Free disk space
         uses: jlumbroso/free-disk-space@main
@@ -139,7 +139,7 @@ jobs:
 
       - name: Comment size report on PR
         if: github.event_name == 'pull_request'
-        uses: marocchino/sticky-pull-request-comment@v2
+        uses: marocchino/sticky-pull-request-comment@v3
         with:
           header: image-size-report
           path: size-report.md

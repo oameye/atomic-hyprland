@@ -104,14 +104,15 @@ jobs:
         id: size
         run: |
           set -euo pipefail
-          # New image: inspect from local containers-storage
-          NEW_JSON=$(sudo skopeo inspect --raw \
+          # New image: inspect the rootless containers-storage that
+          # buildah-build wrote to (no sudo -- root has a separate store).
+          NEW_JSON=$(skopeo inspect --raw \
             "containers-storage:localhost/${IMAGE_NAME}:pr-${{ github.event.pull_request.number }}")
           NEW_BYTES=$(echo "$NEW_JSON" | jq '[.layers[].size] | add')
           NEW_LAYERS=$(echo "$NEW_JSON" | jq '.layers | length')
 
           # Baseline: current :latest on GHCR (ignore if not yet published)
-          if OLD_JSON=$(sudo skopeo inspect --raw \
+          if OLD_JSON=$(skopeo inspect --raw \
               "docker://${IMAGE_REGISTRY}/${IMAGE_NAME}:latest" 2>/dev/null); then
             OLD_BYTES=$(echo "$OLD_JSON" | jq '[.layers[].size] | add')
             OLD_LAYERS=$(echo "$OLD_JSON" | jq '.layers | length')

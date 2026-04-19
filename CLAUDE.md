@@ -68,11 +68,12 @@ Do not append config blocks to UserSettings.conf unless absolutely necessary —
 
 ## Source builds
 
-Four components are built from source in `build.sh` section 6:
+Components built from source in `build.sh` section 6 (in build order):
 
+- **hyprwayland-scanner**, **hyprutils**, **hyprgraphics**, **aquamarine**, **hyprtoolkit** — the hyprwm toolkit dependency chain for `hyprland-guiutils`. The solopasha COPR's `hyprtoolkit` (0.2.0) and `hyprutils` (0.10.0) are too old for `hyprland-guiutils` v0.2.1, so the whole chain is source-built. Uses the shared `cmake_build_install` helper.
 - **hyprland-guiutils** (CMake, hyprtoolkit-based, no Qt6) — successor to the archived `hyprland-qtutils`. Provides `hyprland-dialog`.
 - **awww** (Cargo) — preferred wallpaper daemon (swww is fallback). Not packaged anywhere.
 - **hyprland-qt-support** (CMake, Qt6) — QML style plugin for Hyprland Qt apps. Built against system Qt6.10 to sidestep the COPR's Qt6.9 private-ABI mismatch.
 - **hyprpolkitagent** (CMake, Qt6) — Hyprland-native polkit agent. Same Qt6-ABI reason as `hyprland-qt-support`.
 
-All four are pinned via `*_TAG` variables at the top of `build.sh`. When the solopasha COPR rebuilds `hyprland-qt-support` / `hyprpolkitagent` against Qt6.10, the two Qt6 source builds can be replaced with COPR installs.
+All are pinned via `*_TAG` variables at the top of `build.sh`. When the solopasha COPR catches up on `hyprtoolkit`/`hyprutils` the toolkit chain can collapse back to COPR installs; same for Qt6.10 on `hyprland-qt-support` / `hyprpolkitagent`.

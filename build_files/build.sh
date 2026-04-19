@@ -14,10 +14,10 @@ SDDM_ASTRONAUT_VARIANT="astronaut"
 
 ############################################
 # 1. Enable COPR repos
-#    solopasha/hyprland and pgdev/ghostty stay live so rpm-ostree upgrade
-#    can pick up Hyprland/ghostty updates between CI rebuilds.
+#    solopasha/hyprland, pgdev/ghostty, errornointernet/quickshell stay
+#    live so rpm-ostree upgrade can pick up updates between CI rebuilds.
 ############################################
-for i in solopasha/hyprland pgdev/ghostty; do
+for i in solopasha/hyprland pgdev/ghostty errornointernet/quickshell; do
     owner="${i%%/*}"
     repo="${i##*/}"
     curl -fsSL \
@@ -84,29 +84,43 @@ PACKAGES=(
     sddm layer-shell-qt
     qt6-qtsvg qt6-qtmultimedia qt6-qtdeclarative qt6-qtvirtualkeyboard
 
-    # Desktop apps.
-    # kitty is kept alongside ghostty: LinuxBeginnings/Hyprland-Dots
-    # references kitty as its themed reference terminal (theme switcher,
-    # Kitty_themes.sh, etc.). ghostty is the actual daily driver -- user
-    # sets `$term = ghostty` in ~/.config/hypr/UserConfigs/01-UserDefaults.conf
-    # after running the dots installer.
-    # yazi dropped -- not in F43 repos; install via brew post-boot.
-    ghostty kitty waybar rofi-wayland swaync
-    nautilus nautilus-python
+    # Desktop apps (Hyprland-Dots expected runtime -- compiled against
+    # LinuxBeginnings/Fedora-Hyprland's install-scripts package list).
+    # Deliberately skipped from that upstream list:
+    #   - hyprpolkitagent + hyprland-qtutils (Qt6 ABI; mate-polkit replaces)
+    #   - all qt5-* + kvantum-qt5 + qt5ct (user directive: no Qt5)
+    #   - xfce-polkit (mate-polkit replaces)
+    #   - thunar + thunar-archive-plugin (we ship nautilus; $files patched
+    #     to nautilus at build time)
+    #   - rofi (we have rofi-wayland which provides the rofi binary)
+    #   - asusctl, rog-control-center, nm-tray (ASUS / Ubuntu)
+    #   - yazi (not in F43 repos -- install via brew)
+    #   - hyprland-guiutils (dead ref in upstream script)
+    # kitty stays alongside ghostty so Kitty_themes.sh + theme switcher work.
+    # ghostty is the $term default (patched into 01-UserDefaults.conf below).
+    ghostty kitty waybar rofi-wayland swaync quickshell
+    nautilus nautilus-python ffmpegthumbnailer xarchiver
     wl-clipboard cliphist
-    grim slurp satty
-    network-manager-applet blueman bluez-tools
-    pavucontrol playerctl pamixer
+    grim slurp satty swappy
+    network-manager-applet blueman bluez-tools python3-cairo
+    pavucontrol playerctl pamixer pulseaudio-utils
+    pipewire-alsa pipewire-utils
     xdg-desktop-portal-gtk polkit mate-polkit
-    brightnessctl wlr-randr uwsm
+    brightnessctl wlr-randr uwsm wlogout
     gvfs gvfs-mtp gvfs-smb
+    xdg-user-dirs xdg-utils yad libnotify acpi inxi
+    dbus-tools bc ImageMagick jq nano rsync unzip wget2
+    python3-requests python3-pyquery python3-pip
+    qt6ct
 
     # Developer tooling.
     # eduvpn-client dropped -- not in F43 repos; install post-boot via
     # pipx (eduvpn-gui) or Flatpak.
+    # python3-pip already listed under Desktop apps (Hyprland-Dots scripts
+    # need it at runtime).
     code
     make
-    gcc-c++ libstdc++-devel python3-pip sqlite-devel
+    gcc-c++ libstdc++-devel sqlite-devel
 
     # Container stack (Fedora-side).
     podman-compose podman-tui podman-machine flatpak-builder
@@ -114,12 +128,14 @@ PACKAGES=(
     # GPU compute (AMD ROCm).
     rocm-hip rocm-opencl rocm-smi
 
-    # Fonts and theming.
+    # Fonts and theming (aligned with upstream Hyprland-Dots fonts.sh).
     # Nerd Fonts installed via copr_install_isolated(che/nerd-fonts) below.
     # bibata-cursor-themes dropped -- not in F43 repos; HyDE ships cursor
     # themes into ~/.icons via its post-install.
-    fontawesome-fonts-all google-noto-emoji-fonts liberation-fonts
-    jetbrains-mono-fonts
+    fontawesome-fonts-all
+    google-noto-emoji-fonts google-noto-color-emoji-fonts google-noto-sans-cjk-fonts
+    liberation-fonts jetbrains-mono-fonts
+    adobe-source-code-pro-fonts fira-code-fonts google-droid-sans-fonts
     adwaita-icon-theme papirus-icon-theme
     kvantum
 )
@@ -190,11 +206,14 @@ git clone --depth 1 https://github.com/LinuxBeginnings/Hyprland-Dots.git \
 mkdir -p /etc/skel/.config
 cp -a "${WORK}/hyprland-dots/config/." /etc/skel/.config/
 
-# Override: make ghostty the default terminal (Hyprland-Dots ships kitty).
-# $term is defined once in 01-UserDefaults.conf; changing it there propagates
-# to every keybind and waybar module that uses $term.
-# shellcheck disable=SC2016  # $term is literal Hyprland config syntax.
-sed -i 's|^\$term\s*=.*|$term = ghostty|' \
+# Override default apps: make ghostty the default terminal (Hyprland-Dots
+# ships kitty) and nautilus the default file manager (upstream uses thunar
+# which we don't install). Both are defined as $term / $files in
+# 01-UserDefaults.conf; changing them there propagates to every keybind
+# and waybar module that references them.
+# shellcheck disable=SC2016  # $term / $files are literal Hyprland config syntax.
+sed -i -e 's|^\$term\s*=.*|$term = ghostty|' \
+       -e 's|^\$files\s*=.*|$files = nautilus|' \
     /etc/skel/.config/hypr/UserConfigs/01-UserDefaults.conf
 
 # Suppress the "hyprland-qtutils missing" notification overlay.

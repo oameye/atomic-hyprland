@@ -6,7 +6,9 @@
 # Example:
 #   ujust sync-skel-config              # safe -- skips files that exist
 #   ujust sync-skel-config overwrite=1  # overwrite everything from skel
-sync-skel-config overwrite="0":
+overwrite := "0"
+
+sync-skel-config:
     #!/usr/bin/env bash
     set -eu
     if [ "{{overwrite}}" = "1" ]; then

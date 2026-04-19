@@ -4,13 +4,24 @@ set -euo pipefail
 RELEASE="$(rpm -E %fedora)"
 echo "Fedora version: ${RELEASE}"
 
-# Pinned upstream tags.
-# sddm-hyprland: SDDM Wayland-compositor integration (make install -> /usr/share/hypr/sddm).
-# sddm-astronaut-theme: SDDM theme -- pinned to a specific commit since
-# the repo has no tags.
+# Pinned upstream tags / commits.
 SDDM_HYPRLAND_TAG="v0.48.0"
 SDDM_ASTRONAUT_COMMIT="d73842c"
 SDDM_ASTRONAUT_VARIANT="astronaut"
+
+# hyprland-guiutils (successor to the archived hyprland-qtutils) is built
+# from source — the COPR doesn't package it yet. It uses hyprtoolkit
+# (Wayland-native), not Qt6, so it has no private-ABI issues.
+HYPR_GUIUTILS_TAG="v0.2.1"
+
+# awww — preferred wallpaper daemon for Hyprland-Dots (swww is the fallback).
+# Not packaged in any COPR; built from source with cargo.
+AWWW_TAG="v0.9.5"
+
+# hyprland-qt-support + hyprpolkitagent — built from source against the system
+# Qt6 to sidestep the solopasha COPR's Qt6.9/6.10 private-ABI mismatch.
+HYPR_QT_SUPPORT_TAG="v0.1.0"
+HYPR_POLKITAGENT_TAG="v0.1.3"
 
 ############################################
 # 1. Enable COPR repos
@@ -70,11 +81,13 @@ echo "Repos enabled."
 ############################################
 PACKAGES=(
     # Hyprland ecosystem (solopasha COPR).
-    # hyprpolkitagent + hyprland-qtutils are dropped: their dep
-    # hyprland-qt-support-0.1.0 requires Qt6.9 private API while F43 updates
-    # ships Qt6.10. mate-polkit is used as the polkit auth agent instead.
+    # hyprland-guiutils, hyprland-qt-support, and hyprpolkitagent are built
+    # from source in section 6 — the COPR versions of hyprland-qt-support /
+    # hyprpolkitagent are built against Qt6.9 private API while Fedora 43
+    # ships Qt6.10. Building from source compiles against the system Qt6.
     hyprland hyprlock hypridle hyprpaper hyprshot hyprpicker hyprcursor
     hyprsunset xdg-desktop-portal-hyprland
+    swww
 
     # Session / greeter (Qt6 only -- we avoid Qt5).
     # Keyitdev/sddm-astronaut-theme is cloned into /usr/share/sddm/themes/
@@ -87,17 +100,12 @@ PACKAGES=(
     # Desktop apps (Hyprland-Dots expected runtime -- compiled against
     # LinuxBeginnings/Fedora-Hyprland's install-scripts package list).
     # Deliberately skipped from that upstream list:
-    #   - hyprpolkitagent + hyprland-qtutils (Qt6 ABI; mate-polkit replaces)
-    #   - all qt5-* + kvantum-qt5 + qt5ct (user directive: no Qt5)
-    #   - xfce-polkit (mate-polkit replaces)
+    #   - xfce-polkit + mate-polkit (hyprpolkitagent replaces, built in §6)
     #   - thunar + thunar-archive-plugin (we ship nautilus; $files patched
     #     to nautilus at build time)
     #   - rofi (we have rofi-wayland which provides the rofi binary)
     #   - asusctl, rog-control-center, nm-tray (ASUS / Ubuntu)
     #   - yazi (not in F43 repos -- install via brew)
-    #   - hyprland-guiutils (upstream rename of hyprland-qtutils;
-    #     same Qt6.9 ABI constraint applies -- suppressed via
-    #     misc:disable_hyprland_guiutils_check in UserSettings.conf)
     # kitty stays alongside ghostty so Kitty_themes.sh + theme switcher work.
     # ghostty is the $term default (patched into 01-UserDefaults.conf below).
     ghostty kitty waybar rofi-wayland swaync quickshell
@@ -107,13 +115,16 @@ PACKAGES=(
     network-manager-applet blueman bluez-tools python3-cairo
     pavucontrol playerctl pamixer pulseaudio-utils
     pipewire-alsa pipewire-utils
-    xdg-desktop-portal-gtk polkit mate-polkit
-    brightnessctl wlr-randr uwsm wlogout
+    mpv mpv-mpris cava
+    xdg-desktop-portal-gtk polkit
+    brightnessctl ddcutil wlr-randr uwsm wlogout
+    nwg-look loupe gtk-murrine-engine
     gvfs gvfs-mtp gvfs-smb
     xdg-user-dirs xdg-utils yad libnotify acpi inxi
     dbus-tools bc ImageMagick jq nano rsync unzip wget2
     python3-requests python3-pyquery python3-pip
-    qt6ct
+    btop nvtop fastfetch gnome-system-monitor qalculate-gtk
+    qt5ct qt6ct qt6-qt5compat kvantum-qt5
 
     # Developer tooling.
     # eduvpn-client dropped -- not in F43 repos; install post-boot via
@@ -157,6 +168,11 @@ copr_install_isolated "che/nerd-fonts" "nerd-fonts"
 # isolated transaction since both live in ublue-os/packages COPR.
 copr_install_isolated "ublue-os/packages" "bazaar" "uupd"
 
+# wallust -- color scheme generator from wallpapers, core of the Hyprland-Dots
+# theming pipeline. Isolated install from errornointernet/packages COPR
+# (same pattern as JaKooLit/Fedora-Hyprland).
+copr_install_isolated "errornointernet/packages" "wallust"
+
 echo "Packages installed."
 
 ############################################
@@ -166,13 +182,68 @@ rpm-ostree override remove firefox firefox-langpacks || true
 # `|| true` -- base-main may not ship Firefox in all variants; tolerate absence.
 
 ############################################
-# 6. SDDM Wayland-compositor integration (sddm-hyprland) + theme.
-#    - sddm-hyprland drops conf files + a Hyprland config into
-#      /usr/share/hypr/sddm/ so the greeter renders through a Hyprland
-#      compositor. Qt6-compatible.
-#    - Keyitdev/sddm-astronaut-theme provides the actual look; we pick the
-#      ${SDDM_ASTRONAUT_VARIANT} variant by editing metadata.desktop.
-#    See DESIGN.md -> "SDDM greeter".
+# 6. Source builds (hyprland-guiutils, awww, hyprland-qt-support,
+#    hyprpolkitagent). See DESIGN.md -> "Source builds" for rationale.
+############################################
+BUILD_DEPS=(
+    # hyprland-guiutils (C++/CMake)
+    cmake
+    hyprlang-devel hyprutils-devel hyprtoolkit-devel
+    pixman-devel libxkbcommon-devel libdrm-devel
+    # awww (Rust/Cargo)
+    rust cargo
+    wayland-protocols lz4-devel wayland-devel
+    # hyprland-qt-support + hyprpolkitagent (Qt6/CMake)
+    qt6-qtbase-devel qt6-qtdeclarative-devel
+    polkit-devel polkit-qt6-1-devel
+)
+dnf5 -y install --setopt=install_weak_deps=False "${BUILD_DEPS[@]}"
+
+BUILD_WORK=$(mktemp -d)
+
+# 6a. hyprland-guiutils — successor to the archived hyprland-qtutils.
+#     Provides hyprland-dialog etc. Uses hyprtoolkit (Wayland-native), not Qt6.
+git clone --depth 1 --branch "${HYPR_GUIUTILS_TAG}" \
+    https://github.com/hyprwm/hyprland-guiutils.git "${BUILD_WORK}/hyprland-guiutils"
+cmake -S "${BUILD_WORK}/hyprland-guiutils" -B "${BUILD_WORK}/hyprland-guiutils/build" \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_INSTALL_PREFIX=/usr
+cmake --build "${BUILD_WORK}/hyprland-guiutils/build" -j"$(nproc)"
+cmake --install "${BUILD_WORK}/hyprland-guiutils/build"
+
+# 6b. awww — preferred wallpaper daemon for Hyprland-Dots (swww is fallback).
+#     Not packaged in any COPR; built from source with cargo.
+git clone --depth 1 --branch "${AWWW_TAG}" \
+    https://codeberg.org/LGFae/awww.git "${BUILD_WORK}/awww"
+cargo build --release --manifest-path "${BUILD_WORK}/awww/Cargo.toml"
+install -Dm755 "${BUILD_WORK}/awww/target/release/awww" /usr/bin/awww
+install -Dm755 "${BUILD_WORK}/awww/target/release/awww-daemon" /usr/bin/awww-daemon
+
+# 6c. hyprland-qt-support — QML style plugin. Runtime dep for hyprpolkitagent.
+#     INSTALL_QML_PREFIX=/lib64/qt6/qml matches Fedora's Qt6 QML install path.
+git clone --depth 1 --branch "${HYPR_QT_SUPPORT_TAG}" \
+    https://github.com/hyprwm/hyprland-qt-support.git "${BUILD_WORK}/hyprland-qt-support"
+cmake -S "${BUILD_WORK}/hyprland-qt-support" -B "${BUILD_WORK}/hyprland-qt-support/build" \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_INSTALL_PREFIX=/usr \
+    -DINSTALL_QML_PREFIX=/lib64/qt6/qml
+cmake --build "${BUILD_WORK}/hyprland-qt-support/build" -j"$(nproc)"
+cmake --install "${BUILD_WORK}/hyprland-qt-support/build"
+
+# 6d. hyprpolkitagent — Hyprland-native polkit authentication agent.
+git clone --depth 1 --branch "${HYPR_POLKITAGENT_TAG}" \
+    https://github.com/hyprwm/hyprpolkitagent.git "${BUILD_WORK}/hyprpolkitagent"
+cmake -S "${BUILD_WORK}/hyprpolkitagent" -B "${BUILD_WORK}/hyprpolkitagent/build" \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_INSTALL_PREFIX=/usr
+cmake --build "${BUILD_WORK}/hyprpolkitagent/build" -j"$(nproc)"
+cmake --install "${BUILD_WORK}/hyprpolkitagent/build"
+
+rm -rf "${BUILD_WORK}"
+echo "Source builds complete (hyprland-guiutils, awww, hyprland-qt-support, hyprpolkitagent)."
+
+############################################
+# 7. SDDM Wayland-compositor integration (sddm-hyprland) + theme.
 ############################################
 WORK=$(mktemp -d)
 
@@ -195,12 +266,7 @@ sed -i "s|^ConfigFile=.*|ConfigFile=Themes/${SDDM_ASTRONAUT_VARIANT}.conf|" \
     /usr/share/sddm/themes/sddm-astronaut-theme/metadata.desktop
 
 ############################################
-# 6b. LinuxBeginnings/Hyprland-Dots -- full rice, baked into /etc/skel.
-#     Unpinned (tracks master) so weekly CI picks up upstream improvements
-#     automatically. See DESIGN.md -> "Desktop Environment".
-#
-#     Users run `ujust sync-skel-config` post-rebase to rsync the new
-#     configs into their $HOME (/etc/skel only applies to new accounts).
+# 7b. LinuxBeginnings/Hyprland-Dots -- full rice, baked into /etc/skel.
 ############################################
 git clone --depth 1 https://github.com/LinuxBeginnings/Hyprland-Dots.git \
     "${WORK}/hyprland-dots"
@@ -218,32 +284,16 @@ sed -i -e 's|^\$term\s*=.*|$term = ghostty|' \
        -e 's|^\$files\s*=.*|$files = nautilus|' \
     /etc/skel/.config/hypr/UserConfigs/01-UserDefaults.conf
 
-# Suppress the "hyprland-qtutils missing" notification overlay.
-# hyprland-qtutils is not installable on F43 while solopasha's
-# hyprland-qt-support-0.1.0 requires Qt6.9 private API (F43 ships Qt6.10).
-# Same constraint affects cjuniorfox/hyprland-atomic. Hyprland exposes
-# `misc:disable_hyprland_guiutils_check = true` specifically to quiet this
-# warning when the user knows the package is intentionally absent.
-# See: hyprwm/hyprland-qt-support issue #9.
-cat >> /etc/skel/.config/hypr/UserConfigs/UserSettings.conf <<'EOF'
-
-# Added by atomic-hyprland build.sh -- suppress the qtutils-missing warning.
-# Remove this block if hyprland-qtutils becomes installable again.
-misc {
-    disable_hyprland_guiutils_check = true
-}
-EOF
-
 rm -rf "${WORK}"
 
 ############################################
-# 7. Flathub remote system-wide
+# 8. Flathub remote system-wide
 ############################################
 flatpak remote-add --if-not-exists --system flathub \
     https://dl.flathub.org/repo/flathub.flatpakrepo
 
 ############################################
-# 8. Enable systemd units at build time
+# 9. Enable systemd units at build time
 ############################################
 systemctl enable sddm.service
 systemctl enable docker.socket
@@ -262,7 +312,7 @@ systemctl enable flatpak-preinstall.service
 systemctl enable uupd.timer
 
 ############################################
-# 9. Cleanup for image-size hygiene AND bootc var-tmpfiles lint.
+# 10. Cleanup for image-size hygiene AND bootc var-tmpfiles lint.
 #    bootc wants /var empty in the image -- clean dnf repo metadata,
 #    blueman state dir, and tmp.
 ############################################

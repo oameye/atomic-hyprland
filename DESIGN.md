@@ -109,9 +109,13 @@ The following pieces are copied-from-upstream rather than invented. If uBlue cha
 | `build.sh` (container-stack section) | `ublue-os/bluefin` → `build_files/dx/00-dx.sh` |
 | `build.sh` (`copr_install_isolated` helper) | `ublue-os/bluefin` → `build_files/shared/copr-helpers.sh` |
 | `build.sh` (`che/nerd-fonts` → `nerd-fonts` install pattern) | `ublue-os/bluefin` → `build_files/base/04-packages.sh` |
+| `Containerfile` (two-stage ctx + cache mounts + `bootc container lint`) | `ublue-os/image-template` → `Containerfile` |
+| `Justfile` (local-dev recipes) | `ublue-os/image-template` → `Justfile` (trimmed; VM/ISO recipes dropped) |
 | `files/usr/bin/atomic-hyprland-dx-groups` | `ublue-os/bluefin` → `system_files/dx/usr/bin/bluefin-dx-groups` |
 | `files/usr/lib/systemd/system/atomic-hyprland-dx-groups.service` | `ublue-os/bluefin` → `system_files/dx/usr/lib/systemd/system/bluefin-dx-groups.service` |
-| SDDM greeter integration | `HyDE-Project/sddm-hyprland` (tracked by upstream tag, `make install`-ed at build time) |
+| SDDM greeter integration | `HyDE-Project/sddm-hyprland` (pinned tag `v0.48.0`, `make install`-ed at build time) |
+| SDDM theme | `Keyitdev/sddm-astronaut-theme` (pinned commit `d73842c`, variant `astronaut`; cloned + fonts copied) |
+| `/etc/skel/.config/*` (full Hyprland rice) | `LinuxBeginnings/Hyprland-Dots` (**unpinned** master; weekly CI picks up upstream automatically) |
 
 ### GPU compute (AMD ROCm)
 
@@ -139,33 +143,70 @@ Verified against `ublue-os/main` → `build_files/install.sh` (which installs `u
 
 PipeWire + WirePlumber, Flatpak, podman, distrobox, NetworkManager, rpm-ostree, `ublue-os-signing`, `ublue-os-just` (provides `ujust`), `ublue-os-update-services` (provides `ublue-update` + automatic timers), `ublue-os-udev-rules`, `ublue-os-luks`, Homebrew setup unit, `rpm-ostreed-automatic.timer`.
 
-## Desktop Environment (HyDE)
+## Desktop Environment ([LinuxBeginnings/Hyprland-Dots](https://github.com/LinuxBeginnings/Hyprland-Dots))
 
-HyDE is **not** baked into the image. After rebasing, the user runs HyDE's upstream installer once:
+### History — why not HyDE
 
-```sh
-bash <(curl -s https://raw.githubusercontent.com/HyDE-Project/HyDE/master/Scripts/install.sh)
+The original plan was to run [HyDE-Project/HyDE](https://github.com/HyDE-Project/HyDE) post-rebase. First on-system test revealed two hard blockers:
+
+1. **HyDE is Arch-only.** Its README explicitly says so; the installer calls `pacman`/AUR helpers and fails on Fedora, prompting to install `yay`/`paru` on an Atomic system. HyDE's `pm.sh` lists `dnf` in a supported-package-managers array but multiple other install paths hard-code Arch assumptions.
+2. **Hyprland's stock `/usr/share/hyprland/hyprland.conf` fallback binds `SUPER+Q` to `kitty`** — we had ghostty but not kitty at the time, so without a rice the user had no working terminal keybind and had to reach a TTY to recover.
+
+We switched to **LinuxBeginnings/Hyprland-Dots** (successor to JaKooLit/Hyprland-Dots — both authors archived the JaKooLit org in March 2026). `LinuxBeginnings/Fedora-Hyprland` (the **installer** repo) still uses `sudo dnf install` and is not Atomic-compatible. **`LinuxBeginnings/Hyprland-Dots` (the dotfiles-only repo)** is package-manager-free — `copy.sh` writes only to `~/.config`, grep confirms no `dnf install`/`pacman`/`apt` calls — and works fine on Atomic once packages are baked.
+
+### Baked into `/etc/skel` at build time
+
+We clone `LinuxBeginnings/Hyprland-Dots` **unpinned** (master) during every image build and copy `config/` → `/etc/skel/.config/`. This gives low-maintenance + automatic updates: weekly CI pulls the latest master automatically, no manual submodule bumps on our side.
+
+Pattern chosen over running `copy.sh` post-boot because `copy.sh` is heavily interactive (whiptail menus, keyboard/resolution/animation prompts) and hard-codes `$HOME` paths — it's not safe to run non-interactively in a Containerfile against `/etc/skel`, and defaults can be hard-coded at bake time (AMD GPU, no Nvidia branches, US keyboard).
+
+### Baked-in overrides
+
+During the build, `build.sh` applies two patches on top of the Hyprland-Dots tree:
+
+1. **Ghostty as default terminal.** Hyprland-Dots ships `$term = kitty` in `01-UserDefaults.conf`. We sed-patch it to `$term = ghostty`. Kitty is still installed because Hyprland-Dots' theme switcher (`Kitty_themes.sh`) references it.
+2. **Silence the `hyprland-qtutils missing` notification overlay.** We append a `misc { disable_hyprland_guiutils_check = true }` block to `UserConfigs/UserSettings.conf`. Rationale in the next section.
+
+### `hyprland-qtutils` warning suppression
+
+`hyprland-qtutils` and `hyprpolkitagent` (both from `solopasha/hyprland` COPR) depend on `hyprland-qt-support-0.1.0-8.fc43`, which requires `Qt_6.9_PRIVATE_API` symbols. Fedora 43 updates ships Qt6.10, so the COPR packages cannot be installed — a dependency resolution conflict. We drop them from the package list and use `mate-polkit` as the polkit auth agent instead (Hyprland-Dots' `Polkit.sh` walks a list of agent paths including `/usr/libexec/polkit-mate-authentication-agent-1` and picks mate-polkit automatically).
+
+But Hyprland itself still checks for `hyprland-dialog` in `$PATH` at startup ([`Compositor.cpp` in `hyprwm/Hyprland`](https://github.com/hyprwm/Hyprland/blob/main/src/Compositor.cpp)) and fires a 15-second notification overlay if missing. Upstream provides a specific config flag to suppress this check when the user knowingly omits the package:
+
+```
+misc {
+    disable_hyprland_guiutils_check = true
+}
 ```
 
-Rationale: HyDE's installer is designed to run against a live `$HOME`, manages its own theme-switcher state, and pulls updates from its own repo. Vendoring a subset into `/etc/skel` would diverge from upstream and break the theme switcher. Since this is a personal image, running the installer once by hand is simpler than wrapping it.
+We append this block to `UserConfigs/UserSettings.conf` during build so the warning never appears.
 
-**Ghostty theming:** HyDE's main repo defaults to kitty and its theme switcher themes kitty directly. Ghostty theming lives in the sidecar repo [`HyDE-Project/terminal-emulators`](https://github.com/HyDE-Project/terminal-emulators). After HyDE's installer runs, clone that repo and copy `ghostty/` into `~/.config/ghostty/`; the theme switcher will then keep ghostty in sync on theme changes.
+**Reference:** [`hyprwm/hyprland-qt-support` issue #9](https://github.com/hyprwm/hyprland-qt-support/issues/9) (Fedora 43 Qt6.10 dependency conflict, open). The same constraint affects [`cjuniorfox/hyprland-atomic`](https://github.com/cjuniorfox/hyprland-atomic) — their `build.sh` comments "removed hyprland-qtutils from Fedora 43 release because of compatibility issues". No F43 COPR currently ships a Qt6.10-compatible `hyprland-qt-support`. Revisit when upstream or solopasha rebuilds; once `hyprland-qtutils` becomes installable again, remove the `disable_hyprland_guiutils_check` block and add `hyprpolkitagent` + `hyprland-qtutils` back to the package list.
+
+### Applying the skel to existing `$HOME`
+
+`/etc/skel` only copies to `$HOME` for **newly created** user accounts. A user who rebased from a previous image already has `$HOME` and will not get the new skel on first boot. We ship a `ujust` recipe that rsyncs `/etc/skel/` into `$HOME`:
+
+```sh
+ujust sync-skel-config              # safe -- skips files that already exist in $HOME
+ujust sync-skel-config overwrite=1  # clobber existing files with the new skel
+```
+
+The recipe lives in `files/usr/share/ublue-os/just/60-custom.just` — the `60-custom` filename is uBlue's sanctioned extension point: `base-main`'s `/usr/share/ublue-os/justfile` already contains `import? "/usr/share/ublue-os/just/60-custom.just"` (the `?` makes it optional, so plain base-main tolerates its absence).
 
 ### SDDM greeter — pre-baked at image build time
 
-[`HyDE-Project/sddm-hyprland`](https://github.com/HyDE-Project/sddm-hyprland) writes to `/usr/share/` at install time. On rpm-ostree Atomic, `/usr/` is a read-only ostree tree — post-boot writes fail or don't persist. We therefore pre-bake at image build time:
+Two assets ship into the image for the greeter:
 
-1. Install the Qt6 session/greeter stack and `sddm-themes` (see "Session / greeter" above).
-2. Clone `HyDE-Project/sddm-hyprland` at the pinned tag (currently `v0.48.0`) in `build.sh` and run `make install PREFIX=/usr`. This drops:
-   - `/usr/share/hypr/sddm/hyprland.conf`, `/usr/share/hypr/sddm/hyprprefs.conf`
-   - `/etc/sddm.conf.d/sddm-hyprland.conf` (sets `CompositorCommand=Hyprland -c /usr/share/hypr/sddm/hyprland.conf`)
-   - `/etc/sddm.conf.d/sddm-user.conf` (cursor fix)
-3. Ship `/etc/sddm.conf.d/theme.conf` with `[Theme] Current=maldives` selecting the theme shipped by the Fedora `sddm-themes` package.
-4. Ship an empty marker file `/etc/sddm.conf.d/backup_the_hyde_project.conf`. HyDE's `install_pst.sh` tests for this file and skips its own SDDM reconfiguration when present — preventing the user's post-rebase HyDE installer from attempting (and failing on) `/usr/share/sddm/themes/` writes to extract HyDE's Qt5-based themes.
+- **[`HyDE-Project/sddm-hyprland`](https://github.com/HyDE-Project/sddm-hyprland)** — Wayland-compositor integration that makes SDDM render through a Hyprland compositor. `make install PREFIX=/usr` drops `/usr/share/hypr/sddm/hyprland.conf` + `/etc/sddm.conf.d/sddm-hyprland.conf` (sets `CompositorCommand=Hyprland -c /usr/share/hypr/sddm/hyprland.conf`) + `/etc/sddm.conf.d/sddm-user.conf` (cursor fix). Qt6-compatible. Pinned to tag `v0.48.0`.
+- **[`Keyitdev/sddm-astronaut-theme`](https://github.com/Keyitdev/sddm-astronaut-theme)** (2.7k stars, actively maintained) — SDDM theme. Cloned into `/usr/share/sddm/themes/sddm-astronaut-theme`, pinned to commit `d73842c` (no upstream tags exist). Fonts in the repo's `Fonts/` are copied to `/usr/share/fonts/`. We sed-patch the theme's `metadata.desktop` to point at the **`astronaut` variant** (the repo's namesake, space-themed); alternatives `black_hole`, `cyberpunk`, `japanese_aesthetic`, `purple_leaves`, etc. are a one-line build-arg change.
 
-Result: the greeter renders through Hyprland as a Wayland compositor with Fedora's `maldives` SDDM theme, everything baked into the image, zero runtime `/usr/` writes, zero manual SDDM steps for the user.
+We also ship:
+- `/etc/sddm.conf.d/theme.conf` with `[Theme] Current=sddm-astronaut-theme`
+- `/etc/sddm.conf.d/virtualkbd.conf` with `[General] InputMethod=qtvirtualkeyboard` (astronaut theme needs `qt6-qtvirtualkeyboard`)
+- `/etc/sddm.conf.d/backup_the_hyde_project.conf` (empty marker — legacy from the HyDE era; harmless, kept so any future HyDE reintroduction skips its own SDDM touches)
 
-**Why not HyDE's Candy/Corners themes?** They use Qt5 QML imports (`QtQuick 2.12`, `QtGraphicalEffects 1.12`, etc.). Fedora 43 ships SDDM built against Qt6 and we deliberately exclude the Qt5 runtime. `sddm-themes`/`maldives` is what wayblue ships on its Hyprland variant and is KDE-dependency-free (unlike `sddm-breeze`, which drags `plasma-workspace`).
+Previous iterations tried HyDE's `Sddm_Corners` theme (Qt5 — dropped with the Qt5 stack) and Fedora's `sddm-themes`/`maldives` (aesthetically underwhelming — *"insanely ugly"* per user testing). `sddm-breeze` was rejected because it drags `plasma-workspace` (~200-500 MB of KDE deps).
 
 ## Build & Release
 
@@ -178,10 +219,13 @@ build_files/
   build.sh                     # bind-mounted into the build, never lands in image
 files/                         # filesystem overlay, COPY'd into final image
   etc/systemd/system/install-zen-browser.service
-  etc/sddm.conf.d/theme.conf                    # selects maldives
-  etc/sddm.conf.d/backup_the_hyde_project.conf  # marker -- skips HyDE's SDDM step
+  etc/sddm.conf.d/theme.conf                      # selects sddm-astronaut-theme
+  etc/sddm.conf.d/virtualkbd.conf                 # qtvirtualkeyboard (astronaut theme dep)
+  etc/sddm.conf.d/backup_the_hyde_project.conf    # legacy marker (harmless)
   usr/bin/atomic-hyprland-dx-groups
   usr/lib/systemd/system/atomic-hyprland-dx-groups.service
+  usr/lib/sysusers.d/atomic-hyprland.conf         # declares docker/incus-admin/libvirt
+  usr/share/ublue-os/just/60-custom.just          # ujust sync-skel-config
 .github/workflows/build.yml
 README.md
 DESIGN.md                      # this file
@@ -212,7 +256,12 @@ Installer choice — we use `dnf5` inside the build (matching uBlue's own images
 4. `dnf5 -y install --setopt=install_weak_deps=False` the full package list. The weak-deps flag is a meaningful image-size win; `wayblueorg/wayblue` uses it, `cjuniorfox/hyprland-atomic` omits it.
 5. `rpm-ostree override remove firefox firefox-langpacks` — `base-main` ships Firefox; we prefer the Flatpak version for an Atomic system.
 6. `systemctl enable sddm.service`.
-7. Clone `HyDE-Project/sddm-hyprland` at pinned tag `v0.48.0` and run `make install PREFIX=/usr`. The `theme.conf` + `backup_the_hyde_project.conf` marker files are shipped via `files/etc/sddm.conf.d/`. See the "SDDM greeter" section above for rationale. Tag is bumped by PR so image builds are reproducible.
+7. **SDDM greeter + theme + Hyprland-Dots rice.** In a single scratch dir:
+   - Clone `HyDE-Project/sddm-hyprland` at pinned tag `v0.48.0`; `make install PREFIX=/usr`.
+   - Clone `Keyitdev/sddm-astronaut-theme` into `/usr/share/sddm/themes/sddm-astronaut-theme`, `git reset --hard` to pinned commit `d73842c`, `rm -rf .git`. Copy `Fonts/*` → `/usr/share/fonts/`. Sed `metadata.desktop` → `ConfigFile=Themes/${SDDM_ASTRONAUT_VARIANT}.conf`.
+   - Clone `LinuxBeginnings/Hyprland-Dots` unpinned (master, shallow). Copy `config/` → `/etc/skel/.config/`. Sed `$term = ghostty` into `01-UserDefaults.conf`. Append a `misc { disable_hyprland_guiutils_check = true }` block to `UserConfigs/UserSettings.conf`.
+   - The static `theme.conf` + `virtualkbd.conf` + `backup_the_hyde_project.conf` are shipped via `files/etc/sddm.conf.d/`.
+   See "SDDM greeter" and "Desktop Environment" sections above for full rationale.
 8. Pre-add the Flathub remote system-wide so Flatpak installs work out of the box (`base-main` does not configure this):
    ```bash
    flatpak remote-add --if-not-exists --system flathub https://dl.flathub.org/repo/flathub.flatpakrepo
@@ -254,27 +303,35 @@ Known trade-offs inherited from running a Flatpak browser (configs under `~/.var
 - `:43-<YYYYMMDD>` — immutable daily snapshot for pinning or rollback to a specific day.
 - `:pr-<N>` — PR previews, for rebasing-to-test before merging.
 
-### Pinned upstream tags — what they mean and how to upgrade them
+### Pinned vs unpinned upstream refs
 
-One upstream asset is pinned by tag in `build.sh`:
+Three upstream sources are cloned during build. Two are **pinned** (stable infra, we want predictability); one is **unpinned** (fast-moving rice, we want live updates).
 
 ```bash
-SDDM_HYPRLAND_TAG="v0.48.0"   # HyDE-Project/sddm-hyprland — make install-ed at build time
+# Pinned
+SDDM_HYPRLAND_TAG="v0.48.0"            # HyDE-Project/sddm-hyprland
+SDDM_ASTRONAUT_COMMIT="d73842c"        # Keyitdev/sddm-astronaut-theme
+SDDM_ASTRONAUT_VARIANT="astronaut"
+
+# Unpinned (tracks master via shallow clone each build)
+# LinuxBeginnings/Hyprland-Dots
 ```
 
-This pin exists for **reproducibility of the SDDM Wayland-compositor integration**. Everything else flows freely:
+**Why the split:**
 
-- All Fedora / solopasha / ghostty / VS Code / Docker / nerd-fonts packages track their repos on every build.
-- HyDE's user-side installer (run post-rebase) hits `master` — not pinned.
-- Weekly CI picks up all security and package updates regardless of the pin.
+- SDDM greeter assets should not change visually under the user. Pinned = predictable.
+- Hyprland-Dots evolves rapidly (new waybar modules, keybinds, scripts) and we WANT those updates automatically. Unpinning + weekly CI gives zero-maintenance auto-update.
+- Fedora packages, solopasha COPR, ghostty COPR, Docker CE, `che/nerd-fonts` — all flow freely on every build too. Hyprland-Dots is consistent with that posture.
 
-**Upgrade procedure:**
+**Upgrade procedure for pinned refs:**
 
-1. Open a PR editing the tag string in `build.sh`.
-2. CI builds `:pr-<N>`; rebase to it, verify the greeter renders.
-3. Merge; `:43` updates on next build; next `rpm-ostree upgrade` lands it.
+1. Open a PR editing the constants in `build.sh`.
+2. CI builds `:pr-<N>`; rebase to it, verify the greeter still renders.
+3. Merge; next `rpm-ostree upgrade` lands the update.
 
-**Cadence:** manual, ad-hoc. The integration churns slowly and there is no security urgency. Tag-bump automation (Renovate or a custom "check releases" workflow) is out of scope for v1.
+**Cadence for pinned refs:** manual, ad-hoc. Tag-bump automation (Renovate) is out of scope for v1.
+
+**Cadence for Hyprland-Dots:** automatic via weekly CI — no action needed. After reboot, run `ujust sync-skel-config overwrite=1` if you want to pick up the new configs into `$HOME`.
 
 ## Upgrade Flow
 

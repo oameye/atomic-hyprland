@@ -1,6 +1,6 @@
 # atomic-hyprland
 
-A personal Fedora Atomic image based on [Universal Blue `base-main`](https://github.com/ublue-os/main), shipping Hyprland.
+A personal Fedora Atomic image based on [Universal Blue `base-main`](https://github.com/ublue-os/main), shipping Hyprland with [LinuxBeginnings/Hyprland-Dots](https://github.com/LinuxBeginnings/Hyprland-Dots) baked in.
 
 See [`DESIGN.md`](./DESIGN.md) for the full design.
 
@@ -15,27 +15,31 @@ systemctl reboot
 
 ## First boot
 
-A minimal fallback Hyprland config is shipped via `/etc/skel` so SUPER+Return opens a terminal (ghostty), SUPER+D opens rofi, SUPER+M exits, etc. You can work on the system from the moment you log in — no installer needed to unlock the keybinds.
+The full LinuxBeginnings Hyprland-Dots rice is shipped in `/etc/skel`. New user accounts get it automatically on first login.
 
-## Install the rice (optional)
-
-We recommend [`LinuxBeginnings/Hyprland-Dots`](https://github.com/LinuxBeginnings/Hyprland-Dots) — a **dotfiles-only** repo that is safe for Fedora Atomic (no `dnf install` calls; it only writes configs into `~/.config`). The related `LinuxBeginnings/Fedora-Hyprland` *installer* is **NOT** compatible with Atomic because it uses `sudo dnf install`; our image has the packages baked in already.
+**Existing accounts** (if you rebased from Aurora, your `$HOME` pre-exists) — sync the skel into your home once:
 
 ```sh
-git clone --depth 1 https://github.com/LinuxBeginnings/Hyprland-Dots ~/Hyprland-Dots
-cd ~/Hyprland-Dots
-./copy.sh
+ujust sync-skel-config
 ```
 
-### Switch the default terminal to ghostty
+Log out/in (or `hyprctl reload`). The default terminal is already `ghostty` (we patch Hyprland-Dots' `$term` at build time).
 
-Hyprland-Dots defaults `$term` to `kitty`. After running `copy.sh`, edit `~/.config/hypr/UserConfigs/01-UserDefaults.conf`:
+### Overwriting existing configs
 
+`ujust sync-skel-config` skips files that already exist in `$HOME`. To overwrite (e.g., after rebase you want the newest upstream configs to stomp your local edits):
+
+```sh
+ujust sync-skel-config overwrite=1
 ```
-$term = ghostty
-```
 
-Reload Hyprland (`hyprctl reload`) or log out/in. Both `kitty` and `ghostty` are installed — kitty stays available because Hyprland-Dots' theme switcher references it, but ghostty becomes your Super+Return terminal.
+Commit your own `~/.config` to git before doing this.
+
+## Updates
+
+- `rpm-ostree upgrade` (or `ujust update`) pulls new images nightly via the inherited uBlue auto-update timers.
+- Every weekly image build pulls the **latest** LinuxBeginnings/Hyprland-Dots master — no manual dots update step.
+- After reboot, `ujust sync-skel-config overwrite=1` if you want the new upstream configs to replace yours.
 
 ## Rollback
 
@@ -43,11 +47,7 @@ Reload Hyprland (`hyprctl reload`) or log out/in. Both `kitty` and `ghostty` are
 sudo bootc rollback && systemctl reboot
 ```
 
-(Older equivalent: `rpm-ostree rollback`.)
-
 ## Local development
-
-This repo uses a `Justfile` for local build tasks:
 
 ```sh
 just build            # build the image locally with podman

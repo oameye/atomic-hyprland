@@ -4,9 +4,13 @@ set -euo pipefail
 RELEASE="$(rpm -E %fedora)"
 echo "Fedora version: ${RELEASE}"
 
-# Pinned upstream tag -- SDDM Wayland-compositor integration only.
-# HyDE's own SDDM theme is not used; we use sddm-themes/maldives.
+# Pinned upstream tags.
+# sddm-hyprland: SDDM Wayland-compositor integration (make install -> /usr/share/hypr/sddm).
+# sddm-astronaut-theme: SDDM theme -- pinned to a specific commit since
+# the repo has no tags.
 SDDM_HYPRLAND_TAG="v0.48.0"
+SDDM_ASTRONAUT_COMMIT="d73842c"
+SDDM_ASTRONAUT_VARIANT="astronaut"
 
 ############################################
 # 1. Enable COPR repos
@@ -73,11 +77,12 @@ PACKAGES=(
     hyprsunset xdg-desktop-portal-hyprland
 
     # Session / greeter (Qt6 only -- we avoid Qt5).
-    # sddm-themes provides maldives, which we select via /etc/sddm.conf.d.
-    # layer-shell-qt (Qt6) is required by sddm-hyprland for compositor-hosted
-    # greeter rendering.
-    sddm sddm-themes layer-shell-qt
-    qt6-qtsvg qt6-qtmultimedia qt6-qtdeclarative
+    # Keyitdev/sddm-astronaut-theme is cloned into /usr/share/sddm/themes/
+    # later in this build; it needs qt6-qtvirtualkeyboard + qt6-qtmultimedia +
+    # qt6-qtsvg. layer-shell-qt (Qt6) is required by sddm-hyprland for
+    # compositor-hosted greeter rendering.
+    sddm layer-shell-qt
+    qt6-qtsvg qt6-qtmultimedia qt6-qtdeclarative qt6-qtvirtualkeyboard
 
     # Desktop apps.
     # kitty is kept alongside ghostty: LinuxBeginnings/Hyprland-Dots
@@ -138,15 +143,71 @@ rpm-ostree override remove firefox firefox-langpacks || true
 # `|| true` -- base-main may not ship Firefox in all variants; tolerate absence.
 
 ############################################
-# 6. SDDM Wayland-compositor integration (sddm-hyprland)
-#    Drops conf files + a Hyprland config into /usr/share/hypr/sddm/ so the
-#    greeter renders through a Hyprland compositor. Qt6-compatible.
+# 6. SDDM Wayland-compositor integration (sddm-hyprland) + theme.
+#    - sddm-hyprland drops conf files + a Hyprland config into
+#      /usr/share/hypr/sddm/ so the greeter renders through a Hyprland
+#      compositor. Qt6-compatible.
+#    - Keyitdev/sddm-astronaut-theme provides the actual look; we pick the
+#      ${SDDM_ASTRONAUT_VARIANT} variant by editing metadata.desktop.
 #    See DESIGN.md -> "SDDM greeter".
 ############################################
 WORK=$(mktemp -d)
+
+# Compositor integration.
 git clone --depth 1 --branch "${SDDM_HYPRLAND_TAG}" \
     https://github.com/HyDE-Project/sddm-hyprland.git "${WORK}/sddm-hyprland"
 make -C "${WORK}/sddm-hyprland" install PREFIX=/usr
+
+# Theme: clone into /usr/share/sddm/themes, pinned to a commit.
+git clone https://github.com/keyitdev/sddm-astronaut-theme.git \
+    /usr/share/sddm/themes/sddm-astronaut-theme
+git -C /usr/share/sddm/themes/sddm-astronaut-theme reset --hard "${SDDM_ASTRONAUT_COMMIT}"
+rm -rf /usr/share/sddm/themes/sddm-astronaut-theme/.git
+
+# Copy the theme's fonts to a system font dir so the greeter can use them.
+cp -r /usr/share/sddm/themes/sddm-astronaut-theme/Fonts/* /usr/share/fonts/
+
+# Pick the variant by pointing metadata.desktop at the right config file.
+sed -i "s|^ConfigFile=.*|ConfigFile=Themes/${SDDM_ASTRONAUT_VARIANT}.conf|" \
+    /usr/share/sddm/themes/sddm-astronaut-theme/metadata.desktop
+
+############################################
+# 6b. LinuxBeginnings/Hyprland-Dots -- full rice, baked into /etc/skel.
+#     Unpinned (tracks master) so weekly CI picks up upstream improvements
+#     automatically. See DESIGN.md -> "Desktop Environment".
+#
+#     Users run `ujust sync-skel-config` post-rebase to rsync the new
+#     configs into their $HOME (/etc/skel only applies to new accounts).
+############################################
+git clone --depth 1 https://github.com/LinuxBeginnings/Hyprland-Dots.git \
+    "${WORK}/hyprland-dots"
+
+mkdir -p /etc/skel/.config
+cp -a "${WORK}/hyprland-dots/config/." /etc/skel/.config/
+
+# Override: make ghostty the default terminal (Hyprland-Dots ships kitty).
+# $term is defined once in 01-UserDefaults.conf; changing it there propagates
+# to every keybind and waybar module that uses $term.
+# shellcheck disable=SC2016  # $term is literal Hyprland config syntax.
+sed -i 's|^\$term\s*=.*|$term = ghostty|' \
+    /etc/skel/.config/hypr/UserConfigs/01-UserDefaults.conf
+
+# Suppress the "hyprland-qtutils missing" notification overlay.
+# hyprland-qtutils is not installable on F43 while solopasha's
+# hyprland-qt-support-0.1.0 requires Qt6.9 private API (F43 ships Qt6.10).
+# Same constraint affects cjuniorfox/hyprland-atomic. Hyprland exposes
+# `misc:disable_hyprland_guiutils_check = true` specifically to quiet this
+# warning when the user knows the package is intentionally absent.
+# See: hyprwm/hyprland-qt-support issue #9.
+cat >> /etc/skel/.config/hypr/UserConfigs/UserSettings.conf <<'EOF'
+
+# Added by atomic-hyprland build.sh -- suppress the qtutils-missing warning.
+# Remove this block if hyprland-qtutils becomes installable again.
+misc {
+    disable_hyprland_guiutils_check = true
+}
+EOF
+
 rm -rf "${WORK}"
 
 ############################################

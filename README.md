@@ -17,13 +17,18 @@ systemctl reboot
 
 The full LinuxBeginnings Hyprland-Dots rice is shipped in `/etc/skel`. **New user accounts** get it automatically on first login.
 
-**Existing accounts** (if you rebased in, your `$HOME` pre-exists) — sync the skel into your home once:
+**Existing accounts** (if you rebased in, your `$HOME` pre-exists) — sync the skel into your home once.
 
-```sh
-ujust sync-skel-config
-```
+> **First-time on this image: use `overwrite=1`.** If you've already logged into Hyprland even once, the compositor auto-generated placeholder files (`~/.config/hypr/hyprland.conf` etc.) to let the session start. Those placeholders will **block** a normal `ujust sync-skel-config` (which is `--ignore-existing` for safety). Force the overwrite:
+>
+> ```sh
+> ujust sync-skel-config overwrite=1
+> hyprctl reload    # or log out/in
+> ```
+>
+> After this first sync, use the default (`ujust sync-skel-config`, no `overwrite=1`) for routine runs — it will preserve any customizations you've made.
 
-Log out/in (or `hyprctl reload`). The default terminal is already `ghostty` (we patch Hyprland-Dots' `$term` at build time).
+The default terminal is `ghostty` (we patch Hyprland-Dots' `$term` at build time).
 
 ### Why isn't this step automatic?
 

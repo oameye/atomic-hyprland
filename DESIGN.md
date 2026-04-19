@@ -44,9 +44,15 @@ Actual package list lives in `build_files/build.sh`. Categories:
 
 ### Inherited from `base-main`
 
-`base-main`'s [`build_files/install.sh`](https://github.com/ublue-os/main/blob/main/build_files/install.sh) already layers: `ublue-os-just` (`ujust`), `ublue-os-signing`, `ublue-os-update-services` (auto-update timers + `ublue-update`), `ublue-os-udev-rules`, `ublue-os-luks`, Homebrew, Flatpak, podman, distrobox, PipeWire/WirePlumber, NetworkManager, rpm-ostree, `rpm-ostreed-automatic.timer`.
+`base-main`'s [`build_files/install.sh`](https://github.com/ublue-os/main/blob/main/build_files/install.sh) already layers: `ublue-os-just` (`ujust`), `ublue-os-signing`, `ublue-os-update-services` (auto-update timers + `ublue-update`), `ublue-os-udev-rules`, `ublue-os-luks`, Flatpak, podman, distrobox, PipeWire/WirePlumber, NetworkManager, rpm-ostree, `rpm-ostreed-automatic.timer`.
 
-We additionally enable at build: `sddm.service`, `docker.socket`, `podman.socket`, `flatpak-system-update.timer`, `flatpak-user-update.timer`, `podman-auto-update.timer`, `atomic-hyprland-dx-groups.service`, `install-zen-browser.service`.
+### Homebrew
+
+`base-main` does **not** ship brew. We pull it in via the canonical uBlue pattern — `COPY --from=ghcr.io/ublue-os/brew:latest /system_files /` in the Containerfile, then `systemctl preset` the `brew-setup.service` + `brew-update.timer` + `brew-upgrade.timer` units. `brew-setup.service` is a first-boot oneshot that extracts the bundled Homebrew tarball (`/usr/share/homebrew.tar.zst`) into `/var/home/linuxbrew/.linuxbrew`; `/etc/profile.d/brew.sh` adds `brew` to PATH for interactive shells. This matches Bluefin/Aurora.
+
+### Other systemd units enabled at build
+
+`sddm.service`, `docker.socket`, `podman.socket`, `flatpak-system-update.timer`, `flatpak-user-update.timer`, `podman-auto-update.timer`, `atomic-hyprland-dx-groups.service`, `install-zen-browser.service`.
 
 ### Deliberately omitted
 
@@ -101,7 +107,7 @@ Pre-baked at image build time because SDDM themes and the Hyprland-compositor-ho
 
 ## Browser
 
-No browser is layered as RPM; `base-main`'s Firefox is `override remove`d. [Zen Browser](https://zen-browser.app/) is auto-installed on first boot via a systemd oneshot that calls `flatpak install flathub app.zen_browser.zen` (the Flathub remote itself is pre-added system-wide during build). Known Flatpak-browser trade-offs (`~/.var/app/…` paths, portal-mediated file access, sandboxed native-messaging) are accepted.
+No browser is layered as RPM; `base-main`'s Firefox is `override remove`d. [Zen Browser](https://zen-browser.app/) is auto-installed on first boot via the upstream `flatpak-preinstall.service` (shipped by the `flatpak` RPM), which reads `*.preinstall` files from `/usr/share/flatpak/preinstall.d/`. We ship `files/usr/share/flatpak/preinstall.d/zen-browser.preinstall`; adding more Flatpaks later is dropping another file in that directory. Flathub is pre-added system-wide during build. Known Flatpak-browser trade-offs (`~/.var/app/…` paths, portal-mediated file access, sandboxed native-messaging) are accepted.
 
 ## Build & release
 

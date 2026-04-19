@@ -1,0 +1,7 @@
+# Installed on first boot by flatpak-preinstall.service.
+# Format: https://man.archlinux.org/man/flatpak-preinstall.1
+# Uninstallation is opt-in (user removes with `flatpak uninstall`).
+
+[Flatpak Preinstall app.zen_browser.zen]
+Branch=stable
+IsRuntime=false

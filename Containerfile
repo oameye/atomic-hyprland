@@ -13,11 +13,20 @@ FROM ghcr.io/ublue-os/base-main:${FEDORA_VERSION}
 # System-file overlay (systemd units, dx-groups helper, SDDM confs, etc.)
 COPY files/ /
 
+# Homebrew: base-main does NOT ship brew. Pull the tarball + systemd units
+# from ublue-os/brew (the canonical pattern, used by Bluefin/Aurora). The
+# brew-setup oneshot extracts the tarball into /var/home/linuxbrew on first
+# boot; /etc/profile.d/brew.sh adds brew to PATH for interactive shells.
+COPY --from=ghcr.io/ublue-os/brew:latest /system_files /
+
 RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
     --mount=type=cache,dst=/var/cache \
     --mount=type=cache,dst=/var/log \
     --mount=type=tmpfs,dst=/tmp \
     /ctx/build.sh \
+ && /usr/bin/systemctl preset brew-setup.service \
+ && /usr/bin/systemctl preset brew-update.timer \
+ && /usr/bin/systemctl preset brew-upgrade.timer \
  && ostree container commit
 
 # Validate the final image against bootc expectations.

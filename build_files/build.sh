@@ -134,6 +134,11 @@ dnf5 -y install --setopt=install_weak_deps=False --enablerepo=docker-ce-stable \
 # does not stay enabled in the final image. Matches uBlue Bluefin pattern.
 copr_install_isolated "che/nerd-fonts" "nerd-fonts"
 
+# Bazaar -- Universal Blue's GTK4/libadwaita app store (Flathub browser +
+# bootc-aware). Also pull uupd (Universal Update Daemon) in the same
+# isolated transaction since both live in ublue-os/packages COPR.
+copr_install_isolated "ublue-os/packages" "bazaar" "uupd"
+
 echo "Packages installed."
 
 ############################################
@@ -227,7 +232,13 @@ systemctl enable podman-auto-update.timer
 systemctl --global enable flatpak-user-update.timer
 systemctl --global enable podman-auto-update.timer
 systemctl enable atomic-hyprland-dx-groups.service
-systemctl enable install-zen-browser.service
+# flatpak-preinstall.service reads /usr/share/flatpak/preinstall.d/*.preinstall
+# and runs `flatpak preinstall -y` once on first boot. We ship zen-browser
+# there. Adding more apps later is dropping another .preinstall file.
+systemctl enable flatpak-preinstall.service
+# uupd timer runs the universal updater (rpm-ostree + flatpak + brew) on a
+# schedule. `uupd` command is also available for manual runs.
+systemctl enable uupd.timer
 
 ############################################
 # 9. Cleanup for image-size hygiene AND bootc var-tmpfiles lint.

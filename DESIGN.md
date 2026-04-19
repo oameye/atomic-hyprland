@@ -29,7 +29,7 @@ This file describes **intent and invariants**. For current values (pinned tags, 
 
 Actual package list lives in `build_files/build.sh`. Categories:
 
-- **Hyprland ecosystem** from `solopasha/hyprland` COPR (hyprland, hyprlock, hypridle, hyprpaper, hyprcursor, hyprsunset, xdg-desktop-portal-hyprland, etc.). `hyprland-qtutils`/`hyprpolkitagent` are currently excluded — see "Qtutils workaround" below.
+- **Hyprland ecosystem** from `solopasha/hyprland` COPR (hyprland, hyprlock, hypridle, hyprpaper, hyprcursor, hyprsunset, xdg-desktop-portal-hyprland, etc.). `hyprland-guiutils` is built from source — see "Source-built hyprland-guiutils" below.
 - **Session/greeter** (Qt6 only) — `sddm` + the Qt6 modules the astronaut theme needs. Qt5 is deliberately excluded.
 - **Desktop apps:** ghostty + kitty (kitty is kept because Hyprland-Dots references it, ghostty is user default), waybar, rofi-wayland, swaync, nautilus, clipboard, screenshot, network/BT applets, audio UIs, portals, polkit (mate-polkit as agent), display helpers, uwsm, gvfs.
 - **Developer tooling:** VS Code (layered RPM), `make` + C/C++ headers + sqlite-devel + python3-pip for occasional pip-builds-from-source. Everything else (rg/fd/fzf/jq/btop/lazygit/yazi/…) deferred to `brew` per uBlue-DX philosophy.
@@ -86,16 +86,11 @@ ujust sync-skel-config overwrite=1  # clobber existing files from the new skel
 
 The recipe lives at `/usr/share/ublue-os/just/60-custom.just` — uBlue's sanctioned extension point (`base-main`'s justfile already `import?`'s this path).
 
-### Qtutils workaround
+### Source-built hyprland-guiutils
 
-`hyprland-qtutils` and `hyprpolkitagent` from the `solopasha/hyprland` COPR depend on `hyprland-qt-support` built against a Qt6 private ABI that does not match Fedora's current Qt6. dnf cannot resolve the transaction. The same situation affects `cjuniorfox/hyprland-atomic`; this is a Fedora-ecosystem issue, not specific to this image.
+`hyprland-guiutils` (pinned tag) is the successor to the archived `hyprland-qtutils`. It provides `hyprland-dialog` and other GUI utilities that Hyprland expects at runtime. It uses `hyprtoolkit` (Wayland-native toolkit, available in the solopasha COPR) — **not** Qt6 — so it has no private-ABI issues. Built from source because the COPR doesn't package it yet.
 
-Mitigations:
-
-- **Polkit agent:** use `mate-polkit` instead of `hyprpolkitagent`. Hyprland-Dots' `Polkit.sh` walks a candidate list and picks mate-polkit automatically.
-- **Suppress the `hyprland-dialog` missing notification** that Hyprland fires at startup: set `misc:disable_hyprland_guiutils_check = true` (upstream-sanctioned config flag) via the override above.
-
-Cleanup when upstream fixes this is tracked in [issue #1](https://github.com/oameye/atomic-hyprland/issues/1). Upstream blocker: [`hyprwm/hyprland-qt-support#9`](https://github.com/hyprwm/hyprland-qt-support/issues/9).
+`hyprpolkitagent` is skipped: it still depends on `hyprland-qt-support`, which has a Qt6 private-ABI mismatch on Fedora 43 (the COPR builds against Qt6.9, Fedora ships Qt6.10). `mate-polkit` is used as the polkit agent instead; Hyprland-Dots' `Polkit.sh` auto-detects it. Tracked in [issue #1](https://github.com/oameye/atomic-hyprland/issues/1).
 
 ## SDDM greeter
 
@@ -159,14 +154,15 @@ Key properties: `build.sh` is bind-mounted so it never persists in the image; ca
 3. Drop the VS Code repo file and the Docker CE repo file (latter `enabled=0`).
 4. `dnf5 -y install --setopt=install_weak_deps=False` the full package set; then install Docker CE via `--enablerepo=docker-ce-stable`.
 5. `rpm-ostree override remove firefox firefox-langpacks`.
-6. Install `nerd-fonts` via `copr_install_isolated "che/nerd-fonts" "nerd-fonts"`.
+6. **Build `hyprland-guiutils` from source** (provides `hyprland-dialog` etc.; uses `hyprtoolkit`, not Qt6).
 7. **SDDM greeter + theme + Hyprland-Dots rice** (all in one scratch dir):
    - Clone `HyDE-Project/sddm-hyprland` at pinned tag → `make install PREFIX=/usr`.
    - Clone `Keyitdev/sddm-astronaut-theme` at pinned commit → install into `/usr/share/sddm/themes/`, copy its fonts, sed the variant.
-   - Clone `LinuxBeginnings/Hyprland-Dots` unpinned → copy `config/` → `/etc/skel/.config/`, apply baked-in overrides (ghostty default, qtutils suppression).
-8. Pre-add Flathub system-wide (`flatpak remote-add --if-not-exists --system flathub …`).
-9. Enable systemd units (sddm, docker/podman sockets, update timers, dx-groups, zen-browser).
-10. Clean `/var/cache/dnf`, `/var/lib/dnf`, `/var/lib/blueman`, `/tmp/*` for image-size hygiene and bootc lint compliance.
+   - Clone `LinuxBeginnings/Hyprland-Dots` unpinned → copy `config/` → `/etc/skel/.config/`, apply baked-in overrides (ghostty default, nautilus default).
+8. Install `nerd-fonts` via `copr_install_isolated "che/nerd-fonts" "nerd-fonts"`.
+9. Pre-add Flathub system-wide (`flatpak remote-add --if-not-exists --system flathub …`).
+10. Enable systemd units (sddm, docker/podman sockets, update timers, dx-groups, zen-browser).
+11. Clean `/var/cache/dnf`, `/var/lib/dnf`, `/var/lib/blueman`, `/tmp/*` for image-size hygiene and bootc lint compliance.
 
 ### CI
 

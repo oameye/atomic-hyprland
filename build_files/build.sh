@@ -95,7 +95,9 @@ PACKAGES=(
     #   - rofi (we have rofi-wayland which provides the rofi binary)
     #   - asusctl, rog-control-center, nm-tray (ASUS / Ubuntu)
     #   - yazi (not in F43 repos -- install via brew)
-    #   - hyprland-guiutils (dead ref in upstream script)
+    #   - hyprland-guiutils (upstream rename of hyprland-qtutils;
+    #     same Qt6.9 ABI constraint applies -- suppressed via
+    #     misc:disable_hyprland_guiutils_check in UserSettings.conf)
     # kitty stays alongside ghostty so Kitty_themes.sh + theme switcher work.
     # ghostty is the $term default (patched into 01-UserDefaults.conf below).
     ghostty kitty waybar rofi-wayland swaync quickshell

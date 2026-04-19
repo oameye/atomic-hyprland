@@ -19,6 +19,7 @@ jobs:
     permissions:
       contents: read
       packages: write
+      pull-requests: write
     steps:
       - uses: actions/checkout@v4
 
@@ -55,6 +56,19 @@ jobs:
           build-args: FEDORA_VERSION=${{ env.FEDORA_VERSION }}
           oci: true
 
+      - name: Rechunk image
+        if: github.event_name == 'schedule'
+        id: rechunk
+        uses: hhd-dev/rechunk@v1.2.2
+        with:
+          rechunk: ghcr.io/hhd-dev/rechunk:v1.2.2
+          ref: localhost/${{ env.IMAGE_NAME }}:${{ env.FEDORA_VERSION }}
+          prev-ref: ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+          version: ${{ env.FEDORA_VERSION }}
+          labels: |
+            org.opencontainers.image.title=${{ env.IMAGE_NAME }}
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+
       - name: Log in to GHCR
         if: github.event_name != 'pull_request'
         uses: redhat-actions/podman-login@v1
@@ -63,10 +77,74 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Load rechunked image
+        if: github.event_name == 'schedule'
+        run: |
+          IMAGE=$(podman pull oci:${{ steps.rechunk.outputs.output }})
+          for tag in ${{ steps.tags.outputs.tags }}; do
+            podman tag "$IMAGE" "${IMAGE_REGISTRY}/${IMAGE_NAME}:${tag}"
+          done
+
+      - name: Push rechunked image
+        if: github.event_name == 'schedule'
+        run: |
+          for tag in ${{ steps.tags.outputs.tags }}; do
+            podman push "${IMAGE_REGISTRY}/${IMAGE_NAME}:${tag}"
+          done
+
       - name: Push to GHCR
-        if: github.event_name != 'pull_request'
+        if: github.event_name != 'pull_request' && github.event_name != 'schedule'
         uses: redhat-actions/push-to-registry@v2
         with:
           image: ${{ steps.build.outputs.image }}
           tags: ${{ steps.build.outputs.tags }}
           registry: ${{ env.IMAGE_REGISTRY }}
+
+      - name: Install skopeo
+        if: github.event_name == 'pull_request'
+        run: sudo apt-get update && sudo apt-get install -y skopeo jq
+
+      - name: Image size report
+        if: github.event_name == 'pull_request'
+        id: size
+        run: |
+          set -euo pipefail
+          # New image: inspect from local containers-storage
+          NEW_JSON=$(skopeo inspect --raw \
+            containers-storage:localhost/${IMAGE_NAME}:pr-${{ github.event.pull_request.number }})
+          NEW_BYTES=$(echo "$NEW_JSON" | jq '[.layers[].size] | add')
+          NEW_LAYERS=$(echo "$NEW_JSON" | jq '.layers | length')
+
+          # Baseline: current :latest on GHCR (ignore if not yet published)
+          if OLD_JSON=$(skopeo inspect --raw \
+              docker://${IMAGE_REGISTRY}/${IMAGE_NAME}:latest 2>/dev/null); then
+            OLD_BYTES=$(echo "$OLD_JSON" | jq '[.layers[].size] | add')
+            OLD_LAYERS=$(echo "$OLD_JSON" | jq '.layers | length')
+            DIFF_BYTES=$(( NEW_BYTES - OLD_BYTES ))
+          else
+            OLD_BYTES=0
+            OLD_LAYERS=0
+            DIFF_BYTES=$NEW_BYTES
+          fi
+
+          human() { numfmt --to=iec-i --suffix=B --format='%.2f' "$1"; }
+          SIGN=""
+          [[ $DIFF_BYTES -gt 0 ]] && SIGN="+"
+
+          {
+            echo "### Image size report"
+            echo ""
+            echo "| metric | new (PR) | baseline (\`:latest\`) | delta |"
+            echo "|---|---:|---:|---:|"
+            echo "| compressed size | $(human $NEW_BYTES) | $(human $OLD_BYTES) | ${SIGN}$(human ${DIFF_BYTES#-}) |"
+            echo "| layers | ${NEW_LAYERS} | ${OLD_LAYERS} | $(( NEW_LAYERS - OLD_LAYERS )) |"
+          } > size-report.md
+
+          cat size-report.md
+
+      - name: Comment size report on PR
+        if: github.event_name == 'pull_request'
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: image-size-report
+          path: size-report.md

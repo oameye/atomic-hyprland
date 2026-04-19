@@ -192,7 +192,7 @@ BUILD_DEPS=(
     pixman-devel libxkbcommon-devel libdrm-devel
     # awww (Rust/Cargo)
     rust cargo
-    wayland-protocols lz4-devel wayland-devel
+    wayland-protocols-devel lz4-devel wayland-devel
     # hyprland-qt-support + hyprpolkitagent (Qt6/CMake)
     qt6-qtbase-devel qt6-qtdeclarative-devel
     polkit-devel polkit-qt6-1-devel

@@ -32,7 +32,7 @@ Actual package list lives in `build_files/build.sh`. Categories:
 - **Hyprland ecosystem** from `solopasha/hyprland` COPR (hyprland, hyprlock, hypridle, hyprpaper, swww, hyprcursor, hyprsunset, xdg-desktop-portal-hyprland, etc.). `hyprland-guiutils` and `awww` are built from source — see "Source builds" below.
 - **Session/greeter** — `sddm` + the Qt6 modules the astronaut theme needs.
 - **Hyprland-Dots runtime deps:** the full set of packages the Dots scripts and configs expect — wallust (theming engine, from `errornointernet/packages` COPR), mpv + mpv-mpris, cava, btop, nvtop, fastfetch, gnome-system-monitor, qalculate-gtk, loupe, nwg-look, ddcutil, gtk-murrine-engine.
-- **Desktop apps:** ghostty + kitty (kitty is kept because Hyprland-Dots references it, ghostty is user default), waybar, rofi-wayland, swaync, quickshell, nautilus, clipboard, screenshot, network/BT applets, audio UIs, portals, polkit (mate-polkit as agent), display helpers, uwsm, gvfs.
+- **Desktop apps:** ghostty + kitty (kitty is kept because Hyprland-Dots references it, ghostty is user default), waybar, rofi-wayland, swaync, quickshell, nautilus, clipboard, screenshot, network/BT applets, audio UIs, portals, polkit (hyprpolkitagent, source-built), display helpers, uwsm, gvfs.
 - **Qt theming:** `qt5ct` + `kvantum-qt5` (Qt5), `qt6ct` + `qt6-qt5compat` (Qt6). Both generations are included so Hyprland-Dots' `DarkLight.sh` theme switching works fully and any future Qt5 apps render themed.
 - **Developer tooling:** VS Code (layered RPM), `make` + C/C++ headers + sqlite-devel + python3-pip for occasional pip-builds-from-source. Everything else (rg/fd/fzf/jq/lazygit/yazi/…) deferred to `brew` per uBlue-DX philosophy.
 - **Container stack:** full uBlue Bluefin-DX parity — `podman-compose`/`podman-tui`/`flatpak-builder` plus Docker CE via the disable-then-`--enablerepo` pattern.
@@ -90,12 +90,12 @@ The recipe lives at `/usr/share/ublue-os/just/60-custom.just` — uBlue's sancti
 
 ### Source builds
 
-Two packages are built from source at image build time because they aren't available as pre-built packages:
+Four packages are built from source at image build time because they aren't cleanly installable from any COPR or Fedora repo on this Fedora + Qt6 combination:
 
-- **`hyprland-guiutils`** (pinned tag, C++/CMake) — successor to the archived `hyprland-qtutils`. Provides `hyprland-dialog` and other GUI utilities that Hyprland expects at runtime. Uses `hyprtoolkit` (Wayland-native toolkit, available in the solopasha COPR) — **not** Qt6 — so it has no private-ABI issues. Built from source because the COPR doesn't package it yet.
+- **`hyprland-guiutils`** (pinned tag, C++/CMake) — successor to the archived `hyprland-qtutils`. Provides `hyprland-dialog` and other GUI utilities Hyprland expects at runtime. Uses `hyprtoolkit` (Wayland-native toolkit, from the solopasha COPR) — **not** Qt6. Built from source because the COPR doesn't package it yet.
 - **`awww`** (pinned tag, Rust/Cargo) — preferred wallpaper daemon for Hyprland-Dots (`swww` is the fallback). Not packaged in any COPR. Build deps: `rust`, `cargo`, `wayland-protocols`, `lz4-devel`, `wayland-devel`.
-
-`hyprpolkitagent` is skipped: it still depends on `hyprland-qt-support`, which has a Qt6 private-ABI mismatch on Fedora 43 (the COPR builds against Qt6.9, Fedora ships Qt6.10). `mate-polkit` is used as the polkit agent instead; Hyprland-Dots' `Polkit.sh` auto-detects it. Tracked in [issue #1](https://github.com/oameye/atomic-hyprland/issues/1).
+- **`hyprland-qt-support`** (pinned tag, C++/CMake) — QML style plugin. The solopasha COPR build is linked against Qt6.9 private API; Fedora 43 ships Qt6.10, so `dnf` can't resolve the COPR package. Building from source compiles against the system Qt6.10 and sidesteps the ABI mismatch. Installed to `/usr/lib64/qt6/qml/` (Fedora's Qt6 QML path). Build deps: `qt6-qtbase-devel`, `qt6-qtdeclarative-devel`, `hyprlang-devel`.
+- **`hyprpolkitagent`** (pinned tag, C++/CMake) — Hyprland-native polkit authentication agent. Same COPR/Qt6-ABI constraint as `hyprland-qt-support` (which it depends on at runtime). Build deps: `qt6-qtbase-devel`, `qt6-qtdeclarative-devel`, `polkit-devel`, `polkit-qt6-1-devel`, `hyprutils-devel`.
 
 ## SDDM greeter
 
@@ -179,6 +179,8 @@ GitHub Actions builds on push to `main`, PRs, weekly schedule, and manual dispat
 | `HyDE-Project/sddm-hyprland` | Pinned tag | Greeter should not change visually under the user |
 | `Keyitdev/sddm-astronaut-theme` | Pinned commit + variant | Same |
 | `hyprwm/hyprland-guiutils` | Pinned tag | Source build — deliberate version bumps |
+| `hyprwm/hyprland-qt-support` | Pinned tag | Source build — deliberate version bumps |
+| `hyprwm/hyprpolkitagent` | Pinned tag | Source build — deliberate version bumps |
 | `LGFae/awww` | Pinned tag | Source build — deliberate version bumps |
 | `LinuxBeginnings/Hyprland-Dots` | Unpinned (master) | Fast-moving rice; weekly CI picks up upstream automatically |
 | Fedora / COPRs / Docker CE / VS Code | Unpinned | Normal package manager behaviour |
@@ -209,6 +211,8 @@ Files and patterns copied from upstream rather than invented. If the upstream so
 | SDDM Wayland-compositor integration | `HyDE-Project/sddm-hyprland` |
 | SDDM theme | `Keyitdev/sddm-astronaut-theme` |
 | `hyprland-guiutils` source build | `hyprwm/hyprland-guiutils` |
+| `hyprland-qt-support` source build | `hyprwm/hyprland-qt-support` |
+| `hyprpolkitagent` source build | `hyprwm/hyprpolkitagent` |
 | `awww` source build | `LGFae/awww` (Codeberg) |
 | Full rice in `/etc/skel/.config/` | `LinuxBeginnings/Hyprland-Dots` |
 

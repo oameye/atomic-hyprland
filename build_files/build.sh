@@ -18,6 +18,11 @@ HYPR_GUIUTILS_TAG="v0.2.1"
 # Not packaged in any COPR; built from source with cargo.
 AWWW_TAG="v0.9.5"
 
+# hyprland-qt-support + hyprpolkitagent — built from source against the system
+# Qt6 to sidestep the solopasha COPR's Qt6.9/6.10 private-ABI mismatch.
+HYPR_QT_SUPPORT_TAG="v0.1.0"
+HYPR_POLKITAGENT_TAG="v0.1.3"
+
 ############################################
 # 1. Enable COPR repos
 #    solopasha/hyprland, pgdev/ghostty, errornointernet/quickshell stay
@@ -76,10 +81,10 @@ echo "Repos enabled."
 ############################################
 PACKAGES=(
     # Hyprland ecosystem (solopasha COPR).
-    # hyprland-guiutils is built from source in section 6 (the COPR doesn't
-    # package it yet). hyprpolkitagent is skipped — it still requires
-    # hyprland-qt-support which has a Qt6 private-ABI mismatch; mate-polkit
-    # is used as the polkit agent instead.
+    # hyprland-guiutils, hyprland-qt-support, and hyprpolkitagent are built
+    # from source in section 6 — the COPR versions of hyprland-qt-support /
+    # hyprpolkitagent are built against Qt6.9 private API while Fedora 43
+    # ships Qt6.10. Building from source compiles against the system Qt6.
     hyprland hyprlock hypridle hyprpaper hyprshot hyprpicker hyprcursor
     hyprsunset xdg-desktop-portal-hyprland
     swww
@@ -95,7 +100,7 @@ PACKAGES=(
     # Desktop apps (Hyprland-Dots expected runtime -- compiled against
     # LinuxBeginnings/Fedora-Hyprland's install-scripts package list).
     # Deliberately skipped from that upstream list:
-    #   - xfce-polkit (mate-polkit replaces)
+    #   - xfce-polkit + mate-polkit (hyprpolkitagent replaces, built in §6)
     #   - thunar + thunar-archive-plugin (we ship nautilus; $files patched
     #     to nautilus at build time)
     #   - rofi (we have rofi-wayland which provides the rofi binary)
@@ -111,7 +116,7 @@ PACKAGES=(
     pavucontrol playerctl pamixer pulseaudio-utils
     pipewire-alsa pipewire-utils
     mpv mpv-mpris cava
-    xdg-desktop-portal-gtk polkit mate-polkit
+    xdg-desktop-portal-gtk polkit
     brightnessctl ddcutil wlr-randr uwsm wlogout
     nwg-look loupe gtk-murrine-engine
     gvfs gvfs-mtp gvfs-smb
@@ -177,7 +182,8 @@ rpm-ostree override remove firefox firefox-langpacks || true
 # `|| true` -- base-main may not ship Firefox in all variants; tolerate absence.
 
 ############################################
-# 6. Source builds (hyprland-guiutils + awww).
+# 6. Source builds (hyprland-guiutils, awww, hyprland-qt-support,
+#    hyprpolkitagent). See DESIGN.md -> "Source builds" for rationale.
 ############################################
 BUILD_DEPS=(
     # hyprland-guiutils (C++/CMake)
@@ -187,6 +193,9 @@ BUILD_DEPS=(
     # awww (Rust/Cargo)
     rust cargo
     wayland-protocols lz4-devel wayland-devel
+    # hyprland-qt-support + hyprpolkitagent (Qt6/CMake)
+    qt6-qtbase-devel qt6-qtdeclarative-devel
+    polkit-devel polkit-qt6-1-devel
 )
 dnf5 -y install --setopt=install_weak_deps=False "${BUILD_DEPS[@]}"
 
@@ -210,8 +219,28 @@ cargo build --release --manifest-path "${BUILD_WORK}/awww/Cargo.toml"
 install -Dm755 "${BUILD_WORK}/awww/target/release/awww" /usr/bin/awww
 install -Dm755 "${BUILD_WORK}/awww/target/release/awww-daemon" /usr/bin/awww-daemon
 
+# 6c. hyprland-qt-support — QML style plugin. Runtime dep for hyprpolkitagent.
+#     INSTALL_QML_PREFIX=/lib64/qt6/qml matches Fedora's Qt6 QML install path.
+git clone --depth 1 --branch "${HYPR_QT_SUPPORT_TAG}" \
+    https://github.com/hyprwm/hyprland-qt-support.git "${BUILD_WORK}/hyprland-qt-support"
+cmake -S "${BUILD_WORK}/hyprland-qt-support" -B "${BUILD_WORK}/hyprland-qt-support/build" \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_INSTALL_PREFIX=/usr \
+    -DINSTALL_QML_PREFIX=/lib64/qt6/qml
+cmake --build "${BUILD_WORK}/hyprland-qt-support/build" -j"$(nproc)"
+cmake --install "${BUILD_WORK}/hyprland-qt-support/build"
+
+# 6d. hyprpolkitagent — Hyprland-native polkit authentication agent.
+git clone --depth 1 --branch "${HYPR_POLKITAGENT_TAG}" \
+    https://github.com/hyprwm/hyprpolkitagent.git "${BUILD_WORK}/hyprpolkitagent"
+cmake -S "${BUILD_WORK}/hyprpolkitagent" -B "${BUILD_WORK}/hyprpolkitagent/build" \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_INSTALL_PREFIX=/usr
+cmake --build "${BUILD_WORK}/hyprpolkitagent/build" -j"$(nproc)"
+cmake --install "${BUILD_WORK}/hyprpolkitagent/build"
+
 rm -rf "${BUILD_WORK}"
-echo "Source builds complete (hyprland-guiutils, awww)."
+echo "Source builds complete (hyprland-guiutils, awww, hyprland-qt-support, hyprpolkitagent)."
 
 ############################################
 # 7. SDDM Wayland-compositor integration (sddm-hyprland) + theme.

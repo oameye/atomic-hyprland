@@ -80,8 +80,13 @@ PACKAGES=(
     qt6-qtsvg qt6-qtmultimedia qt6-qtdeclarative
 
     # Desktop apps.
+    # kitty is kept alongside ghostty: LinuxBeginnings/Hyprland-Dots
+    # references kitty as its themed reference terminal (theme switcher,
+    # Kitty_themes.sh, etc.). ghostty is the actual daily driver -- user
+    # sets `$term = ghostty` in ~/.config/hypr/UserConfigs/01-UserDefaults.conf
+    # after running the dots installer.
     # yazi dropped -- not in F43 repos; install via brew post-boot.
-    ghostty waybar rofi-wayland swaync
+    ghostty kitty waybar rofi-wayland swaync
     nautilus nautilus-python
     wl-clipboard cliphist
     grim slurp satty

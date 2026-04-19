@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+PREINSTALL_DIR="/usr/share/flatpak/preinstall.d"
+STATE_DIR="/var/lib/atomic-hyprland"
+STAMP_FILE="${STATE_DIR}/flatpak-preinstall.sha256"
+
+manifest_hash() {
+    find "$PREINSTALL_DIR" -maxdepth 1 -type f -name '*.preinstall' -print \
+        | LC_ALL=C sort \
+        | while IFS= read -r preinstall_file; do
+            sha256sum "$preinstall_file"
+        done \
+        | sha256sum \
+        | awk '{print $1}'
+}
+
+current_hash="$(manifest_hash)"
+previous_hash="$(cat "$STAMP_FILE" 2>/dev/null || true)"
+
+if [[ "$current_hash" == "$previous_hash" ]]; then
+    echo "Flatpak preinstall manifest unchanged. Exiting."
+    exit 0
+fi
+
+flatpak preinstall -y
+
+install -d "$STATE_DIR"
+printf '%s\n' "$current_hash" > "$STAMP_FILE"

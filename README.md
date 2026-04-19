@@ -26,7 +26,7 @@ The full LinuxBeginnings Hyprland-Dots rice is shipped in `/etc/skel`. **New use
 > hyprctl reload    # or log out/in
 > ```
 >
-> After this first sync, use the default (`ujust sync-skel-config`, no `overwrite=1`) for routine runs — it will preserve any customizations you've made.
+> After this first sync, use the default (`ujust sync-skel-config`, no `overwrite=1`) for routine runs — it will preserve any customizations you've made. `overwrite=1` is the stronger refresh mode: on the first forced sync it refreshes the managed skel subtrees, and on later runs it also prunes files that earlier overwrite runs synced but upstream has since removed.
 
 The default terminal is `ghostty` and the default file manager is `nautilus` (we patch Hyprland-Dots' `$term` and `$files` at build time).
 
@@ -48,7 +48,7 @@ One manual `ujust sync-skel-config` after the first rebase is the price for that
 ujust sync-skel-config overwrite=1
 ```
 
-This clobbers existing files with the new skel. Commit your `~/.config` to git first if you want a recovery path.
+This replaces the managed files with the new skel. On the first forced sync it refreshes the managed skel subtrees, and on later runs it also prunes files that older overwrite runs had synced but upstream no longer ships. Commit your `~/.config` to git first if you want a recovery path.
 
 ## Updates
 

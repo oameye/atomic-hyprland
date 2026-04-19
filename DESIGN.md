@@ -54,7 +54,7 @@ Actual package list lives in `build_files/build.sh`. Categories:
 
 ### Other systemd units enabled at build
 
-`sddm.service`, `docker.socket`, `podman.socket`, `flatpak-system-update.timer`, `flatpak-user-update.timer`, `podman-auto-update.timer`, `atomic-hyprland-dx-groups.service`, `install-zen-browser.service`.
+`sddm.service`, `docker.socket`, `podman.socket`, `flatpak-system-update.timer`, `flatpak-user-update.timer`, `podman-auto-update.timer`, `atomic-hyprland-dx-groups.service`, `flatpak-preinstall.service`, `uupd.timer`.
 
 ### Deliberately omitted
 
@@ -119,11 +119,11 @@ Justfile                       # local-dev recipes (build/lint/format/clean)
 build_files/
   build.sh                     # bind-mounted into the build, never lands in image
 files/                         # COPY'd into final image
-  etc/systemd/system/install-zen-browser.service
   etc/sddm.conf.d/*.conf
   usr/bin/atomic-hyprland-dx-groups
   usr/lib/systemd/system/atomic-hyprland-dx-groups.service
   usr/lib/sysusers.d/atomic-hyprland.conf
+  usr/share/flatpak/preinstall.d/zen-browser.preinstall
   usr/share/ublue-os/just/60-custom.just
 .github/workflows/build.yml
 README.md

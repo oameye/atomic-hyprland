@@ -164,9 +164,17 @@ systemctl enable atomic-hyprland-dx-groups.service
 systemctl enable install-zen-browser.service
 
 ############################################
-# 9. Cleanup dnf caches (image-size hygiene)
+# 9. Cleanup for image-size hygiene AND bootc var-tmpfiles lint.
+#    bootc wants /var empty in the image -- clean dnf repo metadata,
+#    blueman state dir, and tmp.
 ############################################
 dnf5 clean all
-rm -rf /var/cache/dnf /var/cache/libdnf5 /tmp/* /var/tmp/*
+rm -rf \
+    /var/cache/dnf \
+    /var/cache/libdnf5 \
+    /var/lib/dnf \
+    /var/lib/blueman \
+    /tmp/* \
+    /var/tmp/*
 
 echo "Build complete."

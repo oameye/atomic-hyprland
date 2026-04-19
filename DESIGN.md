@@ -172,9 +172,11 @@ Result: the greeter renders through Hyprland as a Wayland compositor with Fedora
 ### Files
 
 ```
-Containerfile
-build.sh
-files/
+Containerfile                  # two-stage: scratch ctx + base-main
+Justfile                       # local-dev convenience recipes
+build_files/
+  build.sh                     # bind-mounted into the build, never lands in image
+files/                         # filesystem overlay, COPY'd into final image
   etc/systemd/system/install-zen-browser.service
   etc/sddm.conf.d/theme.conf                    # selects maldives
   etc/sddm.conf.d/backup_the_hyde_project.conf  # marker -- skips HyDE's SDDM step
@@ -182,8 +184,8 @@ files/
   usr/lib/systemd/system/atomic-hyprland-dx-groups.service
 .github/workflows/build.yml
 README.md
-DESIGN.md            # this file
-PLAN.md              # implementation plan
+DESIGN.md                      # this file
+PLAN.md                        # implementation plan
 ```
 
 The `files/` tree is `COPY files/ /` into the image in the Containerfile before `build.sh` runs.

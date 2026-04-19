@@ -7,9 +7,11 @@ See [`DESIGN.md`](./DESIGN.md) for the full design.
 ## Rebase
 
 ```sh
-rpm-ostree rebase ostree-unverified-registry:ghcr.io/oameye/atomic-hyprland:43
+sudo bootc switch ghcr.io/oameye/atomic-hyprland:43
 systemctl reboot
 ```
+
+(Older `rpm-ostree rebase ostree-unverified-registry:ghcr.io/oameye/atomic-hyprland:43` still works on systems that predate `bootc switch`.)
 
 ## After first boot
 
@@ -24,5 +26,19 @@ For ghostty theming, also clone [`HyDE-Project/terminal-emulators`](https://gith
 ## Rollback
 
 ```sh
-rpm-ostree rollback && systemctl reboot
+sudo bootc rollback && systemctl reboot
+```
+
+(Older equivalent: `rpm-ostree rollback`.)
+
+## Local development
+
+This repo uses a `Justfile` for local build tasks:
+
+```sh
+just build            # build the image locally with podman
+just lint             # shellcheck on all .sh files
+just format           # shfmt on all .sh files
+just check            # verify Justfile syntax
+just clean            # remove local build artifacts
 ```

@@ -1,382 +1,210 @@
 # Atomic-Hyprland — Design
 
-A personal Fedora Atomic image that ships Hyprland on top of Universal Blue's `base-main`, with HyDE as the post-rebase rice. Single-user scope (AMD GPU, no nvidia variant).
+A personal Fedora Atomic image that ships Hyprland with [LinuxBeginnings/Hyprland-Dots](https://github.com/LinuxBeginnings/Hyprland-Dots) on top of Universal Blue's `base-main`. Single-user scope, AMD GPU, no nvidia variant.
 
-This document reflects the **as-built** design. During first implementation, several F43-repo-reality constraints forced package deviations from the original design: the Qt5 stack and HyDE's Qt5-based SDDM themes were dropped, `hyprpolkitagent`/`hyprland-qtutils` were replaced with `mate-polkit` due to a Qt6.9-vs-6.10 ABI conflict in solopasha's COPR, and `yazi`/`eduvpn-client`/`bibata-cursor-themes` moved off the bake-in list (they are not in F43 repos). Each deviation is called out in its section below with rationale.
+This file describes **intent and invariants**. For current values (pinned tags, package list, Fedora version) look at [`build_files/build.sh`](./build_files/build.sh); it is the source of truth.
 
 ## Goals
 
-- Fedora Atomic base with Universal Blue's plumbing (auto-updates, signing infra, `ujust`, Homebrew setup).
-- Hyprland + a full opinionated desktop stack baked in, so first boot is a working system.
-- Easy, automatic upgrades via `rpm-ostree`.
-- Minimal maintenance surface: raw Containerfile, no BlueBuild.
-- Personal use only — no user-facing CLI wrappers, no welcome flows, no ISO, no signing.
+- Fedora Atomic base with Universal Blue's plumbing (auto-updates, `ujust`, Homebrew).
+- First-boot-ready desktop: full rice baked in, no post-install package commands.
+- Automatic upgrade path via `rpm-ostree`/`bootc` with zero manual pin maintenance for fast-moving components.
+- Minimal repo surface: raw `Containerfile` + `build.sh` + static `files/` overlay.
+- Personal use only — no user-facing CLI wrappers beyond one `ujust` recipe, no welcome flows, no ISO, no signing.
 
 ## Architecture
 
-- **Base image:** `ghcr.io/ublue-os/base-main:43`
-- **Build framework:** Raw `Containerfile` + `build.sh`, loosely based on `ublue-os/image-template`.
-- **Image name:** `ghcr.io/<gh-user>/atomic-hyprland`
-- **Signing:** None. Rebase via `ostree-unverified-registry:`. Trade-off accepted: we lose tamper detection on updates in exchange for simpler setup. Threat model is personal (single user, trusted GitHub account); cost of signing is low but benefit is also low.
-- **Repository visibility:** Public GitHub repo + public GHCR image. Public repos get free/unlimited GitHub Actions minutes. GHCR packages default to private on first push and must be flipped to public manually (*GitHub → Profile → Packages → atomic-hyprland → Package settings → Change visibility*) before `rpm-ostree rebase` works anonymously.
-- **Fedora version:** Pinned to `43`. Bumping to 44+ is a deliberate PR.
+- **Base image:** `ghcr.io/ublue-os/base-main`, Fedora version pinned in `Containerfile`/CI. Bumping Fedora is a deliberate PR.
+- **Build framework:** raw two-stage `Containerfile` + `build.sh`. No BlueBuild; a single image doesn't benefit from BlueBuild's recipe matrix.
+- **Image:** `ghcr.io/<gh-user>/atomic-hyprland`, public GHCR.
+- **Signing:** none. Rebase via `ostree-unverified-registry:` / `bootc switch`. Single-user personal threat model accepts GitHub-account hygiene as mitigation. Adding cosign later is a non-breaking change.
+- **Distribution tags:** `:<fedora-ver>`, `:latest`, `:<fedora-ver>-<YYYYMMDD>`, `:pr-<N>`.
 
 ### Why these choices
 
-- `base-main` over `bluefin`/`bazzite`/`aurora`: those ship GNOME/KDE, which we would have to rip out. `base-main` is a clean Fedora Atomic with uBlue's plumbing already layered.
-- Raw Containerfile over BlueBuild: a single personal image does not benefit from BlueBuild's recipe-matrix abstraction. Matches `cjuniorfox/hyprland-atomic`'s approach; `wayblueorg/wayblue` uses BlueBuild because it maintains 36 recipe variants.
-- `solopasha/hyprland` COPR over Fedora's packaged Hyprland: tracks upstream closely (Fedora lags 1–3 versions) and packages the whole `hypr*` ecosystem uniformly. Both reference projects use it.
+- `base-main` over `bluefin`/`bazzite`/`aurora`: those ship GNOME/KDE. `base-main` is clean Fedora Atomic with uBlue plumbing already installed.
+- `solopasha/hyprland` COPR over Fedora-packaged Hyprland: tracks upstream closely, packages the full `hypr*` ecosystem. Both reference projects ([`cjuniorfox/hyprland-atomic`](https://github.com/cjuniorfox/hyprland-atomic), [`wayblueorg/wayblue`](https://github.com/wayblueorg/wayblue)) use it.
 
-## Package Layering
+## Package layering
 
-Installed via `rpm-ostree install` in `build.sh`.
+Actual package list lives in `build_files/build.sh`. Categories:
 
-### Extra repos enabled at build time
+- **Hyprland ecosystem** from `solopasha/hyprland` COPR (hyprland, hyprlock, hypridle, hyprpaper, hyprcursor, hyprsunset, xdg-desktop-portal-hyprland, etc.). `hyprland-qtutils`/`hyprpolkitagent` are currently excluded — see "Qtutils workaround" below.
+- **Session/greeter** (Qt6 only) — `sddm` + the Qt6 modules the astronaut theme needs. Qt5 is deliberately excluded.
+- **Desktop apps:** ghostty + kitty (kitty is kept because Hyprland-Dots references it, ghostty is user default), waybar, rofi-wayland, swaync, nautilus, clipboard, screenshot, network/BT applets, audio UIs, portals, polkit (mate-polkit as agent), display helpers, uwsm, gvfs.
+- **Developer tooling:** VS Code (layered RPM), `make` + C/C++ headers + sqlite-devel + python3-pip for occasional pip-builds-from-source. Everything else (rg/fd/fzf/jq/btop/lazygit/yazi/…) deferred to `brew` per uBlue-DX philosophy.
+- **Container stack:** full uBlue Bluefin-DX parity — `podman-compose`/`podman-tui`/`flatpak-builder` plus Docker CE via the disable-then-`--enablerepo` pattern.
+- **GPU compute:** ROCm user-space (`rocm-hip`, `rocm-opencl`, `rocm-smi`) for AMD scientific compute.
+- **Fonts + theming:** Fedora fonts plus `che/nerd-fonts` COPR's all-families `nerd-fonts` package (installed isolated so the COPR is not left enabled), icons, `kvantum`.
 
-- `solopasha/hyprland` COPR (left enabled post-install so `rpm-ostree upgrade` can pull live Hyprland updates between weekly CI rebuilds)
-- `pgdev/ghostty` COPR (left enabled, same reason)
-- `che/nerd-fonts` COPR — installed via `copr_install_isolated` helper copied from uBlue Bluefin (COPR enabled → disabled → install via one-shot `--enablerepo`, so no `.repo` file lives in the final image). Ships a single mega-package `nerd-fonts` with all Nerd Font families.
-- Microsoft VS Code repo (`packages.microsoft.com/yumrepos/vscode`)
-- Docker CE repo (`download.docker.com/linux/fedora/docker-ce.repo`) — disabled after install per uBlue pattern
+### Repo enablement policy
 
-### Hyprland ecosystem (from solopasha COPR)
+- **Left enabled** on the running system — so `rpm-ostree upgrade` picks up live updates: `solopasha/hyprland`, `pgdev/ghostty`, Microsoft VS Code, Docker CE (repo file `enabled=0` by default, `--enablerepo=docker-ce-stable` at install time).
+- **Enabled → install → disabled** during build: `che/nerd-fonts` via the `copr_install_isolated` helper copied from [`ublue-os/bluefin`](https://github.com/ublue-os/bluefin/blob/main/build_files/shared/copr-helpers.sh). No `.repo` file survives in the final image.
 
-`hyprland`, `hyprlock`, `hypridle`, `hyprpaper`, `hyprshot`, `hyprpicker`, `hyprcursor`, `hyprsunset`, `xdg-desktop-portal-hyprland`
+### Inherited from `base-main`
 
-**Dropped during implementation:** `hyprpolkitagent`, `hyprland-qtutils`. Both depend on solopasha's `hyprland-qt-support-0.1.0-8.fc43`, which requires `Qt_6.9_PRIVATE_API`. Fedora 43 updates ships Qt6.10.3; the ABI break leaves dnf unable to resolve the dep chain. `mate-polkit` (below) replaces hyprpolkitagent as the polkit auth agent. Revisit when solopasha rebuilds against Qt6.10.
+`base-main`'s [`build_files/install.sh`](https://github.com/ublue-os/main/blob/main/build_files/install.sh) already layers: `ublue-os-just` (`ujust`), `ublue-os-signing`, `ublue-os-update-services` (auto-update timers + `ublue-update`), `ublue-os-udev-rules`, `ublue-os-luks`, Homebrew, Flatpak, podman, distrobox, PipeWire/WirePlumber, NetworkManager, rpm-ostree, `rpm-ostreed-automatic.timer`.
 
-### Session / greeter (Qt6 only)
+We additionally enable at build: `sddm.service`, `docker.socket`, `podman.socket`, `flatpak-system-update.timer`, `flatpak-user-update.timer`, `podman-auto-update.timer`, `atomic-hyprland-dx-groups.service`, `install-zen-browser.service`.
 
-`sddm`, `sddm-themes`, `layer-shell-qt`, `qt6-qtsvg`, `qt6-qtmultimedia`, `qt6-qtdeclarative`
+### Deliberately omitted
 
-All Qt5 packages are deliberately excluded. HyDE's SDDM themes (Candy/Corners) use Qt5 QML imports and are therefore not used — we ship Fedora's stock `sddm-themes` package and select the `maldives` theme via `/etc/sddm.conf.d/theme.conf`. `layer-shell-qt` is Qt6 (only variant packaged in F43) and powers the `sddm-hyprland` Wayland-compositor-hosted greeter.
+`earlyoom` (systemd-oomd handles this better on modern Fedora), `cmake`/`meson`/`ninja-build`/`python3-devel` (not compiling C/C++), libvirt/qemu (VM scope), cockpit, kernel tracing tools.
 
-### Desktop applications (Fedora repos)
+A few things that couldn't ship from Fedora repos were pushed to user action: `yazi` via brew, `eduvpn-client` via pipx/Flatpak, cursor themes via Hyprland-Dots' own install.
 
-- Terminal: `ghostty`
-- Bar: `waybar`
-- Launcher: `rofi-wayland`
-- Notifications: `swaync`
-- File manager: `nautilus`, `nautilus-python` (`yazi` not in F43 repos → install via `brew install yazi`)
-- Clipboard: `wl-clipboard`, `cliphist`
-- Screenshots: `grim`, `slurp`, `satty` (annotation)
-- Network / Bluetooth: `network-manager-applet`, `blueman`, `bluez-tools`
-- Audio UI: `pavucontrol`, `playerctl`, `pamixer`
-- Portals: `xdg-desktop-portal-gtk`
-- Polkit: `polkit` + `mate-polkit` (GTK-based authentication agent; replaces first-party `hyprpolkitagent` which is broken by the Qt6 ABI conflict above)
-- Display helpers: `brightnessctl`, `wlr-randr` (nightlight handled by `hyprsunset` above)
-- Session manager: `uwsm` (systemd user-slice scoping for Hyprland session and app launches)
-- Filesystem helpers: `gvfs`, `gvfs-mtp`, `gvfs-smb`
+## Desktop environment — LinuxBeginnings/Hyprland-Dots
 
-### Developer tooling
+The full Hyprland-Dots tree is cloned unpinned (master) during each build and copied into `/etc/skel/.config/`. Rationale:
 
-- **Editor:** `code` (VS Code, layered from Microsoft's RPM repo)
-- **Homebrew:** inherited from `base-main` (no action). All CLI ergonomics — `ripgrep`, `fd-find`, `fzf`, `jq`, `yq`, `btop`, `lazygit`, `git-delta`, `yazi`, etc. — are deferred to brew. Matches uBlue DX's philosophy of "system-level infra on the host, CLI tooling via brew."
-- **Build essentials:** `make` (scientific Python/R packages occasionally need it at install time)
-- **Carried over from current Aurora layered packages:** `gcc-c++`, `libstdc++-devel`, `python3-pip`, `sqlite-devel` (kept in case `pip install` builds a native extension from source)
-- **VPN:** `eduvpn-client` is not in Fedora 43 repos (all candidate COPRs empty). Install post-boot via `pipx install eduvpn-gui` or the community Flatpak. Not baked in.
-
-### Container stack (parity with uBlue Bluefin-DX / Aurora-DX)
-
-**Principle:** do not reinvent uBlue's container stack setup. Mirror the upstream [`build_files/dx/00-dx.sh`](https://github.com/ublue-os/bluefin/blob/main/build_files/dx/00-dx.sh) pattern verbatim in our `build.sh` for the container-stack portion. Copy the `bluefin-dx-groups` helper (rename to `atomic-hyprland-dx-groups`) so wheel members are added to `docker`/`incus-admin`/`libvirt` groups on first boot.
-
-Packages installed (from Fedora):
-
-- `podman-compose`, `podman-tui`, `podman-machine`, `flatpak-builder`
-- `distrobox`, `podman` — already in `base-main` (no action)
-
-Docker CE installed using uBlue's exact disable-then-`--enablerepo` pattern so the Docker repo is present but not consulted during `rpm-ostree upgrade` by default:
-
-```bash
-dnf5 config-manager addrepo --from-repofile=https://download.docker.com/linux/fedora/docker-ce.repo
-sed -i "s/enabled=.*/enabled=0/g" /etc/yum.repos.d/docker-ce.repo
-dnf5 -y install --enablerepo=docker-ce-stable \
-    docker-ce docker-ce-cli docker-compose-plugin \
-    docker-buildx-plugin containerd.io
-```
-
-Systemd units enabled at build time:
-
-- `docker.socket`, `podman.socket`
-- `atomic-hyprland-dx-groups.service` — oneshot that appends `docker`, `incus-admin`, `libvirt` entries to `/etc/group` (copied from `/usr/lib/group`) and adds wheel members to them. Vendored from [`system_files/dx/usr/bin/bluefin-dx-groups`](https://github.com/ublue-os/bluefin/blob/main/system_files/dx/usr/bin/bluefin-dx-groups) + [`.../bluefin-dx-groups.service`](https://github.com/ublue-os/bluefin/blob/main/system_files/dx/usr/lib/systemd/system/bluefin-dx-groups.service) with a one-line rename.
-
-### Upstream fidelity — files we track for drift
-
-The following pieces are copied-from-upstream rather than invented. If uBlue changes them we should audit and update:
-
-| Our file | Upstream source |
-|---|---|
-| `build.sh` (container-stack section) | `ublue-os/bluefin` → `build_files/dx/00-dx.sh` |
-| `build.sh` (`copr_install_isolated` helper) | `ublue-os/bluefin` → `build_files/shared/copr-helpers.sh` |
-| `build.sh` (`che/nerd-fonts` → `nerd-fonts` install pattern) | `ublue-os/bluefin` → `build_files/base/04-packages.sh` |
-| `Containerfile` (two-stage ctx + cache mounts + `bootc container lint`) | `ublue-os/image-template` → `Containerfile` |
-| `Justfile` (local-dev recipes) | `ublue-os/image-template` → `Justfile` (trimmed; VM/ISO recipes dropped) |
-| `files/usr/bin/atomic-hyprland-dx-groups` | `ublue-os/bluefin` → `system_files/dx/usr/bin/bluefin-dx-groups` |
-| `files/usr/lib/systemd/system/atomic-hyprland-dx-groups.service` | `ublue-os/bluefin` → `system_files/dx/usr/lib/systemd/system/bluefin-dx-groups.service` |
-| SDDM greeter integration | `HyDE-Project/sddm-hyprland` (pinned tag `v0.48.0`, `make install`-ed at build time) |
-| SDDM theme | `Keyitdev/sddm-astronaut-theme` (pinned commit `d73842c`, variant `astronaut`; cloned + fonts copied) |
-| `/etc/skel/.config/*` (full Hyprland rice) | `LinuxBeginnings/Hyprland-Dots` (**unpinned** master; weekly CI picks up upstream automatically) |
-
-### GPU compute (AMD ROCm)
-
-- `rocm-hip`, `rocm-opencl`, `rocm-smi`
-- Matches the AMD RX 6650 XT target hardware and typical scientific-computing workload.
-
-### Omitted
-
-- **`earlyoom`** was on the Aurora layered list but is deliberately not carried over. `base-main` enables `systemd-oomd`, which uses PSI (actual memory pressure) rather than earlyoom's free-memory thresholds. Running both is counterproductive.
-- **`cmake`, `meson`, `ninja-build`, `pkgconf-pkg-config`, `python3-devel`** — user does not actively compile C/C++ code. If a `pip install` needs them later they can be added.
-- **`libvirt` / `virt-manager` / `qemu-*`** — VM use out of scope.
-- **Cockpit** — web admin UI not used in a Hyprland desktop workflow.
-- **`bpftrace`, `bcc`, `sysprof`, `trace-cmd`** — kernel tracing not in active workflow.
-
-### Fonts and theming
-
-- Fonts: `fontawesome-fonts-all`, `google-noto-emoji-fonts`, `liberation-fonts`, `jetbrains-mono-fonts` from Fedora; plus `nerd-fonts` (all Nerd Font families) installed isolated from the `che/nerd-fonts` COPR, matching the Bluefin pattern
-- Icons: `adwaita-icon-theme`, `papirus-icon-theme`
-- Qt theming engine: `kvantum` (required by HyDE's theme switcher to keep Qt apps in sync with the active theme)
-- Cursors: `bibata-cursor-themes` is not in Fedora 43 repos; HyDE installs its own cursor theme into `~/.icons` via its post-install script, so no system-level cursor theme is baked in.
-
-### Inherited from `base-main` (not re-installed)
-
-Verified against `ublue-os/main` → `build_files/install.sh` (which installs `ublue-os-just`, `ublue-os-luks`, `ublue-os-signing`, `ublue-os-udev-rules`, `ublue-os-update-services` from the `ublue-os/packages` COPR and then disables the COPR):
-
-PipeWire + WirePlumber, Flatpak, podman, distrobox, NetworkManager, rpm-ostree, `ublue-os-signing`, `ublue-os-just` (provides `ujust`), `ublue-os-update-services` (provides `ublue-update` + automatic timers), `ublue-os-udev-rules`, `ublue-os-luks`, Homebrew setup unit, `rpm-ostreed-automatic.timer`.
-
-## Desktop Environment ([LinuxBeginnings/Hyprland-Dots](https://github.com/LinuxBeginnings/Hyprland-Dots))
-
-### History — why not HyDE
-
-The original plan was to run [HyDE-Project/HyDE](https://github.com/HyDE-Project/HyDE) post-rebase. First on-system test revealed two hard blockers:
-
-1. **HyDE is Arch-only.** Its README explicitly says so; the installer calls `pacman`/AUR helpers and fails on Fedora, prompting to install `yay`/`paru` on an Atomic system. HyDE's `pm.sh` lists `dnf` in a supported-package-managers array but multiple other install paths hard-code Arch assumptions.
-2. **Hyprland's stock `/usr/share/hyprland/hyprland.conf` fallback binds `SUPER+Q` to `kitty`** — we had ghostty but not kitty at the time, so without a rice the user had no working terminal keybind and had to reach a TTY to recover.
-
-We switched to **LinuxBeginnings/Hyprland-Dots** (successor to JaKooLit/Hyprland-Dots — both authors archived the JaKooLit org in March 2026). `LinuxBeginnings/Fedora-Hyprland` (the **installer** repo) still uses `sudo dnf install` and is not Atomic-compatible. **`LinuxBeginnings/Hyprland-Dots` (the dotfiles-only repo)** is package-manager-free — `copy.sh` writes only to `~/.config`, grep confirms no `dnf install`/`pacman`/`apt` calls — and works fine on Atomic once packages are baked.
-
-### Baked into `/etc/skel` at build time
-
-We clone `LinuxBeginnings/Hyprland-Dots` **unpinned** (master) during every image build and copy `config/` → `/etc/skel/.config/`. This gives low-maintenance + automatic updates: weekly CI pulls the latest master automatically, no manual submodule bumps on our side.
-
-Pattern chosen over running `copy.sh` post-boot because `copy.sh` is heavily interactive (whiptail menus, keyboard/resolution/animation prompts) and hard-codes `$HOME` paths — it's not safe to run non-interactively in a Containerfile against `/etc/skel`, and defaults can be hard-coded at bake time (AMD GPU, no Nvidia branches, US keyboard).
+- Hyprland-Dots evolves rapidly (waybar modules, keybinds, scripts). We want updates automatically; pinning would create maintenance churn. Weekly CI picks up master every week.
+- Running the upstream `copy.sh` post-rebase was rejected: it is heavily interactive (whiptail prompts for keyboard/resolution/animations), hard-codes `$HOME`, and its runtime-only knobs can be fixed at bake time for our single-user AMD-GPU profile.
+- Predecessor HyDE (Arch-only installer) and `LinuxBeginnings/Fedora-Hyprland` (mutable-Fedora-only, uses `sudo dnf install`) are both Atomic-incompatible. Only `LinuxBeginnings/Hyprland-Dots` (dotfiles-only, package-manager-free) is safe to bake.
 
 ### Baked-in overrides
 
-During the build, `build.sh` applies two patches on top of the Hyprland-Dots tree:
+`build.sh` applies two sed/append patches on top of the cloned Hyprland-Dots tree before copying to `/etc/skel`:
 
-1. **Ghostty as default terminal.** Hyprland-Dots ships `$term = kitty` in `01-UserDefaults.conf`. We sed-patch it to `$term = ghostty`. Kitty is still installed because Hyprland-Dots' theme switcher (`Kitty_themes.sh`) references it.
-2. **Silence the `hyprland-qtutils missing` notification overlay.** We append a `misc { disable_hyprland_guiutils_check = true }` block to `UserConfigs/UserSettings.conf`. Rationale in the next section.
-
-### `hyprland-qtutils` warning suppression
-
-`hyprland-qtutils` and `hyprpolkitagent` (both from `solopasha/hyprland` COPR) depend on `hyprland-qt-support-0.1.0-8.fc43`, which requires `Qt_6.9_PRIVATE_API` symbols. Fedora 43 updates ships Qt6.10, so the COPR packages cannot be installed — a dependency resolution conflict. We drop them from the package list and use `mate-polkit` as the polkit auth agent instead (Hyprland-Dots' `Polkit.sh` walks a list of agent paths including `/usr/libexec/polkit-mate-authentication-agent-1` and picks mate-polkit automatically).
-
-But Hyprland itself still checks for `hyprland-dialog` in `$PATH` at startup ([`Compositor.cpp` in `hyprwm/Hyprland`](https://github.com/hyprwm/Hyprland/blob/main/src/Compositor.cpp)) and fires a 15-second notification overlay if missing. Upstream provides a specific config flag to suppress this check when the user knowingly omits the package:
-
-```
-misc {
-    disable_hyprland_guiutils_check = true
-}
-```
-
-We append this block to `UserConfigs/UserSettings.conf` during build so the warning never appears.
-
-**Reference:** [`hyprwm/hyprland-qt-support` issue #9](https://github.com/hyprwm/hyprland-qt-support/issues/9) (Fedora 43 Qt6.10 dependency conflict, open). The same constraint affects [`cjuniorfox/hyprland-atomic`](https://github.com/cjuniorfox/hyprland-atomic) — their `build.sh` comments "removed hyprland-qtutils from Fedora 43 release because of compatibility issues". No F43 COPR currently ships a Qt6.10-compatible `hyprland-qt-support`. Revisit when upstream or solopasha rebuilds; once `hyprland-qtutils` becomes installable again, remove the `disable_hyprland_guiutils_check` block and add `hyprpolkitagent` + `hyprland-qtutils` back to the package list.
+1. **Default terminal:** `$term = kitty` → `$term = ghostty` in `UserConfigs/01-UserDefaults.conf`. Kitty stays installed because the theme switcher references it.
+2. **Qtutils warning suppression:** append a `misc { disable_hyprland_guiutils_check = true }` block to `UserConfigs/UserSettings.conf`. See "Qtutils workaround" below.
 
 ### Applying the skel to existing `$HOME`
 
-`/etc/skel` only copies to `$HOME` for **newly created** user accounts. A user who rebased from a previous image already has `$HOME` and will not get the new skel on first boot. We ship a `ujust` recipe that rsyncs `/etc/skel/` into `$HOME`:
+`/etc/skel` only copies to `$HOME` on new-user creation. Accounts carried over from an earlier deployment already exist and will not inherit the skel. A `ujust` recipe rsyncs `/etc/skel/` into `$HOME`:
 
 ```sh
-ujust sync-skel-config              # safe -- skips files that already exist in $HOME
-ujust sync-skel-config overwrite=1  # clobber existing files with the new skel
+ujust sync-skel-config              # safe -- skips files that already exist
+ujust sync-skel-config overwrite=1  # clobber existing files from the new skel
 ```
 
-The recipe lives in `files/usr/share/ublue-os/just/60-custom.just` — the `60-custom` filename is uBlue's sanctioned extension point: `base-main`'s `/usr/share/ublue-os/justfile` already contains `import? "/usr/share/ublue-os/just/60-custom.just"` (the `?` makes it optional, so plain base-main tolerates its absence).
+The recipe lives at `/usr/share/ublue-os/just/60-custom.just` — uBlue's sanctioned extension point (`base-main`'s justfile already `import?`'s this path).
 
-### SDDM greeter — pre-baked at image build time
+### Qtutils workaround
 
-Two assets ship into the image for the greeter:
+`hyprland-qtutils` and `hyprpolkitagent` from the `solopasha/hyprland` COPR depend on `hyprland-qt-support` built against a Qt6 private ABI that does not match Fedora's current Qt6. dnf cannot resolve the transaction. The same situation affects `cjuniorfox/hyprland-atomic`; this is a Fedora-ecosystem issue, not specific to this image.
 
-- **[`HyDE-Project/sddm-hyprland`](https://github.com/HyDE-Project/sddm-hyprland)** — Wayland-compositor integration that makes SDDM render through a Hyprland compositor. `make install PREFIX=/usr` drops `/usr/share/hypr/sddm/hyprland.conf` + `/etc/sddm.conf.d/sddm-hyprland.conf` (sets `CompositorCommand=Hyprland -c /usr/share/hypr/sddm/hyprland.conf`) + `/etc/sddm.conf.d/sddm-user.conf` (cursor fix). Qt6-compatible. Pinned to tag `v0.48.0`.
-- **[`Keyitdev/sddm-astronaut-theme`](https://github.com/Keyitdev/sddm-astronaut-theme)** (2.7k stars, actively maintained) — SDDM theme. Cloned into `/usr/share/sddm/themes/sddm-astronaut-theme`, pinned to commit `d73842c` (no upstream tags exist). Fonts in the repo's `Fonts/` are copied to `/usr/share/fonts/`. We sed-patch the theme's `metadata.desktop` to point at the **`astronaut` variant** (the repo's namesake, space-themed); alternatives `black_hole`, `cyberpunk`, `japanese_aesthetic`, `purple_leaves`, etc. are a one-line build-arg change.
+Mitigations:
 
-We also ship:
-- `/etc/sddm.conf.d/theme.conf` with `[Theme] Current=sddm-astronaut-theme`
-- `/etc/sddm.conf.d/virtualkbd.conf` with `[General] InputMethod=qtvirtualkeyboard` (astronaut theme needs `qt6-qtvirtualkeyboard`)
-- `/etc/sddm.conf.d/backup_the_hyde_project.conf` (empty marker — legacy from the HyDE era; harmless, kept so any future HyDE reintroduction skips its own SDDM touches)
+- **Polkit agent:** use `mate-polkit` instead of `hyprpolkitagent`. Hyprland-Dots' `Polkit.sh` walks a candidate list and picks mate-polkit automatically.
+- **Suppress the `hyprland-dialog` missing notification** that Hyprland fires at startup: set `misc:disable_hyprland_guiutils_check = true` (upstream-sanctioned config flag) via the override above.
 
-Previous iterations tried HyDE's `Sddm_Corners` theme (Qt5 — dropped with the Qt5 stack) and Fedora's `sddm-themes`/`maldives` (aesthetically underwhelming — *"insanely ugly"* per user testing). `sddm-breeze` was rejected because it drags `plasma-workspace` (~200-500 MB of KDE deps).
+Cleanup when upstream fixes this is tracked in [issue #1](https://github.com/oameye/atomic-hyprland/issues/1). Upstream blocker: [`hyprwm/hyprland-qt-support#9`](https://github.com/hyprwm/hyprland-qt-support/issues/9).
 
-## Build & Release
+## SDDM greeter
 
-### Files
+Pre-baked at image build time because SDDM themes and the Hyprland-compositor-hosted greeter integration both write to `/usr/share/`, which is read-only post-boot on rpm-ostree.
+
+- **[`HyDE-Project/sddm-hyprland`](https://github.com/HyDE-Project/sddm-hyprland)** — pinned tag. `make install PREFIX=/usr` drops the Hyprland config + SDDM conf files that set `CompositorCommand=Hyprland`. Qt6-compatible.
+- **[`Keyitdev/sddm-astronaut-theme`](https://github.com/Keyitdev/sddm-astronaut-theme)** — pinned commit + variant choice. Cloned into `/usr/share/sddm/themes/`, its bundled fonts are copied into `/usr/share/fonts/`, and `metadata.desktop` is sed-patched to select the variant.
+- **Static configs** shipped via `files/etc/sddm.conf.d/`: `theme.conf` (Current=…), `virtualkbd.conf` (astronaut theme's qtvirtualkeyboard input), plus an empty legacy marker file that keeps any future HyDE reintroduction quiet.
+
+## Browser
+
+No browser is layered as RPM; `base-main`'s Firefox is `override remove`d. [Zen Browser](https://zen-browser.app/) is auto-installed on first boot via a systemd oneshot that calls `flatpak install flathub app.zen_browser.zen` (the Flathub remote itself is pre-added system-wide during build). Known Flatpak-browser trade-offs (`~/.var/app/…` paths, portal-mediated file access, sandboxed native-messaging) are accepted.
+
+## Build & release
+
+### Repo layout
 
 ```
 Containerfile                  # two-stage: scratch ctx + base-main
-Justfile                       # local-dev convenience recipes
+Justfile                       # local-dev recipes (build/lint/format/clean)
 build_files/
   build.sh                     # bind-mounted into the build, never lands in image
-files/                         # filesystem overlay, COPY'd into final image
+files/                         # COPY'd into final image
   etc/systemd/system/install-zen-browser.service
-  etc/sddm.conf.d/theme.conf                      # selects sddm-astronaut-theme
-  etc/sddm.conf.d/virtualkbd.conf                 # qtvirtualkeyboard (astronaut theme dep)
-  etc/sddm.conf.d/backup_the_hyde_project.conf    # legacy marker (harmless)
+  etc/sddm.conf.d/*.conf
   usr/bin/atomic-hyprland-dx-groups
   usr/lib/systemd/system/atomic-hyprland-dx-groups.service
-  usr/lib/sysusers.d/atomic-hyprland.conf         # declares docker/incus-admin/libvirt
-  usr/share/ublue-os/just/60-custom.just          # ujust sync-skel-config
+  usr/lib/sysusers.d/atomic-hyprland.conf
+  usr/share/ublue-os/just/60-custom.just
 .github/workflows/build.yml
 README.md
-DESIGN.md                      # this file
-PLAN.md                        # implementation plan
+DESIGN.md
 ```
 
-The `files/` tree is `COPY files/ /` into the image in the Containerfile before `build.sh` runs.
+### Containerfile shape
 
-### Containerfile (shape)
+Pattern lifted from [`ublue-os/image-template`](https://github.com/ublue-os/image-template):
 
 ```dockerfile
-ARG FEDORA_VERSION=43
-FROM ghcr.io/ublue-os/base-main:${FEDORA_VERSION}
+ARG FEDORA_VERSION=…
+FROM scratch AS ctx
+COPY build_files /
 
+FROM ghcr.io/ublue-os/base-main:${FEDORA_VERSION}
 COPY files/ /
-COPY build.sh /tmp/build.sh
-RUN /tmp/build.sh && \
-    ostree container commit
+RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
+    --mount=type=cache,dst=/var/cache \
+    --mount=type=cache,dst=/var/log \
+    --mount=type=tmpfs,dst=/tmp \
+    /ctx/build.sh \
+ && ostree container commit
+RUN bootc container lint
 ```
 
-### `build.sh` responsibilities
+Key properties: `build.sh` is bind-mounted so it never persists in the image; cache mounts speed local iteration; `bootc container lint` validates the result.
 
-Installer choice — we use `dnf5` inside the build (matching uBlue's own images) except for the two `rpm-ostree override remove` steps, which require `rpm-ostree` to record the override in the image metadata. Both paths work in a container build against an ostree base.
+### `build.sh` responsibilities (in order)
 
-1. Enable `solopasha/hyprland` and `pgdev/ghostty` COPRs by curling their `.repo` files into `/etc/yum.repos.d/` (pattern from `cjuniorfox/hyprland-atomic`). Define a `copr_install_isolated` helper function (copied verbatim from `ublue-os/bluefin` → `build_files/shared/copr-helpers.sh`) for later use with `che/nerd-fonts`.
-2. Install Microsoft VS Code repo file.
-3. Install Docker CE repo file with the disable-then-`--enablerepo` pattern (see Container stack section).
-4. `dnf5 -y install --setopt=install_weak_deps=False` the full package list. The weak-deps flag is a meaningful image-size win; `wayblueorg/wayblue` uses it, `cjuniorfox/hyprland-atomic` omits it.
-5. `rpm-ostree override remove firefox firefox-langpacks` — `base-main` ships Firefox; we prefer the Flatpak version for an Atomic system.
-6. `systemctl enable sddm.service`.
-7. **SDDM greeter + theme + Hyprland-Dots rice.** In a single scratch dir:
-   - Clone `HyDE-Project/sddm-hyprland` at pinned tag `v0.48.0`; `make install PREFIX=/usr`.
-   - Clone `Keyitdev/sddm-astronaut-theme` into `/usr/share/sddm/themes/sddm-astronaut-theme`, `git reset --hard` to pinned commit `d73842c`, `rm -rf .git`. Copy `Fonts/*` → `/usr/share/fonts/`. Sed `metadata.desktop` → `ConfigFile=Themes/${SDDM_ASTRONAUT_VARIANT}.conf`.
-   - Clone `LinuxBeginnings/Hyprland-Dots` unpinned (master, shallow). Copy `config/` → `/etc/skel/.config/`. Sed `$term = ghostty` into `01-UserDefaults.conf`. Append a `misc { disable_hyprland_guiutils_check = true }` block to `UserConfigs/UserSettings.conf`.
-   - The static `theme.conf` + `virtualkbd.conf` + `backup_the_hyde_project.conf` are shipped via `files/etc/sddm.conf.d/`.
-   See "SDDM greeter" and "Desktop Environment" sections above for full rationale.
-8. Pre-add the Flathub remote system-wide so Flatpak installs work out of the box (`base-main` does not configure this):
-   ```bash
-   flatpak remote-add --if-not-exists --system flathub https://dl.flathub.org/repo/flathub.flatpakrepo
-   ```
-9. Enable automatic update timers to complete the "fully automatic updates" story alongside the inherited `rpm-ostreed-automatic.timer`:
-   ```
-   systemctl enable --global flatpak-user-update.timer
-   systemctl enable flatpak-system-update.timer
-   systemctl enable --global podman-auto-update.timer
-   ```
-10. `systemctl enable install-zen-browser.service` — first-boot Flatpak install of Zen Browser (see "Browser" below).
-11. Leave the solopasha COPR `.repo` file in place so `rpm-ostree upgrade` continues to pull Hyprland updates between weekly CI rebuilds. The alternative (deleting the repo file post-install to pin Hyprland) is explicitly rejected: weekly CI already handles freshness, and live COPR updates match our "latest Hyprland" intent.
+1. Enable live-use COPRs (`solopasha/hyprland`, `pgdev/ghostty`) via curl-to-`/etc/yum.repos.d/`.
+2. Define the `copr_install_isolated` helper (verbatim from [`ublue-os/bluefin`](https://github.com/ublue-os/bluefin/blob/main/build_files/shared/copr-helpers.sh)).
+3. Drop the VS Code repo file and the Docker CE repo file (latter `enabled=0`).
+4. `dnf5 -y install --setopt=install_weak_deps=False` the full package set; then install Docker CE via `--enablerepo=docker-ce-stable`.
+5. `rpm-ostree override remove firefox firefox-langpacks`.
+6. Install `nerd-fonts` via `copr_install_isolated "che/nerd-fonts" "nerd-fonts"`.
+7. **SDDM greeter + theme + Hyprland-Dots rice** (all in one scratch dir):
+   - Clone `HyDE-Project/sddm-hyprland` at pinned tag → `make install PREFIX=/usr`.
+   - Clone `Keyitdev/sddm-astronaut-theme` at pinned commit → install into `/usr/share/sddm/themes/`, copy its fonts, sed the variant.
+   - Clone `LinuxBeginnings/Hyprland-Dots` unpinned → copy `config/` → `/etc/skel/.config/`, apply baked-in overrides (ghostty default, qtutils suppression).
+8. Pre-add Flathub system-wide (`flatpak remote-add --if-not-exists --system flathub …`).
+9. Enable systemd units (sddm, docker/podman sockets, update timers, dx-groups, zen-browser).
+10. Clean `/var/cache/dnf`, `/var/lib/dnf`, `/var/lib/blueman`, `/tmp/*` for image-size hygiene and bootc lint compliance.
 
-### Browser — Zen Browser via Flatpak
+### CI
 
-No browser is installed via RPM. `base-main`'s bundled Firefox is removed in build.sh step 5. The expected browser is [Zen Browser](https://zen-browser.app/) (`app.zen_browser.zen` on Flathub), a Firefox-based productivity browser popular in Hyprland rices.
-
-First-boot installation is automated via a systemd oneshot unit shipped under `files/etc/systemd/system/install-zen-browser.service` and enabled in build.sh. The unit:
-
-- runs once after `network-online.target`
-- installs `app.zen_browser.zen` system-wide from the pre-configured Flathub remote
-- touches `/var/lib/atomic-hyprland/zen-installed` as a run-once guard
-
-Known trade-offs inherited from running a Flatpak browser (configs under `~/.var/app/app.zen_browser.zen/`, file access via `xdg-desktop-portal`, native-messaging hosts require sandbox overrides) are accepted. User does not use 1Password/KeepassXC desktop native-messaging integration, so the main Flatpak-browser papercut does not apply.
-
-### CI (`build.yml`)
-
-- **Triggers:** push to `main`, PRs, weekly schedule (`cron: "0 4 * * 1"`), manual `workflow_dispatch`.
-- **Build:** `podman build` with `FEDORA_VERSION` build-arg.
-- **Tags:**
-  - On `main` push / schedule / manual: `:43`, `:latest`, `:43-<YYYYMMDD>`
-  - On PR: `:pr-<number>` (does not touch `:43` or `:latest`)
-- **Push:** GHCR (`ghcr.io/<gh-user>/atomic-hyprland`), using `GITHUB_TOKEN`.
-
-### Tag strategy
-
-- `:43` — what the running system tracks. Rebase once, stay here.
-- `:latest` — alias of the current Fedora version. Convenience only.
-- `:43-<YYYYMMDD>` — immutable daily snapshot for pinning or rollback to a specific day.
-- `:pr-<N>` — PR previews, for rebasing-to-test before merging.
+GitHub Actions builds on push to `main`, PRs, weekly schedule, and manual dispatch; pushes to GHCR using `GITHUB_TOKEN`. PR builds emit `:pr-<N>`; main/schedule emit `:<fedora-ver>` + `:latest` + dated snapshot.
 
 ### Pinned vs unpinned upstream refs
 
-Three upstream sources are cloned during build. Two are **pinned** (stable infra, we want predictability); one is **unpinned** (fast-moving rice, we want live updates).
+| | Policy | Why |
+|---|---|---|
+| `HyDE-Project/sddm-hyprland` | Pinned tag | Greeter should not change visually under the user |
+| `Keyitdev/sddm-astronaut-theme` | Pinned commit + variant | Same |
+| `LinuxBeginnings/Hyprland-Dots` | Unpinned (master) | Fast-moving rice; weekly CI picks up upstream automatically |
+| Fedora / COPRs / Docker CE / VS Code | Unpinned | Normal package manager behaviour |
 
-```bash
-# Pinned
-SDDM_HYPRLAND_TAG="v0.48.0"            # HyDE-Project/sddm-hyprland
-SDDM_ASTRONAUT_COMMIT="d73842c"        # Keyitdev/sddm-astronaut-theme
-SDDM_ASTRONAUT_VARIANT="astronaut"
+Upgrading a pinned ref is a one-string PR in `build.sh` → CI builds `:pr-<N>` → rebase-to-test → merge. Unpinned refs flow automatically on weekly CI builds.
 
-# Unpinned (tracks master via shallow clone each build)
-# LinuxBeginnings/Hyprland-Dots
-```
+## Update flow
 
-**Why the split:**
+User workflow is identical to Aurora/Bluefin:
 
-- SDDM greeter assets should not change visually under the user. Pinned = predictable.
-- Hyprland-Dots evolves rapidly (new waybar modules, keybinds, scripts) and we WANT those updates automatically. Unpinning + weekly CI gives zero-maintenance auto-update.
-- Fedora packages, solopasha COPR, ghostty COPR, Docker CE, `che/nerd-fonts` — all flow freely on every build too. Hyprland-Dots is consistent with that posture.
+- `ujust update` or `rpm-ostree upgrade` pulls the latest `:<fedora-ver>` from our GHCR. `rpm-ostreed-automatic.timer` does this nightly in the background.
+- Flatpak and Homebrew updates are chained by `ujust update`; Flatpak has its own auto-update timers too.
+- After a rebuild lands new dotfiles, `ujust sync-skel-config overwrite=1` pulls them into `$HOME`.
+- Rollback: `sudo bootc rollback && systemctl reboot` (or `rpm-ostree rollback`).
 
-**Upgrade procedure for pinned refs:**
+## Upstream fidelity
 
-1. Open a PR editing the constants in `build.sh`.
-2. CI builds `:pr-<N>`; rebase to it, verify the greeter still renders.
-3. Merge; next `rpm-ostree upgrade` lands the update.
+Files and patterns copied from upstream rather than invented. If the upstream source changes substantially, audit and update:
 
-**Cadence for pinned refs:** manual, ad-hoc. Tag-bump automation (Renovate) is out of scope for v1.
+| Area | Upstream source |
+|---|---|
+| `Containerfile` (two-stage + cache mounts + `bootc container lint`) | `ublue-os/image-template` |
+| `Justfile` | `ublue-os/image-template` (trimmed — VM/ISO recipes dropped) |
+| Container stack section of `build.sh` | `ublue-os/bluefin` → `build_files/dx/00-dx.sh` |
+| `copr_install_isolated` helper | `ublue-os/bluefin` → `build_files/shared/copr-helpers.sh` |
+| `che/nerd-fonts` → `nerd-fonts` install pattern | `ublue-os/bluefin` → `build_files/base/04-packages.sh` |
+| `atomic-hyprland-dx-groups` script + service | `ublue-os/bluefin` → `system_files/dx/usr/{bin,lib/systemd/system}/bluefin-dx-groups{,.service}` |
+| SDDM Wayland-compositor integration | `HyDE-Project/sddm-hyprland` |
+| SDDM theme | `Keyitdev/sddm-astronaut-theme` |
+| Full rice in `/etc/skel/.config/` | `LinuxBeginnings/Hyprland-Dots` |
 
-**Cadence for Hyprland-Dots:** automatic via weekly CI — no action needed. After reboot, run `ujust sync-skel-config overwrite=1` if you want to pick up the new configs into `$HOME`.
+## Risks & mitigations
 
-## Upgrade Flow
-
-1. **Initial rebase:**
-   ```sh
-   rpm-ostree rebase ostree-unverified-registry:ghcr.io/<gh-user>/atomic-hyprland:43
-   systemctl reboot
-   ```
-2. **Automatic updates:** `rpm-ostreed-automatic.timer` (inherited from `base-main`) pulls the latest of `:43` nightly in the background. Reboot applies.
-3. **Weekly CI rebuild** ensures Fedora security updates flow in even without code changes.
-4. **Testing a change before merge:** build produces `:pr-<N>`; rebase to it, verify, then merge.
-5. **Breakage recovery:** `rpm-ostree rollback && systemctl reboot` returns to the previous deployment.
-
-## Update Workflow (`ujust update`)
-
-`ujust update` is inherited from `base-main` (provided by `ublue-os-just`) and behaves identically to the way it does on Aurora / Bluefin / Bazzite. On this image it runs:
-
-1. **`rpm-ostree upgrade`** — pulls the latest manifest of the currently-rebased tag. Because the system is rebased to `ostree-unverified-registry:ghcr.io/<gh-user>/atomic-hyprland:43`, this pulls the latest `:43` build from our GHCR. Weekly CI guarantees a fresh build is always available even when no code has changed.
-2. **`flatpak update -y`** — updates user and system Flatpaks.
-3. **`brew update && brew upgrade`** — Homebrew is inherited from `base-main`; update logic is inherited too.
-4. **Firmware** via `fwupdmgr` if present.
-
-The new deployment is staged; a reboot activates it. `rpm-ostree rollback && systemctl reboot` reverts to the previous deployment if anything goes wrong.
-
-No behavioral change from Aurora beyond the `rpm-ostree` source — muscle memory transfers.
-
-## Risks & Mitigations
-
-- **Layered-package build failure on Fedora version bump** (most often VS Code): caught by weekly scheduled CI before it reaches the laptop.
-- **HyDE upstream breaking changes:** HyDE's installer is run manually and versioned independently; a bad HyDE release does not brick the image.
-- **solopasha COPR outage or package conflict:** falls back to rebuilding with Fedora-repo Hyprland as a short-term patch.
-- **Unsigned image tampering:** accepted risk. Mitigation is GitHub account hygiene (2FA, recovery codes). An attacker with GitHub push access could inject a malicious build; `rpm-ostree rollback` recovers post-hoc. Adding cosign signing later is a non-breaking change if this becomes a concern.
-
-## Out of Scope (YAGNI)
-
-Deliberately not in v1:
-
-- cosign signing and signed rebase
-- Custom `ujust` wrapper commands
-- First-boot MOTD / welcome script
-- `/etc/skel` dotfile vendoring
-- Custom "Learn" keybind cheatsheet (HyDE ships one)
-- Installable ISO via `bootc-image-builder`
-- Nvidia variant
-- Multi-Fedora-version matrix
-- Virtualization opt-in toggle
-
-Any of these can be added later without restructuring the image.
+- **Fedora version bump breaks a layered package** (VS Code is the usual culprit): weekly CI catches it before your laptop pulls the upgrade.
+- **Upstream rice change breaks the image**: weekly CI catches it before `rpm-ostree upgrade`. Rollback is always one command.
+- **solopasha COPR outage or conflict**: fall back to Fedora's `hyprland` package as a temporary patch; the COPR is re-enabled once fixed.
+- **Unsigned image tampering**: mitigated by GitHub 2FA/recovery hygiene. An attacker with GitHub push access could still inject a build; `rpm-ostree rollback` recovers post-hoc.

@@ -15,9 +15,9 @@ systemctl reboot
 
 ## First boot
 
-The full LinuxBeginnings Hyprland-Dots rice is shipped in `/etc/skel`. New user accounts get it automatically on first login.
+The full LinuxBeginnings Hyprland-Dots rice is shipped in `/etc/skel`. **New user accounts** get it automatically on first login.
 
-**Existing accounts** (if you rebased from Aurora, your `$HOME` pre-exists) — sync the skel into your home once:
+**Existing accounts** (if you rebased in, your `$HOME` pre-exists) — sync the skel into your home once:
 
 ```sh
 ujust sync-skel-config
@@ -25,15 +25,25 @@ ujust sync-skel-config
 
 Log out/in (or `hyprctl reload`). The default terminal is already `ghostty` (we patch Hyprland-Dots' `$term` at build time).
 
-### Overwriting existing configs
+### Why isn't this step automatic?
 
-`ujust sync-skel-config` skips files that already exist in `$HOME`. To overwrite (e.g., after rebase you want the newest upstream configs to stomp your local edits):
+`/etc/skel` is a Linux convention, not an atomic-hyprland invention: it only populates `$HOME` when a user account is first created (`useradd` copies from it). Rebasing an image never re-triggers that, so an account that already exists from a previous deployment bypasses skel completely. This is a property of every Linux system, not a bug.
+
+We deliberately did **not** add an automatic first-login sync because:
+1. It races with the compositor startup — a user systemd oneshot can fire after Hyprland has already read `~/.config/hypr/`, leaving a half-synced session.
+2. On subsequent image updates (weekly CI picks up upstream Hyprland-Dots changes) we don't want to silently overwrite any customizations you may have made. Keeping it explicit is the consent boundary.
+
+One manual `ujust sync-skel-config` after the first rebase is the price for that simplicity.
+
+### Picking up upstream updates
+
+`ujust sync-skel-config` by default **skips files that already exist**, so running it repeatedly is safe but a no-op past the first run. To pull in new Hyprland-Dots configs after upstream has evolved:
 
 ```sh
 ujust sync-skel-config overwrite=1
 ```
 
-Commit your own `~/.config` to git before doing this.
+This clobbers existing files with the new skel. Commit your `~/.config` to git first if you want a recovery path.
 
 ## Updates
 

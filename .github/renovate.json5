@@ -1,0 +1,117 @@
+{
+  $schema: "https://docs.renovatebot.com/renovate-schema.json",
+  extends: [
+    "config:recommended",
+    ":semanticCommitsDisabled",
+    ":dependencyDashboard",
+  ],
+  timezone: "Europe/Brussels",
+  schedule: ["before 6am on monday"],
+  labels: ["dependencies"],
+  packageRules: [
+    {
+      matchDepNames: [
+        "hyprwm/hyprwayland-scanner",
+        "hyprwm/hyprutils",
+        "hyprwm/hyprgraphics",
+        "hyprwm/aquamarine",
+        "hyprwm/hyprtoolkit",
+        "hyprwm/hyprland-guiutils",
+      ],
+      groupName: "hyprwm toolkit chain",
+    },
+    {
+      matchDepNames: [
+        "hyprwm/hyprland-qt-support",
+        "hyprwm/hyprpolkitagent",
+      ],
+      groupName: "hyprwm Qt6 components",
+    },
+  ],
+  customManagers: [
+    // GitHub-release-tracked tags. Each dep gets its own manager block so
+    // the depName is explicit -- no fragile parsing of nearby comments.
+    {
+      customType: "regex",
+      managerFilePatterns: ["/^build_files/build\\.sh$/"],
+      matchStrings: ["SDDM_HYPRLAND_TAG=\"(?<currentValue>v\\d+\\.\\d+\\.\\d+)\""],
+      depNameTemplate: "HyDE-Project/sddm-hyprland",
+      datasourceTemplate: "github-releases",
+    },
+    {
+      customType: "regex",
+      managerFilePatterns: ["/^build_files/build\\.sh$/"],
+      matchStrings: ["HYPR_GUIUTILS_TAG=\"(?<currentValue>v\\d+\\.\\d+\\.\\d+)\""],
+      depNameTemplate: "hyprwm/hyprland-guiutils",
+      datasourceTemplate: "github-releases",
+    },
+    {
+      customType: "regex",
+      managerFilePatterns: ["/^build_files/build\\.sh$/"],
+      matchStrings: ["HYPRWAYLAND_SCANNER_TAG=\"(?<currentValue>v\\d+\\.\\d+\\.\\d+)\""],
+      depNameTemplate: "hyprwm/hyprwayland-scanner",
+      datasourceTemplate: "github-releases",
+    },
+    {
+      customType: "regex",
+      managerFilePatterns: ["/^build_files/build\\.sh$/"],
+      matchStrings: ["HYPRUTILS_TAG=\"(?<currentValue>v\\d+\\.\\d+\\.\\d+)\""],
+      depNameTemplate: "hyprwm/hyprutils",
+      datasourceTemplate: "github-releases",
+    },
+    {
+      customType: "regex",
+      managerFilePatterns: ["/^build_files/build\\.sh$/"],
+      matchStrings: ["HYPRGRAPHICS_TAG=\"(?<currentValue>v\\d+\\.\\d+\\.\\d+)\""],
+      depNameTemplate: "hyprwm/hyprgraphics",
+      datasourceTemplate: "github-releases",
+    },
+    {
+      customType: "regex",
+      managerFilePatterns: ["/^build_files/build\\.sh$/"],
+      matchStrings: ["AQUAMARINE_TAG=\"(?<currentValue>v\\d+\\.\\d+\\.\\d+)\""],
+      depNameTemplate: "hyprwm/aquamarine",
+      datasourceTemplate: "github-releases",
+    },
+    {
+      customType: "regex",
+      managerFilePatterns: ["/^build_files/build\\.sh$/"],
+      matchStrings: ["HYPRTOOLKIT_TAG=\"(?<currentValue>v\\d+\\.\\d+\\.\\d+)\""],
+      depNameTemplate: "hyprwm/hyprtoolkit",
+      datasourceTemplate: "github-releases",
+    },
+    {
+      customType: "regex",
+      managerFilePatterns: ["/^build_files/build\\.sh$/"],
+      matchStrings: ["HYPR_QT_SUPPORT_TAG=\"(?<currentValue>v\\d+\\.\\d+\\.\\d+)\""],
+      depNameTemplate: "hyprwm/hyprland-qt-support",
+      datasourceTemplate: "github-releases",
+    },
+    {
+      customType: "regex",
+      managerFilePatterns: ["/^build_files/build\\.sh$/"],
+      matchStrings: ["HYPR_POLKITAGENT_TAG=\"(?<currentValue>v\\d+\\.\\d+\\.\\d+)\""],
+      depNameTemplate: "hyprwm/hyprpolkitagent",
+      datasourceTemplate: "github-releases",
+    },
+    {
+      customType: "regex",
+      description: "awww tag on Codeberg (Gitea)",
+      managerFilePatterns: ["/^build_files/build\\.sh$/"],
+      matchStrings: ["AWWW_TAG=\"(?<currentValue>v\\d+\\.\\d+\\.\\d+)\""],
+      depNameTemplate: "LGFae/awww",
+      datasourceTemplate: "gitea-tags",
+      registryUrlTemplate: "https://codeberg.org",
+    },
+    {
+      customType: "regex",
+      description: "sddm-astronaut-theme pinned commit (tracks master)",
+      managerFilePatterns: ["/^build_files/build\\.sh$/"],
+      matchStrings: ["SDDM_ASTRONAUT_COMMIT=\"(?<currentDigest>[a-f0-9]{7,40})\""],
+      depNameTemplate: "Keyitdev/sddm-astronaut-theme",
+      packageNameTemplate: "https://github.com/Keyitdev/sddm-astronaut-theme",
+      datasourceTemplate: "git-refs",
+      currentValueTemplate: "master",
+    },
+  ],
+}

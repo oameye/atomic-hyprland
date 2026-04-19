@@ -1,0 +1,13 @@
+[Unit]
+Description=Install Zen Browser via Flatpak (first boot)
+After=network-online.target
+Wants=network-online.target
+ConditionPathExists=!/var/lib/atomic-hyprland/zen-installed
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/bin/bash -c 'flatpak install -y --noninteractive flathub app.zen_browser.zen && mkdir -p /var/lib/atomic-hyprland && touch /var/lib/atomic-hyprland/zen-installed'
+
+[Install]
+WantedBy=multi-user.target

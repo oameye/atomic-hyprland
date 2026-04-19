@@ -1,0 +1,15 @@
+# Local build artifacts
+*.tar
+*.iso
+*.tar.gz
+output/
+tmp/
+
+# Editor droppings
+.idea/
+.vscode/
+*.swp
+*~
+.DS_Store
+
+*.claude

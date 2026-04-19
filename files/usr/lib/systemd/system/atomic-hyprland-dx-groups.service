@@ -1,0 +1,13 @@
+[Unit]
+Description=Add wheel members to docker/incus-admin/libvirt groups
+After=systemd-user-sessions.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/atomic-hyprland-dx-groups
+Restart=on-failure
+RestartSec=30
+StartLimitInterval=0
+
+[Install]
+WantedBy=default.target

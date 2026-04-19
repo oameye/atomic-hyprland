@@ -62,6 +62,19 @@ This clobbers existing files with the new skel. Commit your `~/.config` to git f
 sudo bootc rollback && systemctl reboot
 ```
 
+## Optional: enable "bling" shell aliases
+
+`bling` is an opt-in shell init shipped at `/usr/share/ublue-os/bling/bling.sh` (borrowed from Bluefin). It auto-wires **brew-installed** CLI tools into aliases/hooks — `eza` → `ls`/`ll`/`l.`, `bat` → `cat`, `ug` → `grep`, and `starship`/`zoxide`/`mise`/`direnv` init when present. Does nothing if those tools aren't installed. Source it from your shell rc:
+
+```sh
+# ~/.bashrc or ~/.zshrc
+[ -f /usr/share/ublue-os/bling/bling.sh ] && . /usr/share/ublue-os/bling/bling.sh
+```
+
+For fish: `source /usr/share/ublue-os/bling/bling.fish`.
+
+Install the underlying tools via brew when you want them: `brew install eza bat ripgrep ugrep starship zoxide direnv mise`.
+
 ## Local development
 
 ```sh

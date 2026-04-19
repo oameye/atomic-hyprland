@@ -19,6 +19,15 @@ COPY files/ /
 # boot; /etc/profile.d/brew.sh adds brew to PATH for interactive shells.
 COPY --from=ghcr.io/ublue-os/brew:latest /system_files /
 
+# Bling: opt-in shell init that auto-aliases brew-installed CLI tools
+# (eza->ls/ll, bat->cat, ug->grep, starship/zoxide/mise/direnv hooks).
+# User sources /usr/share/ublue-os/bling/bling.sh from ~/.bashrc / ~/.zshrc
+# (or bling.fish for fish). Does nothing if the underlying tools are
+# absent. Copied straight from the bluefin image since there is no
+# separate OCI image or RPM for it.
+COPY --from=ghcr.io/ublue-os/bluefin:stable \
+    /usr/share/ublue-os/bling /usr/share/ublue-os/bling
+
 RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
     --mount=type=cache,dst=/var/cache \
     --mount=type=cache,dst=/var/log \

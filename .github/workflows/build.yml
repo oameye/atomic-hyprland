@@ -99,6 +99,12 @@ jobs:
         if: github.event_name == 'pull_request'
         run: sudo apt-get update && sudo apt-get install -y skopeo jq
 
+      - name: Allow unprivileged user namespaces
+        # Ubuntu 24.04's AppArmor blocks unshare() for unprivileged users,
+        # which rootless skopeo needs to read the containers-storage below.
+        if: github.event_name == 'pull_request'
+        run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+
       - name: Image size report
         if: github.event_name == 'pull_request'
         id: size

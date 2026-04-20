@@ -28,7 +28,6 @@
       matchDepNames: [
         "hyprwm/hyprlock",
         "hyprwm/hypridle",
-        "hyprwm/hyprpaper",
         "hyprwm/hyprpicker",
         "hyprwm/hyprsunset",
         "hyprwm/xdg-desktop-portal-hyprland",
@@ -50,11 +49,9 @@
     },
     {
       matchDepNames: [
-        "LGFae/swww",
         "gabm/Satty",
         "Gustash/Hyprshot",
         "sentriz/cliphist",
-        "nwg-piotr/nwg-look",
         "Vladimir-csp/uwsm",
         "Vladimir-csp/xdg-terminal-exec",
         "abenz1267/walker",
@@ -62,6 +59,7 @@
         "tsowell/wiremix",
         "pythops/bluetui",
         "pythops/impala",
+        "charmbracelet/gum",
       ],
       groupName: "desktop support tools",
     },
@@ -170,13 +168,6 @@
     {
       customType: "regex",
       managerFilePatterns: ["/^build_files/build\\.sh$/"],
-      matchStrings: ["HYPRPAPER_TAG=\"(?<currentValue>v\\d+\\.\\d+\\.\\d+)\""],
-      depNameTemplate: "hyprwm/hyprpaper",
-      datasourceTemplate: "github-releases",
-    },
-    {
-      customType: "regex",
-      managerFilePatterns: ["/^build_files/build\\.sh$/"],
       matchStrings: ["HYPRPICKER_TAG=\"(?<currentValue>v\\d+\\.\\d+\\.\\d+)\""],
       depNameTemplate: "hyprwm/hyprpicker",
       datasourceTemplate: "github-releases",
@@ -218,22 +209,6 @@
     },
     {
       customType: "regex",
-      description: "awww tag on Codeberg (Gitea)",
-      managerFilePatterns: ["/^build_files/build\\.sh$/"],
-      matchStrings: ["AWWW_TAG=\"(?<currentValue>v\\d+\\.\\d+\\.\\d+)\""],
-      depNameTemplate: "LGFae/awww",
-      datasourceTemplate: "gitea-tags",
-      registryUrlTemplate: "https://codeberg.org",
-    },
-    {
-      customType: "regex",
-      managerFilePatterns: ["/^build_files/build\\.sh$/"],
-      matchStrings: ["SWWW_TAG=\"(?<currentValue>v\\d+\\.\\d+\\.\\d+)\""],
-      depNameTemplate: "LGFae/swww",
-      datasourceTemplate: "github-releases",
-    },
-    {
-      customType: "regex",
       managerFilePatterns: ["/^build_files/build\\.sh$/"],
       matchStrings: ["SATTY_TAG=\"(?<currentValue>v\\d+\\.\\d+\\.\\d+)\""],
       depNameTemplate: "gabm/Satty",
@@ -251,13 +226,6 @@
       managerFilePatterns: ["/^build_files/build\\.sh$/"],
       matchStrings: ["CLIPHIST_TAG=\"(?<currentValue>v\\d+\\.\\d+\\.\\d+)\""],
       depNameTemplate: "sentriz/cliphist",
-      datasourceTemplate: "github-releases",
-    },
-    {
-      customType: "regex",
-      managerFilePatterns: ["/^build_files/build\\.sh$/"],
-      matchStrings: ["NWGLOOK_TAG=\"(?<currentValue>v\\d+\\.\\d+\\.\\d+)\""],
-      depNameTemplate: "nwg-piotr/nwg-look",
       datasourceTemplate: "github-releases",
     },
     {
@@ -307,6 +275,13 @@
       managerFilePatterns: ["/^build_files/build\\.sh$/"],
       matchStrings: ["IMPALA_TAG=\"(?<currentValue>v\\d+\\.\\d+\\.\\d+)\""],
       depNameTemplate: "pythops/impala",
+      datasourceTemplate: "github-releases",
+    },
+    {
+      customType: "regex",
+      managerFilePatterns: ["/^build_files/build\\.sh$/"],
+      matchStrings: ["GUM_TAG=\"(?<currentValue>v\\d+\\.\\d+\\.\\d+)\""],
+      depNameTemplate: "charmbracelet/gum",
       datasourceTemplate: "github-releases",
     },
   ],

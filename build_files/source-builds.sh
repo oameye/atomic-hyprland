@@ -21,8 +21,8 @@ BUILD_DEPS=(
     rust cargo lz4-devel
     # satty requires GTK4 + libadwaita; walker requires gtk-layer-shell
     gtk4-devel libadwaita-devel gtk-layer-shell-devel
-    # Go (cliphist, nwg-look) + CGo GTK3 (nwg-look) — removed after builds
-    golang gtk3-devel
+    # Go (cliphist, walker, elephant, gum) — removed after builds
+    golang
     # uwsm man pages
     scdoc
     # Qt6 (hyprland-qt-support, hyprpolkitagent) — removed after builds
@@ -135,7 +135,6 @@ cmake_build_install hyprland-guiutils "${HYPR_GUIUTILS_TAG}" \
 # ── satellite tools ─────────────────────────────────────────────────
 cmake_build_install hyprlock    "${HYPRLOCK_TAG}"   https://github.com/hyprwm/hyprlock.git
 cmake_build_install hypridle    "${HYPRIDLE_TAG}"   https://github.com/hyprwm/hypridle.git
-cmake_build_install hyprpaper   "${HYPRPAPER_TAG}"  https://github.com/hyprwm/hyprpaper.git
 cmake_build_install hyprpicker  "${HYPRPICKER_TAG}" https://github.com/hyprwm/hyprpicker.git
 cmake_build_install hyprsunset  "${HYPRSUNSET_TAG}" https://github.com/hyprwm/hyprsunset.git
 cmake_build_install xdg-desktop-portal-hyprland "${XDP_HYPRLAND_TAG}" \
@@ -151,8 +150,6 @@ cmake_build_install hyprpolkitagent "${HYPR_POLKITAGENT_TAG}" \
     https://github.com/hyprwm/hyprpolkitagent.git
 
 # ── non-hyprwm tools (Cargo) ────────────────────────────────────────
-cargo_install awww    "${AWWW_TAG}"    https://codeberg.org/LGFae/awww.git        awww awww-daemon
-cargo_install swww    "${SWWW_TAG}"    https://github.com/LGFae/swww.git          swww swww-daemon
 cargo_install satty   "${SATTY_TAG}"   https://github.com/gabm/Satty.git          satty
 cargo_install wiremix "${WIREMIX_TAG}" https://github.com/tsowell/wiremix.git     wiremix
 cargo_install bluetui "${BLUETUI_TAG}" https://github.com/pythops/bluetui.git     bluetui
@@ -167,11 +164,6 @@ install -Dm755 "${BUILD_WORK}/hyprshot/hyprshot" /usr/bin/hyprshot
 git clone --depth 1 --branch "${CLIPHIST_TAG}" \
     https://github.com/sentriz/cliphist.git "${BUILD_WORK}/cliphist"
 go build -C "${BUILD_WORK}/cliphist" -o /usr/bin/cliphist .
-
-git clone --depth 1 --branch "${NWGLOOK_TAG}" \
-    https://github.com/nwg-piotr/nwg-look.git "${BUILD_WORK}/nwg-look"
-make -C "${BUILD_WORK}/nwg-look" build
-make -C "${BUILD_WORK}/nwg-look" install PREFIX=/usr
 
 git clone --depth 1 --branch "${WALKER_TAG}" \
     https://github.com/abenz1267/walker.git "${BUILD_WORK}/walker"

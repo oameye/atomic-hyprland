@@ -26,11 +26,11 @@ This file documents intent and invariants. Current values (pinned tags, package 
 - **Hyprland ecosystem** — all source-built in `source-builds.sh`. See [Source builds](#source-builds).
 - **Session / greeter** — `sddm` + `qt6-qtdeclarative` + `qt6-qtsvg` for omarchy's Qt Quick SDDM theme.
 - **Desktop runtime** — packages omarchy expects: waybar, mako, swaybg, swayosd, fcitx5, gnome-calculator, polkit-gnome, nautilus, ghostty (first-class omarchy-themed terminal; xdg-terminals.list is patched to prefer it over upstream's Alacritty default), wl-clipboard, grim/slurp/swappy, audio stack, wallust, mpv, btop, fastfetch, tmux, imv, starship, neovim (LazyVim bootstrapped by `/etc/skel/.config/nvim/init.lua` on first launch; a plugin spec sources `~/.config/omarchy/current/neovim.lua` so the active omarchy theme's colorscheme plugin loads automatically); `rsms-inter-fonts` preserves Omarchy's GTK typography baseline; walker + elephant are source-built.
-- **Qt theming** — `qt5ct` + `kvantum-qt5` (Qt5) and `qt6ct` + `qt6-qt5compat` (Qt6) for Qt app theming.
+- **Qt theming** — none. Omarchy theme-switches only GTK via `omarchy-theme-set-gnome`; the Hyprland-Dots-era `qt5ct` / `qt6ct` / `kvantum` / `qt6-qt5compat` stack is dropped. Qt apps fall back to system defaults (Adwaita-dark via dconf).
 - **Developer tooling** — VS Code (RPM), make, gcc-c++. Everything else (`fd`, `fzf`, `lazygit`, `yazi`, …) via `brew`.
 - **Containers** — `podman-compose`, `podman-tui`, `podman-machine`, `flatpak-builder`, Docker CE.
 - **GPU compute** — ROCm user-space (`rocm-hip`, `rocm-opencl`, `rocm-smi`) for AMD.
-- **Fonts + theming** — Fedora fonts, `nerd-fonts` (from `che/nerd-fonts` COPR, isolated install), `adwaita-icon-theme`, `papirus-icon-theme`, `kvantum`.
+- **Fonts + theming** — Fedora fonts (`rsms-inter-fonts` for the GTK baseline, `jetbrains-mono-fonts` + `fira-code-fonts` + others for terminal fallbacks), `nerd-fonts` (from `che/nerd-fonts` COPR, isolated install), `adwaita-icon-theme`, `papirus-icon-theme`.
 
 ### COPR policy
 
@@ -49,7 +49,7 @@ The entire Hyprland ecosystem is source-built for exact version control and ABI 
 
 **Toolkit:** `hyprtoolkit` → `hyprland-guiutils` (Wayland-native).
 
-**Satellite tools:** `hyprlock`, `hypridle`, `hyprpaper`, `hyprpicker`, `hyprsunset`, `xdg-desktop-portal-hyprland`.
+**Satellite tools:** `hyprlock`, `hypridle`, `hyprpicker`, `hyprsunset`, `xdg-desktop-portal-hyprland`. (`hyprpaper` dropped — omarchy's autostart uses `swaybg`; `awww` / `swww` handle animated wallpapers.)
 
 **Qt6 components:** `hyprland-qt-support` (QML style plugin), `hyprpolkitagent` (polkit agent).
 
@@ -57,12 +57,10 @@ The entire Hyprland ecosystem is source-built for exact version control and ABI 
 
 | Tool | Build | Purpose |
 |---|---|---|
-| `awww` | Cargo | preferred wallpaper daemon |
-| `swww` | Cargo | animated wallpaper fallback |
 | `satty` | Cargo + GTK4 | screenshot annotation |
 | `hyprshot` | curl (shell script) | screenshot helper |
 | `cliphist` | Go | clipboard history |
-| `nwg-look` | Go + GTK3 | GTK settings GUI |
+| `gum` | Go | interactive prompts (used by `omarchy-menu`, `omarchy-migrate`, etc.) |
 | `uwsm` | Python / meson | Wayland session manager (`uwsm-app` helper enabled) |
 | `xdg-terminal-exec` | shell script | default terminal selector used by current Omarchy bindings |
 | `walker` | Go + GTK4 + gtk-layer-shell | application launcher (omarchy default) |

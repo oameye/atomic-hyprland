@@ -217,6 +217,16 @@ require_upstream_literal \
 sed -i 's/^Alacritty\.desktop$/com.mitchellh.ghostty.desktop/' \
     /etc/skel/.config/xdg-terminals.list
 
+# Waybar's CPU module hardcodes `alacritty` on right-click (we don't ship it).
+# Re-route through xdg-terminal-exec so it resolves to ghostty via our patched
+# xdg-terminals.list — same UX as upstream without the alacritty dependency.
+require_upstream_literal \
+    /etc/skel/.config/waybar/config.jsonc \
+    '"on-click-right": "alacritty"' \
+    'waybar CPU right-click alacritty fallback'
+sed -i 's|"on-click-right": "alacritty"|"on-click-right": "xdg-terminal-exec"|' \
+    /etc/skel/.config/waybar/config.jsonc
+
 # Browser: upstream omarchy-launch-browser resolves the .desktop via
 # xdg-settings, which doesn't search Flatpak export paths. Replace it with
 # a direct Zen Browser (Flatpak) wrapper — Zen is preinstalled via
@@ -298,6 +308,20 @@ ln -s ../../../.local/share/omarchy/default/elephant/omarchy_background_selector
     rm -rf "${CURRENT}"
     mv "${NEXT}" "${CURRENT}"
     echo "${INITIAL_THEME}" > "${HOME}/.config/omarchy/current/theme.name"
+
+    # Seed ~/.config/omarchy/current/background with the first theme
+    # background. omarchy-theme-bg-next handles cycling at runtime, but
+    # without a symlink in place hyprlock + swaybg have nothing to render
+    # on first login. Relative path (from current/ down into theme/) so
+    # it resolves identically in /etc/skel and any $HOME.
+    first_bg=$(find "${CURRENT}/backgrounds" -maxdepth 1 -type f \
+        \( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' \) \
+        | sort | head -n1)
+    if [[ -n $first_bg ]]; then
+        ln -sf \
+            "theme/backgrounds/$(basename "$first_bg")" \
+            "${HOME}/.config/omarchy/current/background"
+    fi
 )
 
 # ── SDDM ─────────────────────────────────────────────────────────────

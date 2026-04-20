@@ -15,11 +15,14 @@ PACKAGES=(
     nautilus nautilus-python ffmpegthumbnailer xarchiver
     tmux imv starship neovim
     wl-clipboard
-    grim slurp swappy gpu-screen-recorder
+    grim slurp gpu-screen-recorder
+    # ffmpeg-free + v4l-utils for omarchy-cmd-screenrecord (preview/trim + webcam).
+    ffmpeg-free v4l-utils
     network-manager-applet iwd blueman bluez-tools python3-cairo
-    pavucontrol playerctl pamixer pulseaudio-utils
+    # pamixer for waybar audio-module right-click mute toggle (omarchy config).
+    playerctl pulseaudio-utils pamixer
     pipewire-alsa pipewire-utils
-    mpv mpv-mpris cava
+    mpv mpv-mpris
     # Printing (omarchy config/hardware/printer.sh) + mDNS discovery
     cups cups-browsed avahi nss-mdns
     # AMD Vulkan (gaming)
@@ -27,14 +30,13 @@ PACKAGES=(
     # Plymouth boot splash (omarchy ships its own theme)
     plymouth plymouth-plugin-label plymouth-plugin-script
     xdg-desktop-portal-gtk polkit
-    brightnessctl ddcutil wlr-randr wlogout
-    loupe gtk-murrine-engine
+    brightnessctl
+    gtk-murrine-engine
     gvfs gvfs-mtp gvfs-smb
-    xdg-user-dirs xdg-utils yad libnotify acpi inxi
-    dbus-tools bc ImageMagick jq nano rsync unzip wget2
+    xdg-user-dirs xdg-utils libnotify inxi
+    dbus-tools bc jq nano rsync unzip wget2
     python3-requests python3-pyquery python3-pip
-    btop nvtop fastfetch gnome-system-monitor qalculate-gtk
-    qt5ct qt6ct qt6-qt5compat kvantum-qt5
+    btop fastfetch
 
     # Developer tooling
     code
@@ -53,7 +55,6 @@ PACKAGES=(
     liberation-fonts jetbrains-mono-fonts
     adobe-source-code-pro-fonts fira-code-fonts google-droid-sans-fonts
     adwaita-icon-theme papirus-icon-theme
-    kvantum
 )
 
 dnf5 -y install --setopt=install_weak_deps=False "${PACKAGES[@]}"
@@ -69,6 +70,5 @@ pip3 install --prefix=/usr --break-system-packages --no-cache-dir \
 
 copr_install_isolated "che/nerd-fonts" "nerd-fonts"
 copr_install_isolated "ublue-os/packages" "bazaar" "uupd"
-copr_install_isolated "errornointernet/packages" "wallust"
 
 rpm-ostree override remove firefox firefox-langpacks || true

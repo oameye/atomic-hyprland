@@ -82,7 +82,7 @@ The entire Hyprland ecosystem is source-built in `source-builds.sh`. Helpers `cm
 
 **Toolkit**: **hyprtoolkit** → **hyprland-guiutils** (Wayland-native, no Qt6)
 
-**Satellite tools**: **hyprlock**, **hypridle**, **hyprpaper**, **hyprpicker**, **hyprsunset**, **xdg-desktop-portal-hyprland**
+**Satellite tools**: **hyprlock**, **hypridle**, **hyprpicker**, **hyprsunset**, **xdg-desktop-portal-hyprland**
 
 **Non-hyprwm desktop tools** (all source-built):
 - **awww** (Cargo) — preferred wallpaper daemon
@@ -90,7 +90,7 @@ The entire Hyprland ecosystem is source-built in `source-builds.sh`. Helpers `cm
 - **satty** (Cargo + GTK4) — screenshot annotation
 - **hyprshot** (curl shell script) — screenshot helper
 - **cliphist** (Go) — clipboard history
-- **nwg-look** (Go + GTK3) — GTK settings GUI
+- **gum** (Go) — interactive prompts/confirms used by omarchy-menu, omarchy-migrate
 - **uwsm** (Python/meson) — Wayland session manager
 
 **Qt6 components**: **hyprland-qt-support** (QML style plugin) + **hyprpolkitagent** (polkit agent) — built against system Qt6.10.

@@ -23,13 +23,13 @@ This file describes **intent and invariants**. For current values (pinned tags, 
 ### Why these choices
 
 - `base-main` over `bluefin`/`bazzite`/`aurora`: those ship GNOME/KDE. `base-main` is clean Fedora Atomic with uBlue plumbing already installed.
-- `solopasha/hyprland` COPR over Fedora-packaged Hyprland: tracks upstream closely, packages the full `hypr*` ecosystem. Both reference projects ([`cjuniorfox/hyprland-atomic`](https://github.com/cjuniorfox/hyprland-atomic), [`wayblueorg/wayblue`](https://github.com/wayblueorg/wayblue)) use it.
+- Source-built Hyprland ecosystem over COPR packages: the `solopasha/hyprland` COPR fell behind upstream (0.51.x vs 0.54.x) and its Qt6 builds target the wrong private ABI on Fedora 43. Building everything from source gives us exact version control and ABI consistency. `solopasha` is still used (isolated) for `swww` and `hyprshot` only.
 
 ## Package layering
 
 Actual package list lives in `build_files/build.sh`. Categories:
 
-- **Hyprland ecosystem** from `solopasha/hyprland` COPR (hyprland, hyprlock, hypridle, hyprpaper, swww, hyprcursor, hyprsunset, xdg-desktop-portal-hyprland, etc.). `hyprland-guiutils` and `awww` are built from source — see "Source builds" below.
+- **Hyprland ecosystem** — the full compositor + satellite tools (hyprland, hyprlock, hypridle, hyprpaper, hyprpicker, hyprsunset, hyprcursor, xdg-desktop-portal-hyprland, hyprland-guiutils, hyprland-qt-support, hyprpolkitagent, awww) are all source-built in section 6. Only `swww` and `hyprshot` are installed from `solopasha/hyprland` COPR (isolated). See "Source builds" below.
 - **Session/greeter** — `sddm` + the Qt6 modules the astronaut theme needs.
 - **Hyprland-Dots runtime deps:** the full set of packages the Dots scripts and configs expect — wallust (theming engine, from `errornointernet/packages` COPR), mpv + mpv-mpris, cava, btop, nvtop, fastfetch, gnome-system-monitor, qalculate-gtk, loupe, nwg-look, ddcutil, gtk-murrine-engine.
 - **Desktop apps:** ghostty + kitty (kitty is kept because Hyprland-Dots references it, ghostty is user default), waybar, rofi-wayland, swaync, quickshell, nautilus, clipboard, screenshot, network/BT applets, audio UIs, portals, polkit (hyprpolkitagent, source-built), display helpers, uwsm, gvfs.
@@ -41,8 +41,8 @@ Actual package list lives in `build_files/build.sh`. Categories:
 
 ### Repo enablement policy
 
-- **Left enabled** on the running system — so `rpm-ostree upgrade` picks up live updates: `solopasha/hyprland`, `pgdev/ghostty`, `errornointernet/quickshell`, Microsoft VS Code, Docker CE (repo file `enabled=0` by default, `--enablerepo=docker-ce-stable` at install time).
-- **Enabled → install → disabled** during build via `copr_install_isolated` (from [`ublue-os/bluefin`](https://github.com/ublue-os/bluefin/blob/main/build_files/shared/copr-helpers.sh)): `che/nerd-fonts` (nerd-fonts), `ublue-os/packages` (bazaar, uupd), `errornointernet/packages` (wallust). No `.repo` file survives in the final image.
+- **Left enabled** on the running system — so `rpm-ostree upgrade` picks up live updates: `pgdev/ghostty`, `errornointernet/quickshell`, Microsoft VS Code, Docker CE (repo file `enabled=0` by default, `--enablerepo=docker-ce-stable` at install time).
+- **Enabled → install → disabled** during build via `copr_install_isolated` (from [`ublue-os/bluefin`](https://github.com/ublue-os/bluefin/blob/main/build_files/shared/copr-helpers.sh)): `che/nerd-fonts` (nerd-fonts), `ublue-os/packages` (bazaar, uupd), `errornointernet/packages` (wallust), `solopasha/hyprland` (swww, hyprshot). No `.repo` file survives in the final image.
 
 ### Inherited from `base-main`
 
@@ -90,12 +90,25 @@ ujust sync-skel-config overwrite=1  # replace managed files from the new skel
 
 ### Source builds
 
-Four packages are built from source at image build time because they aren't cleanly installable from any COPR or Fedora repo on this Fedora + Qt6 combination:
+The entire Hyprland ecosystem is source-built at image build time. The `solopasha/hyprland` COPR fell behind upstream (0.51.x while Hyprland-Dots requires ≥0.53) and its Qt6 packages target the wrong private ABI on Fedora 43. Building from source gives exact version control and ABI consistency across the full stack.
 
-- **`hyprland-guiutils`** (pinned tag, C++/CMake) — successor to the archived `hyprland-qtutils`. Provides `hyprland-dialog` and other GUI utilities Hyprland expects at runtime. Uses `hyprtoolkit` (Wayland-native toolkit, from the solopasha COPR) — **not** Qt6. Built from source because the COPR doesn't package it yet.
-- **`awww`** (pinned tag, Rust/Cargo) — preferred wallpaper daemon for Hyprland-Dots (`swww` is the fallback). Not packaged in any COPR. Build deps: `rust`, `cargo`, `wayland-protocols`, `lz4-devel`, `wayland-devel`.
-- **`hyprland-qt-support`** (pinned tag, C++/CMake) — QML style plugin. The solopasha COPR build is linked against Qt6.9 private API; Fedora 43 ships Qt6.10, so `dnf` can't resolve the COPR package. Building from source compiles against the system Qt6.10 and sidesteps the ABI mismatch. Installed to `/usr/lib64/qt6/qml/` (Fedora's Qt6 QML path). Build deps: `qt6-qtbase-devel`, `qt6-qtdeclarative-devel`, `hyprlang-devel`.
-- **`hyprpolkitagent`** (pinned tag, C++/CMake) — Hyprland-native polkit authentication agent. Same COPR/Qt6-ABI constraint as `hyprland-qt-support` (which it depends on at runtime). Build deps: `qt6-qtbase-devel`, `qt6-qtdeclarative-devel`, `polkit-devel`, `polkit-qt6-1-devel`, `hyprutils-devel`.
+**Core library chain** (C++/CMake, each depends on the previous):
+- **`hyprwayland-scanner`** → **`hyprutils`** → **`hyprlang`** → **`hyprcursor`** → **`hyprgraphics`** → **`aquamarine`**
+
+**Compositor:**
+- **`hyprland`** — the Wayland compositor. Uses `--recurse-submodules` to pull bundled `udis86` and `hyprland-protocols` subprojects.
+
+**Toolkit + GUI:**
+- **`hyprtoolkit`** → **`hyprland-guiutils`** — Wayland-native GUI toolkit and dialog utilities.
+
+**Satellite tools:**
+- **`hyprlock`** (screen locker), **`hypridle`** (idle daemon), **`hyprpaper`** (wallpaper), **`hyprpicker`** (color picker), **`hyprsunset`** (blue-light filter), **`xdg-desktop-portal-hyprland`** (XDG portal backend).
+
+**Non-hyprwm:**
+- **`awww`** (pinned tag, Rust/Cargo) — preferred wallpaper daemon for Hyprland-Dots (`swww` is the fallback). Not packaged in any COPR.
+
+**Qt6 components:**
+- **`hyprland-qt-support`** (QML style plugin) + **`hyprpolkitagent`** (polkit agent) — built against the system Qt6.10 to sidestep private-ABI mismatches.
 
 All build-only toolchains and devel packages are explicitly removed again after installation so the final image only keeps the compiled artifacts.
 
@@ -157,12 +170,12 @@ Key properties: `build.sh` is bind-mounted so it never persists in the image; ca
 
 ### `build.sh` responsibilities (in order)
 
-1. Enable live-use COPRs (`solopasha/hyprland`, `pgdev/ghostty`, `errornointernet/quickshell`) via curl-to-`/etc/yum.repos.d/`.
+1. Enable live-use COPRs (`pgdev/ghostty`, `errornointernet/quickshell`) via curl-to-`/etc/yum.repos.d/`.
 2. Define the `copr_install_isolated` helper (verbatim from [`ublue-os/bluefin`](https://github.com/ublue-os/bluefin/blob/main/build_files/shared/copr-helpers.sh)).
 3. Drop the VS Code repo file and the Docker CE repo file (latter `enabled=0`).
 4. `dnf5 -y install --setopt=install_weak_deps=False` the full package set; then Docker CE, nerd-fonts, bazaar/uupd, and wallust via isolated COPR installs.
 5. `rpm-ostree override remove firefox firefox-langpacks`.
-6. **Source builds** — `hyprland-guiutils`, `awww`, `hyprland-qt-support`, and `hyprpolkitagent`; then remove the build-only toolchains again.
+6. **Source builds** — the full Hyprland ecosystem (compositor + core libs + satellite tools), `awww`, `hyprland-qt-support`, and `hyprpolkitagent`; then remove the build-only toolchains again.
 7. **SDDM greeter + theme + Hyprland-Dots rice** (all in one scratch dir):
    - Clone `HyDE-Project/sddm-hyprland` at pinned tag → `make install PREFIX=/usr`.
    - Clone `Keyitdev/sddm-astronaut-theme` at pinned commit → install into `/usr/share/sddm/themes/`, copy its fonts, sed the variant.
@@ -181,6 +194,7 @@ GitHub Actions builds on push to `main`, PRs, weekly schedule, and manual dispat
 |---|---|---|
 | `HyDE-Project/sddm-hyprland` | Pinned tag | Greeter should not change visually under the user |
 | `Keyitdev/sddm-astronaut-theme` | Pinned commit + variant | Same |
+| `hyprwm/Hyprland` + ecosystem | Pinned tags | Source build — deliberate version bumps |
 | `hyprwm/hyprland-guiutils` | Pinned tag | Source build — deliberate version bumps |
 | `hyprwm/hyprland-qt-support` | Pinned tag | Source build — deliberate version bumps |
 | `hyprwm/hyprpolkitagent` | Pinned tag | Source build — deliberate version bumps |
@@ -223,5 +237,5 @@ Files and patterns copied from upstream rather than invented. If the upstream so
 
 - **Fedora version bump breaks a layered package** (VS Code is the usual culprit): weekly CI catches it before your laptop pulls the upgrade.
 - **Upstream rice change breaks the image**: weekly CI catches it before `rpm-ostree upgrade`. Rollback is always one command.
-- **solopasha COPR outage or conflict**: fall back to Fedora's `hyprland` package as a temporary patch; the COPR is re-enabled once fixed.
+- **Source-build breakage on new Hyprland release**: all hyprwm tags are pinned; upgrading is a deliberate PR. If a new version breaks the build, the previous tags remain in `build.sh` and CI catches it before deploy.
 - **Unsigned image tampering**: mitigated by GitHub 2FA/recovery hygiene. An attacker with GitHub push access could still inject a build; `rpm-ostree rollback` recovers post-hoc.

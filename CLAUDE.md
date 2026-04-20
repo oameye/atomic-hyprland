@@ -41,7 +41,7 @@ The script has 10 numbered sections. Keep section numbers in comments when editi
 
 - **Bash:** `set -euo pipefail`. Use `|| true` only for tolerable failures (e.g., Firefox removal). UPPERCASE for constants/pinned tags, lowercase for locals.
 - **Packages:** always `--setopt=install_weak_deps=False`. Group by purpose with comments.
-- **COPRs left enabled** (solopasha, pgdev, errornointernet/quickshell, VS Code, Docker CE) vs **isolated** (che/nerd-fonts, ublue-os/packages, errornointernet/packages). Isolated COPRs must use `copr_install_isolated` so no `.repo` survives.
+- **COPRs left enabled** (pgdev/ghostty, errornointernet/quickshell, VS Code, Docker CE) vs **isolated** (che/nerd-fonts, ublue-os/packages, errornointernet/packages, solopasha/hyprland). Isolated COPRs must use `copr_install_isolated` so no `.repo` survives.
 - **Pinned refs** (SDDM, source builds) use `*_TAG`/`*_COMMIT` variables at the top of build.sh. Hyprland-Dots is unpinned (tracks master).
 - **Systemd units** use `atomic-hyprland-` prefix.
 - **Static overlay files** go in `files/` mirroring the filesystem root.
@@ -68,12 +68,16 @@ Do not append config blocks to UserSettings.conf unless absolutely necessary —
 
 ## Source builds
 
-Components built from source in `build.sh` section 6 (in build order):
+The entire Hyprland ecosystem is source-built in `build.sh` section 6. The solopasha COPR fell behind upstream (0.51.x vs 0.54.x needed by Hyprland-Dots ≥0.53) and its Qt6 builds target the wrong private ABI. All use the shared `cmake_build_install` helper and are pinned via `*_TAG` variables at the top of `build.sh`.
 
-- **hyprwayland-scanner**, **hyprutils**, **hyprgraphics**, **aquamarine**, **hyprtoolkit** — the hyprwm toolkit dependency chain for `hyprland-guiutils`. The solopasha COPR's `hyprtoolkit` (0.2.0) and `hyprutils` (0.10.0) are too old for `hyprland-guiutils` v0.2.1, so the whole chain is source-built. Uses the shared `cmake_build_install` helper.
-- **hyprland-guiutils** (CMake, hyprtoolkit-based, no Qt6) — successor to the archived `hyprland-qtutils`. Provides `hyprland-dialog`.
-- **awww** (Cargo) — preferred wallpaper daemon (swww is fallback). Not packaged anywhere.
-- **hyprland-qt-support** (CMake, Qt6) — QML style plugin for Hyprland Qt apps. Built against system Qt6.10 to sidestep the COPR's Qt6.9 private-ABI mismatch.
-- **hyprpolkitagent** (CMake, Qt6) — Hyprland-native polkit agent. Same Qt6-ABI reason as `hyprland-qt-support`.
+**Core libs** (build order): **hyprwayland-scanner** → **hyprutils** → **hyprlang** → **hyprcursor** → **hyprgraphics** → **aquamarine**
 
-All are pinned via `*_TAG` variables at the top of `build.sh`. When the solopasha COPR catches up on `hyprtoolkit`/`hyprutils` the toolkit chain can collapse back to COPR installs; same for Qt6.10 on `hyprland-qt-support` / `hyprpolkitagent`.
+**Compositor**: **hyprland** (CMake, uses `--recurse-submodules` for bundled udis86 + hyprland-protocols)
+
+**Toolkit**: **hyprtoolkit** → **hyprland-guiutils** (Wayland-native, no Qt6)
+
+**Satellite tools**: **hyprlock**, **hypridle**, **hyprpaper**, **hyprpicker**, **hyprsunset**, **xdg-desktop-portal-hyprland**
+
+**Non-hyprwm**: **awww** (Cargo) — preferred wallpaper daemon (swww is fallback, installed from solopasha COPR isolated)
+
+**Qt6 components**: **hyprland-qt-support** (QML style plugin) + **hyprpolkitagent** (polkit agent) — built against system Qt6.10.

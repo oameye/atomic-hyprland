@@ -9,10 +9,8 @@ SDDM_HYPRLAND_TAG="v0.48.0"
 SDDM_ASTRONAUT_COMMIT="d73842c"
 SDDM_ASTRONAUT_VARIANT="astronaut"
 
-# The entire Hyprland compositor + ecosystem is source-built so we control
-# the exact version and avoid ABI mismatches with the solopasha COPR
-# (stuck at 0.51.x while upstream is 0.54.x, and its Qt6 builds target
-# the wrong private ABI). Build order mirrors the dependency chain:
+# The entire Hyprland compositor + ecosystem is source-built for exact
+# version control and ABI consistency. Build order mirrors the dependency chain:
 #   hyprwayland-scanner → hyprutils → hyprlang → hyprcursor
 #     → hyprgraphics → aquamarine → hyprwire → hyprland
 #     → hyprtoolkit → hyprland-guiutils
@@ -42,18 +40,23 @@ XDP_HYPRLAND_TAG="v1.3.11"
 # Not packaged in any COPR; built from source with cargo.
 AWWW_TAG="v0.12.0"
 
-# hyprland-qt-support + hyprpolkitagent — built from source against the system
-# Qt6 to sidestep the solopasha COPR's Qt6.9/6.10 private-ABI mismatch.
+# hyprland-qt-support + hyprpolkitagent — built from source against system Qt6.
 HYPR_QT_SUPPORT_TAG="v0.1.0"
 HYPR_POLKITAGENT_TAG="v0.1.3"
+
+# Non-hyprwm desktop tools — all source-built.
+SWWW_TAG="v0.11.2"
+SATTY_TAG="v0.20.1"
+HYPRSHOT_TAG="1.3.0"
+CLIPHIST_TAG="v0.7.0"
+NWGLOOK_TAG="v1.0.6"
+UWSM_TAG="v0.26.4"
 
 ############################################
 # 1. Enable COPR repos
 #    pgdev/ghostty and errornointernet/quickshell stay live so
 #    rpm-ostree upgrade can pick up updates between CI rebuilds.
-#    solopasha/hyprland is no longer left enabled — the full Hyprland
-#    ecosystem is source-built (§6). swww + hyprshot are the only
-#    solopasha packages still used, installed via copr_install_isolated.
+#    Everything else is source-built (§6).
 ############################################
 for i in pgdev/ghostty errornointernet/quickshell; do
     owner="${i%%/*}"
@@ -191,12 +194,6 @@ copr_install_isolated "ublue-os/packages" "bazaar" "uupd"
 # (same pattern as JaKooLit/Fedora-Hyprland).
 copr_install_isolated "errornointernet/packages" "wallust"
 
-# Packages from solopasha/hyprland that aren't in Fedora repos and aren't
-# part of the source-built Hyprland ecosystem. Installed isolated since
-# the COPR is no longer left enabled.
-copr_install_isolated "solopasha/hyprland" \
-    "swww" "hyprshot" "cliphist" "satty" "uwsm" "nwg-look"
-
 echo "Packages installed."
 
 ############################################
@@ -233,8 +230,12 @@ BUILD_DEPS=(
     libxcb-devel xcb-util-wm-devel xcb-util-errors-devel libXcursor-devel
     # satellite tools (hyprlock, hypridle, xdg-desktop-portal-hyprland)
     sdbus-cpp-devel pam-devel pipewire-devel
-    # awww (Rust/Cargo) -- rust+cargo removed at end
+    # awww + swww + satty (Rust/Cargo) -- rust+cargo removed at end
     rust cargo lz4-devel
+    # satty (screenshot annotation, Rust+GTK4)
+    gtk4-devel libadwaita-devel
+    # nwg-look (GTK3 settings tool, Go+CGo) -- golang removed at end
+    golang gtk3-devel
     # hyprland-qt-support + hyprpolkitagent (Qt6/CMake) -- removed at end
     qt6-qtbase-devel qt6-qtdeclarative-devel
     polkit-devel polkit-qt6-1-devel
@@ -245,6 +246,7 @@ BUILD_DEPS=(
 BUILD_TOOLCHAIN=(
     cmake meson
     rust cargo
+    golang
     qt6-qtbase-devel qt6-qtdeclarative-devel
 )
 dnf5 -y install --setopt=install_weak_deps=False "${BUILD_DEPS[@]}"
@@ -389,19 +391,66 @@ cargo build --release --manifest-path "${BUILD_WORK}/awww/Cargo.toml"
 install -Dm755 "${BUILD_WORK}/awww/target/release/awww" /usr/bin/awww
 install -Dm755 "${BUILD_WORK}/awww/target/release/awww-daemon" /usr/bin/awww-daemon
 
+# 6q. swww — wlroots-compatible animated wallpaper daemon; used as a fallback
+#     by Hyprland-Dots when awww is not available for a given use case.
+git clone --depth 1 --branch "${SWWW_TAG}" \
+    https://github.com/LGFae/swww.git "${BUILD_WORK}/swww"
+cargo build --release --manifest-path "${BUILD_WORK}/swww/Cargo.toml"
+install -Dm755 "${BUILD_WORK}/swww/target/release/swww" /usr/bin/swww
+install -Dm755 "${BUILD_WORK}/swww/target/release/swww-daemon" /usr/bin/swww-daemon
+
+# 6r. satty — screenshot annotation tool (Rust + GTK4 + libadwaita).
+git clone --depth 1 --branch "${SATTY_TAG}" \
+    https://github.com/gabm/Satty.git "${BUILD_WORK}/satty"
+cargo build --release --manifest-path "${BUILD_WORK}/satty/Cargo.toml"
+install -Dm755 "${BUILD_WORK}/satty/target/release/satty" /usr/bin/satty
+
+# 6s. hyprshot — minimal screenshot script; just a single shell file.
+curl -fsSL \
+    "https://raw.githubusercontent.com/Gustash/Hyprshot/${HYPRSHOT_TAG}/hyprshot" \
+    -o /usr/bin/hyprshot
+chmod +x /usr/bin/hyprshot
+
+# 6t. cliphist — clipboard history manager (pure Go, no CGo).
+export GOPATH="${BUILD_WORK}/go"
+export GOCACHE="${BUILD_WORK}/.gocache"
+git clone --depth 1 --branch "${CLIPHIST_TAG}" \
+    https://github.com/sentriz/cliphist.git "${BUILD_WORK}/cliphist"
+go build -C "${BUILD_WORK}/cliphist" -o /usr/bin/cliphist .
+
+# 6u. nwg-look — GTK3 settings GUI (Go + CGo / gotk3).
+git clone --depth 1 --branch "${NWGLOOK_TAG}" \
+    https://github.com/nwg-piotr/nwg-look.git "${BUILD_WORK}/nwg-look"
+go build -C "${BUILD_WORK}/nwg-look" -o /usr/bin/nwg-look .
+# Data files expected by nwg-look at runtime.
+[[ -d "${BUILD_WORK}/nwg-look/desktop" ]] && \
+    cp -r "${BUILD_WORK}/nwg-look/desktop" /usr/share/nwg-look
+[[ -f "${BUILD_WORK}/nwg-look/nwg-look.desktop" ]] && \
+    install -Dm644 "${BUILD_WORK}/nwg-look/nwg-look.desktop" \
+        /usr/share/applications/nwg-look.desktop
+[[ -d "${BUILD_WORK}/nwg-look/langs" ]] && \
+    cp -r "${BUILD_WORK}/nwg-look/langs" /usr/share/nwg-look/langs
+
+# 6v. uwsm — Universal Wayland Session Manager; starts/manages Hyprland as a
+#     systemd-integrated session (Python + meson).
+git clone --depth 1 --branch "${UWSM_TAG}" \
+    https://github.com/Vladimir-csp/uwsm.git "${BUILD_WORK}/uwsm"
+meson setup "${BUILD_WORK}/uwsm/build" "${BUILD_WORK}/uwsm" --prefix=/usr
+meson install -C "${BUILD_WORK}/uwsm/build"
+
 # ── Qt6 components ──────────────────────────────────────────────────
-# 6q. hyprland-qt-support — QML style plugin. Runtime dep for hyprpolkitagent.
+# 6w. hyprland-qt-support — QML style plugin. Runtime dep for hyprpolkitagent.
 #     INSTALL_QML_PREFIX=/lib64/qt6/qml matches Fedora's Qt6 QML install path.
 cmake_build_install hyprland-qt-support "${HYPR_QT_SUPPORT_TAG}" \
     https://github.com/hyprwm/hyprland-qt-support.git \
     -DINSTALL_QML_PREFIX=/lib64/qt6/qml
 
-# 6r. hyprpolkitagent — Hyprland-native polkit authentication agent.
+# 6x. hyprpolkitagent — Hyprland-native polkit authentication agent.
 cmake_build_install hyprpolkitagent "${HYPR_POLKITAGENT_TAG}" \
     https://github.com/hyprwm/hyprpolkitagent.git
 
 rm -rf "${BUILD_WORK}"
-echo "Source builds complete (full Hyprland ecosystem, awww, Qt6 components)."
+echo "Source builds complete (full Hyprland ecosystem, swww, satty, hyprshot, cliphist, nwg-look, uwsm, awww, Qt6 components)."
 
 # Build-only toolchains do not belong in the final image. Strip only the
 # heavy ones; removing the -devel libs cascades into flatpak/gtk/etc.

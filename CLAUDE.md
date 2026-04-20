@@ -26,7 +26,7 @@ There are no unit tests. The build itself is the test — if `build.sh` exits no
 
 The script has 10 numbered sections. Keep section numbers in comments when editing:
 
-1. Enable live COPRs (solopasha/hyprland, pgdev/ghostty, errornointernet/quickshell)
+1. Enable live COPRs (pgdev/ghostty, errornointernet/quickshell)
 2. VS Code repo
 3. Docker CE repo (disabled by default)
 4. Main `dnf5 install` + isolated COPR installs (nerd-fonts, bazaar/uupd, wallust)
@@ -41,7 +41,7 @@ The script has 10 numbered sections. Keep section numbers in comments when editi
 
 - **Bash:** `set -euo pipefail`. Use `|| true` only for tolerable failures (e.g., Firefox removal). UPPERCASE for constants/pinned tags, lowercase for locals.
 - **Packages:** always `--setopt=install_weak_deps=False`. Group by purpose with comments.
-- **COPRs left enabled** (pgdev/ghostty, errornointernet/quickshell, VS Code, Docker CE) vs **isolated** (che/nerd-fonts, ublue-os/packages, errornointernet/packages, solopasha/hyprland). Isolated COPRs must use `copr_install_isolated` so no `.repo` survives.
+- **COPRs left enabled** (pgdev/ghostty, errornointernet/quickshell, VS Code, Docker CE) vs **isolated** (che/nerd-fonts, ublue-os/packages, errornointernet/packages). Isolated COPRs must use `copr_install_isolated` so no `.repo` survives.
 - **Pinned refs** (SDDM, source builds) use `*_TAG`/`*_COMMIT` variables at the top of build.sh. Hyprland-Dots is unpinned (tracks master).
 - **Systemd units** use `atomic-hyprland-` prefix.
 - **Static overlay files** go in `files/` mirroring the filesystem root.
@@ -68,7 +68,7 @@ Do not append config blocks to UserSettings.conf unless absolutely necessary —
 
 ## Source builds
 
-The entire Hyprland ecosystem is source-built in `build.sh` section 6. The solopasha COPR fell behind upstream (0.51.x vs 0.54.x needed by Hyprland-Dots ≥0.53) and its Qt6 builds target the wrong private ABI. All use the shared `cmake_build_install` helper and are pinned via `*_TAG` variables at the top of `build.sh`.
+The entire Hyprland ecosystem is source-built in `build.sh` section 6. All use the shared `cmake_build_install` helper and are pinned via `*_TAG` variables at the top of `build.sh`.
 
 **Core libs** (build order): **hyprwayland-scanner** → **hyprutils** → **hyprlang** → **hyprcursor** → **hyprgraphics** → **aquamarine**
 
@@ -78,6 +78,13 @@ The entire Hyprland ecosystem is source-built in `build.sh` section 6. The solop
 
 **Satellite tools**: **hyprlock**, **hypridle**, **hyprpaper**, **hyprpicker**, **hyprsunset**, **xdg-desktop-portal-hyprland**
 
-**Non-hyprwm**: **awww** (Cargo) — preferred wallpaper daemon (swww is fallback, installed from solopasha COPR isolated)
+**Non-hyprwm desktop tools** (all source-built):
+- **awww** (Cargo) — preferred wallpaper daemon
+- **swww** (Cargo) — animated wallpaper fallback
+- **satty** (Cargo + GTK4) — screenshot annotation
+- **hyprshot** (curl shell script) — screenshot helper
+- **cliphist** (Go) — clipboard history
+- **nwg-look** (Go + GTK3) — GTK settings GUI
+- **uwsm** (Python/meson) — Wayland session manager
 
 **Qt6 components**: **hyprland-qt-support** (QML style plugin) + **hyprpolkitagent** (polkit agent) — built against system Qt6.10.

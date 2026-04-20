@@ -23,13 +23,13 @@ This file describes **intent and invariants**. For current values (pinned tags, 
 ### Why these choices
 
 - `base-main` over `bluefin`/`bazzite`/`aurora`: those ship GNOME/KDE. `base-main` is clean Fedora Atomic with uBlue plumbing already installed.
-- Source-built Hyprland ecosystem over COPR packages: the `solopasha/hyprland` COPR fell behind upstream (0.51.x vs 0.54.x) and its Qt6 builds target the wrong private ABI on Fedora 43. Building everything from source gives us exact version control and ABI consistency. `solopasha` is still used (isolated) for `swww` and `hyprshot` only.
+- Source-built Hyprland ecosystem over COPR packages: building from source gives exact version control and ABI consistency across the full stack.
 
 ## Package layering
 
 Actual package list lives in `build_files/build.sh`. Categories:
 
-- **Hyprland ecosystem** — the full compositor + satellite tools (hyprland, hyprlock, hypridle, hyprpaper, hyprpicker, hyprsunset, hyprcursor, xdg-desktop-portal-hyprland, hyprland-guiutils, hyprland-qt-support, hyprpolkitagent, awww) are all source-built in section 6. Only `swww` and `hyprshot` are installed from `solopasha/hyprland` COPR (isolated). See "Source builds" below.
+- **Hyprland ecosystem** — the full compositor + satellite tools (hyprland, hyprlock, hypridle, hyprpaper, hyprpicker, hyprsunset, hyprcursor, xdg-desktop-portal-hyprland, hyprland-guiutils, hyprland-qt-support, hyprpolkitagent, awww, swww, satty, hyprshot, cliphist, nwg-look, uwsm) are all source-built in section 6. See "Source builds" below.
 - **Session/greeter** — `sddm` + the Qt6 modules the astronaut theme needs.
 - **Hyprland-Dots runtime deps:** the full set of packages the Dots scripts and configs expect — wallust (theming engine, from `errornointernet/packages` COPR), mpv + mpv-mpris, cava, btop, nvtop, fastfetch, gnome-system-monitor, qalculate-gtk, loupe, nwg-look, ddcutil, gtk-murrine-engine.
 - **Desktop apps:** ghostty + kitty (kitty is kept because Hyprland-Dots references it, ghostty is user default), waybar, rofi-wayland, swaync, quickshell, nautilus, clipboard, screenshot, network/BT applets, audio UIs, portals, polkit (hyprpolkitagent, source-built), display helpers, uwsm, gvfs.
@@ -42,7 +42,7 @@ Actual package list lives in `build_files/build.sh`. Categories:
 ### Repo enablement policy
 
 - **Left enabled** on the running system — so `rpm-ostree upgrade` picks up live updates: `pgdev/ghostty`, `errornointernet/quickshell`, Microsoft VS Code, Docker CE (repo file `enabled=0` by default, `--enablerepo=docker-ce-stable` at install time).
-- **Enabled → install → disabled** during build via `copr_install_isolated` (from [`ublue-os/bluefin`](https://github.com/ublue-os/bluefin/blob/main/build_files/shared/copr-helpers.sh)): `che/nerd-fonts` (nerd-fonts), `ublue-os/packages` (bazaar, uupd), `errornointernet/packages` (wallust), `solopasha/hyprland` (swww, hyprshot). No `.repo` file survives in the final image.
+- **Enabled → install → disabled** during build via `copr_install_isolated` (from [`ublue-os/bluefin`](https://github.com/ublue-os/bluefin/blob/main/build_files/shared/copr-helpers.sh)): `che/nerd-fonts` (nerd-fonts), `ublue-os/packages` (bazaar, uupd), `errornointernet/packages` (wallust). No `.repo` file survives in the final image.
 
 ### Inherited from `base-main`
 
@@ -90,7 +90,7 @@ ujust sync-skel-config overwrite=1  # replace managed files from the new skel
 
 ### Source builds
 
-The entire Hyprland ecosystem is source-built at image build time. The `solopasha/hyprland` COPR fell behind upstream (0.51.x while Hyprland-Dots requires ≥0.53) and its Qt6 packages target the wrong private ABI on Fedora 43. Building from source gives exact version control and ABI consistency across the full stack.
+The entire Hyprland ecosystem is source-built at image build time for exact version control and ABI consistency across the full stack.
 
 **Core library chain** (C++/CMake, each depends on the previous):
 - **`hyprwayland-scanner`** → **`hyprutils`** → **`hyprlang`** → **`hyprcursor`** → **`hyprgraphics`** → **`aquamarine`**

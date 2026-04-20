@@ -70,7 +70,6 @@ jobs:
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
 
       - name: Log in to GHCR
-        if: github.event_name != 'pull_request'
         uses: redhat-actions/podman-login@v1
         with:
           registry: ghcr.io
@@ -88,7 +87,7 @@ jobs:
           done
 
       - name: Push to GHCR
-        if: github.event_name != 'pull_request' && github.event_name != 'schedule'
+        if: github.event_name != 'schedule'
         uses: redhat-actions/push-to-registry@v2
         with:
           image: ${{ steps.build.outputs.image }}
@@ -99,25 +98,18 @@ jobs:
         if: github.event_name == 'pull_request'
         run: sudo apt-get update && sudo apt-get install -y skopeo jq
 
-      - name: Allow unprivileged user namespaces
-        # Ubuntu 24.04's AppArmor blocks unshare() for unprivileged users,
-        # which rootless skopeo needs to read the containers-storage below.
-        if: github.event_name == 'pull_request'
-        run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
-
       - name: Image size report
         if: github.event_name == 'pull_request'
         id: size
         run: |
           set -euo pipefail
-          # New image: inspect the rootless containers-storage that
-          # buildah-build wrote to (no sudo -- root has a separate store).
+          # Inspect both sides via docker:// so layer sizes are compressed
+          # blob sizes from the registry manifest -- apples to apples.
           NEW_JSON=$(skopeo inspect --raw \
-            "containers-storage:localhost/${IMAGE_NAME}:pr-${{ github.event.pull_request.number }}")
+            "docker://${IMAGE_REGISTRY}/${IMAGE_NAME}:pr-${{ github.event.pull_request.number }}")
           NEW_BYTES=$(echo "$NEW_JSON" | jq '[.layers[].size] | add')
           NEW_LAYERS=$(echo "$NEW_JSON" | jq '.layers | length')
 
-          # Baseline: current :latest on GHCR (ignore if not yet published)
           if OLD_JSON=$(skopeo inspect --raw \
               "docker://${IMAGE_REGISTRY}/${IMAGE_NAME}:latest" 2>/dev/null); then
             OLD_BYTES=$(echo "$OLD_JSON" | jq '[.layers[].size] | add')

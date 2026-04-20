@@ -4,7 +4,7 @@
 -- via `omarchy-menu theme` changes which spec is picked up on next nvim
 -- launch. No Neovim restart logic needed — colorscheme switches happen at
 -- session start.
-local theme = vim.fn.expand("~/.config/omarchy/current/neovim.lua")
+local theme = vim.fn.expand("~/.config/omarchy/current/theme/neovim.lua")
 if vim.fn.filereadable(theme) == 1 then
   return dofile(theme)
 end

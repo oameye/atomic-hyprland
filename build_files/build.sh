@@ -44,6 +44,7 @@ ELEPHANT_TAG="v2.21.0"
 WIREMIX_TAG="v0.10.0"
 BLUETUI_TAG="v0.8.1"
 IMPALA_TAG="v0.7.4"
+GUM_TAG="v0.17.0"
 
 # ── Sub-scripts ──────────────────────────────────────────────────────
 source "${DIR}/repos.sh"
@@ -145,6 +146,26 @@ if [[ -d /etc/skel/.local/share/omarchy/default/plymouth ]]; then
     cp -r /etc/skel/.local/share/omarchy/default/plymouth \
         /usr/share/plymouth/themes/omarchy
     plymouth-set-default-theme omarchy
+fi
+
+# system-sleep/unmount-fuse: lazy-unmount gvfsd-fuse mounts before suspend
+# and restart gvfs on wake. Without it, suspend can silently fail when the
+# user has Nautilus GVFS mounts (MTP phones, SMB shares, etc.) because
+# gvfsd-fuse blocks in uninterruptible sleep during the kernel's process
+# freeze.
+if [[ -f /etc/skel/.local/share/omarchy/default/systemd/system-sleep/unmount-fuse ]]; then
+    install -Dm0755 \
+        /etc/skel/.local/share/omarchy/default/systemd/system-sleep/unmount-fuse \
+        /usr/lib/systemd/system-sleep/unmount-fuse
+fi
+
+# Keyring file perms get flattened to 0644/0755 by `COPY files/ /` because
+# git only tracks +x bits, not owner-only modes. Restore what GNOME Keyring
+# expects. Runs every build; idempotent.
+if [[ -d /etc/skel/.local/share/keyrings ]]; then
+    chmod 0700 /etc/skel/.local/share/keyrings
+    chmod 0600 /etc/skel/.local/share/keyrings/Default_keyring.keyring
+    chmod 0644 /etc/skel/.local/share/keyrings/default
 fi
 
 # ── dconf system db ──────────────────────────────────────────────────

@@ -181,6 +181,13 @@ git clone --depth 1 --branch "${ELEPHANT_TAG}" \
     https://github.com/abenz1267/elephant.git "${BUILD_WORK}/elephant"
 go build -C "${BUILD_WORK}/elephant" -o /usr/bin/elephant .
 
+# gum — interactive prompts + confirmations used by omarchy-menu and several
+# helper scripts (omarchy-migrate, omarchy-debug upload prompts, …). Not in
+# Fedora default repos; source-built in the same Go pattern as cliphist.
+git clone --depth 1 --branch "${GUM_TAG}" \
+    https://github.com/charmbracelet/gum.git "${BUILD_WORK}/gum"
+go build -C "${BUILD_WORK}/gum" -o /usr/bin/gum .
+
 # ── non-hyprwm tools (meson) ────────────────────────────────────────
 git clone --depth 1 --branch "${UWSM_TAG}" \
     https://github.com/Vladimir-csp/uwsm.git "${BUILD_WORK}/uwsm"

@@ -63,7 +63,9 @@ rm -f "${SKEL_OMARCHY}/bin/"omarchy-refresh-pacman \
 # (their "clean up the old Arch package first" step is a no-op on Fedora;
 # the rest of the script — udev rules, pam config, systemd enables — still
 # does useful work).
-sed -i 's/^\(\s*pacman -Rns\b.*\)$/\1 || true/' \
+# Match both `pacman -Rns ...` (as in omarchy-remove-dev-env) and
+# `sudo pacman -Rns ...` (as in omarchy-setup-fido2 and -fingerprint).
+sed -i 's/^\(\s*\(sudo[[:space:]]\+\)\?pacman -Rns\b.*\)$/\1 || true/' \
     "${SKEL_OMARCHY}/bin/omarchy-remove-dev-env" \
     "${SKEL_OMARCHY}/bin/omarchy-setup-fido2" \
     "${SKEL_OMARCHY}/bin/omarchy-setup-fingerprint"
@@ -72,9 +74,14 @@ sed -i 's/^\(\s*pacman -Rns\b.*\)$/\1 || true/' \
 # `expac` / `pacman -Q`. Replace both with `rpm -qa | sort` so the debug
 # bundle is complete on Fedora. The `$(...)` / `|` chars belong to the
 # target script, not this shell — single quotes keep them literal.
+#
+# The omarchy-debug package-list line is a complex `$({ … } | sort)` block
+# with nested `$(pacman -Qqe)` command substitutions, so a `[^)]+` class
+# is too greedy-short. Match the whole line on the leading `expac` token
+# instead and replace wholesale with `$(rpm -qa | sort)`.
 # shellcheck disable=SC2016
 sed -i -E \
-    's|\$\(\{ expac[^)]+\} \| sort\)|$(rpm -qa \| sort)|' \
+    's#^\$\(\{ expac.*\| sort\)$#$(rpm -qa | sort)#' \
     "${SKEL_OMARCHY}/bin/omarchy-debug"
 # shellcheck disable=SC2016
 sed -i 's|pacman -Q 2>/dev/null \|\| echo "Failed to get package list"|rpm -qa \| sort|' \
@@ -112,15 +119,26 @@ chromium --refresh-platform-policy --no-startup-window >/dev/null 2>&1 || true
 EOF
 chmod +x "${SKEL_OMARCHY}/bin/omarchy-theme-set-browser"
 
-# Remove the "Install" entry + handler from the top-level omarchy-menu.
-# The literal "\n" is the menu separator in the walker arg string.
+# Strip menu entries that lead to deleted scripts:
+#   - "Install" top-level entry → show_install_menu (Install scripts deleted).
+#     Upstream's go_to_menu lowercases input via ${1,,} so the case label is
+#     *install*) (lowercase) — not *Install*).
+#   - "Channel" entry in the Update submenu → show_update_channel_menu, which
+#     invokes the deleted omarchy-channel-set. show_update_menu does not
+#     lowercase its input, so the label stays *Channel*).
 require_upstream_literal \
     "${SKEL_OMARCHY}/bin/omarchy-menu" \
     '󰉉  Install\n' \
     'omarchy-menu Install entry'
+require_upstream_literal \
+    "${SKEL_OMARCHY}/bin/omarchy-menu" \
+    '󰔫  Channel\n' \
+    'omarchy-menu Update > Channel entry'
 sed -i \
     -e 's|󰉉  Install\\n||' \
-    -e '/\*Install\*)/d' \
+    -e '/\*install\*)/d' \
+    -e 's|󰔫  Channel\\n||' \
+    -e '/\*Channel\*) show_update_channel_menu/d' \
     "${SKEL_OMARCHY}/bin/omarchy-menu"
 
 # Delegate system updates to ujust update (handles bootc + flatpak + brew).

@@ -38,7 +38,7 @@ The default terminal is `ghostty` (omarchy's `xdg-terminals.list` is patched to 
 
 We deliberately did **not** add an automatic first-login sync because:
 1. It races with the compositor startup — a user systemd oneshot can fire after Hyprland has already read `~/.config/hypr/`, leaving a half-synced session.
-2. On subsequent image updates (weekly CI picks up upstream omarchy changes) we don't want to silently overwrite any customizations you may have made. Keeping it explicit is the consent boundary.
+2. On subsequent image updates (including when this repo bumps the pinned Omarchy ref) we don't want to silently overwrite any customizations you may have made. Keeping it explicit is the consent boundary.
 
 One manual `ujust sync-skel-config` after the first rebase is the price for that simplicity.
 
@@ -55,7 +55,8 @@ This replaces the managed files with the new skel. On the first forced sync it r
 ## Updates
 
 - `rpm-ostree upgrade` (or `ujust update`) pulls new images nightly via the inherited uBlue auto-update timers.
-- Every weekly image build pulls the **latest** upstream Omarchy `master` — no manual dotfiles update step.
+- Omarchy is pinned in `build_files/build.sh`; upgrades happen when this repo intentionally bumps `OMARCHY_REF`.
+- The shipped image records the resolved Omarchy commit in `/usr/share/atomic-hyprland/versions.env`.
 - After reboot, `ujust sync-skel-config overwrite=1` if you want the new upstream configs to replace yours.
 
 ## Rollback

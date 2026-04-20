@@ -4,10 +4,23 @@ set -euo pipefail
 WORK=$(mktemp -d)
 
 # ── Omarchy ──────────────────────────────────────────────────────────
-git clone --depth 1 https://github.com/basecamp/omarchy.git \
+git clone --depth 1 --branch "${OMARCHY_REF}" --single-branch \
+    https://github.com/basecamp/omarchy.git \
     "${WORK}/omarchy"
+OMARCHY_COMMIT="$(git -C "${WORK}/omarchy" rev-parse HEAD)"
 
 SKEL_OMARCHY=/etc/skel/.local/share/omarchy
+
+require_upstream_literal() {
+    local file="$1"
+    local needle="$2"
+    local description="$3"
+
+    if ! grep -Fq "$needle" "$file"; then
+        echo "Expected upstream ${description} in ${file} at ${OMARCHY_REF} (${OMARCHY_COMMIT}), but it was not found." >&2
+        exit 1
+    fi
+}
 
 # Layer 1: user dotfiles
 mkdir -p /etc/skel/.config
@@ -35,7 +48,7 @@ rm -f "${SKEL_OMARCHY}/bin/"omarchy-install-* \
 # the Update menu entry now bottoms out at `ujust update` (which handles
 # bootc + flatpak + brew) and never reaches these internal helpers.
 # Channel switching and version-channel display are meaningless when the
-# image is rebuilt weekly from master via CI.
+# image ships a pinned Omarchy ref and upgrades deliberately via PR.
 rm -f "${SKEL_OMARCHY}/bin/"omarchy-refresh-pacman \
       "${SKEL_OMARCHY}/bin/"omarchy-channel-set \
       "${SKEL_OMARCHY}/bin/"omarchy-update-system-pkgs \
@@ -101,6 +114,10 @@ chmod +x "${SKEL_OMARCHY}/bin/omarchy-theme-set-browser"
 
 # Remove the "Install" entry + handler from the top-level omarchy-menu.
 # The literal "\n" is the menu separator in the walker arg string.
+require_upstream_literal \
+    "${SKEL_OMARCHY}/bin/omarchy-menu" \
+    '󰉉  Install\n' \
+    'omarchy-menu Install entry'
 sed -i \
     -e 's|󰉉  Install\\n||' \
     -e '/\*Install\*)/d' \
@@ -141,6 +158,14 @@ chmod +x "${SKEL_OMARCHY}/bin/omarchy-update-available"
 # Strip bindings whose targets don't exist on this image:
 #   - omarchy-brightness-display-apple: Apple-hardware-specific helper
 #   - voxtype: voice dictation, AUR-only with no Fedora port
+require_upstream_literal \
+    "${SKEL_OMARCHY}/default/hypr/bindings/utilities.conf" \
+    'omarchy-brightness-display-apple' \
+    'Apple brightness binding'
+require_upstream_literal \
+    "${SKEL_OMARCHY}/default/hypr/bindings/utilities.conf" \
+    'voxtype record toggle' \
+    'voxtype binding'
 sed -i \
     -e '/omarchy-brightness-display-apple/d' \
     -e '/voxtype record toggle/d' \
@@ -167,6 +192,10 @@ cp "${WORK}/omarchy/logo.txt" /etc/skel/.config/omarchy/branding/screensaver.txt
 
 # Terminal: omarchy upstream picks Alacritty first in xdg-terminals.list.
 # We ship ghostty (fully themed by omarchy alongside alacritty and kitty).
+require_upstream_literal \
+    /etc/skel/.config/xdg-terminals.list \
+    'Alacritty.desktop' \
+    'default xdg-terminal-exec terminal order'
 sed -i 's/^Alacritty\.desktop$/com.mitchellh.ghostty.desktop/' \
     /etc/skel/.config/xdg-terminals.list
 
@@ -235,6 +264,11 @@ ln -s ../../../.local/share/omarchy/default/elephant/omarchy_background_selector
     NEXT="${HOME}/.config/omarchy/current/next-theme"
     CURRENT="${HOME}/.config/omarchy/current/theme"
     INITIAL_THEME=tokyo-night
+
+    [[ -d "${OMARCHY_PATH}/themes/${INITIAL_THEME}" ]] || {
+        echo "Pinned Omarchy ref ${OMARCHY_REF} is missing theme ${INITIAL_THEME}" >&2
+        exit 1
+    }
 
     mkdir -p "${NEXT}"
     cp -a "${OMARCHY_PATH}/themes/${INITIAL_THEME}/." "${NEXT}/"

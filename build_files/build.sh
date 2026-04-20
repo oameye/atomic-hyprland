@@ -29,6 +29,8 @@ XDP_HYPRLAND_TAG="v1.3.11"
 HYPR_QT_SUPPORT_TAG="v0.1.0"
 HYPR_POLKITAGENT_TAG="v0.1.3"
 
+OMARCHY_REF="v3.5.1"
+
 AWWW_TAG="v0.12.0"
 SWWW_TAG="v0.11.2"
 SATTY_TAG="v0.20.1"
@@ -48,6 +50,16 @@ source "${DIR}/repos.sh"
 source "${DIR}/packages.sh"
 source "${DIR}/source-builds.sh"
 source "${DIR}/desktop.sh"
+
+# ── Version metadata ─────────────────────────────────────────────────
+install -d /usr/share/atomic-hyprland
+cat > /usr/share/atomic-hyprland/versions.env <<EOF
+OMARCHY_REF=${OMARCHY_REF}
+OMARCHY_COMMIT=${OMARCHY_COMMIT}
+HYPRLAND_TAG=${HYPRLAND_TAG}
+UWSM_TAG=${UWSM_TAG}
+XDG_TERMINAL_EXEC_TAG=${XDG_TERMINAL_EXEC_TAG}
+EOF
 
 # ── Flathub ──────────────────────────────────────────────────────────
 flatpak remote-add --if-not-exists --system flathub \

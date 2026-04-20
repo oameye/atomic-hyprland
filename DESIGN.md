@@ -75,7 +75,7 @@ Build-only toolchains (cmake, meson, rust/cargo, golang, Qt6 devel) are removed 
 
 ## Desktop environment
 
-`basecamp/omarchy` is cloned unpinned (master) each build and deployed to match upstream's on-disk layout. Upstream expects `$OMARCHY_PATH=~/.local/share/omarchy` with `{default,themes,bin}` underneath — both `config/uwsm/env` and `default/bash/envs` put `$OMARCHY_PATH/bin` first on `PATH`, so matching this layout lets every `omarchy-*` script find its siblings and templates unmodified:
+`basecamp/omarchy` is cloned at the pinned `OMARCHY_REF` from `build.sh`, and the resolved commit is recorded in `/usr/share/atomic-hyprland/versions.env`. Upstream expects `$OMARCHY_PATH=~/.local/share/omarchy` with `{default,themes,bin}` underneath — both `config/uwsm/env` and `default/bash/envs` put `$OMARCHY_PATH/bin` first on `PATH`, so matching this layout lets every `omarchy-*` script find its siblings and templates unmodified:
 
 - `config/` → `/etc/skel/.config/` (user dotfiles; sourced by Hyprland, terminals, waybar, etc.)
 - `default/` → `/etc/skel/.local/share/omarchy/default/` (hyprland.conf sources `default/hypr/**/*.conf` at runtime; templates in `default/themed/*.tpl` feed the theme renderer)
@@ -154,7 +154,7 @@ Pure static overlays under `files/`:
 - `hardware/` scripts for apple/asus/dell/framework/intel/nvidia/tuxedo/surface/bcm43xx/yt6801/synaptic — unrelated hardware.
 - `hardware/network.sh` — partially superseded by our NetworkManager + iwd backend config; upstream also masks `systemd-networkd-wait-online.service` which is Arch-specific.
 - `branding.sh` — replayed in `desktop.sh` instead (copies `icon.txt`/`logo.txt` and sets up `~/.config/omarchy/branding/`).
-- `migrations/` — only matters between omarchy version upgrades; CI rebuilds from master weekly, so the image always ships latest defaults. `ujust sync-skel-config overwrite=1` refreshes managed subtrees after a rebase.
+- `migrations/` — only matters between omarchy version upgrades; this image ships a pinned Omarchy ref and upgrades deliberately by bumping that pin. `ujust sync-skel-config overwrite=1` refreshes managed subtrees after a rebase.
 
 Mimeapps: omarchy ships no `mimeapps.list`, so `files/etc/skel/.config/mimeapps.list` fills the gap. It mirrors omarchy's upstream `install/config/mimetypes.sh`, adapted for Fedora + Flatpak: URLs/HTML → Zen Browser (Flatpak), mailto → Thunderbird (Flatpak), PDFs → GNOME Papers (Flatpak), images → imv, video/audio → mpv, directories → Nautilus, archives → Xarchiver, text files → nvim. Because `files/` is overlaid before `desktop.sh` copies omarchy's `config/`, and omarchy has no same-path conflict, this static file survives the build intact.
 
@@ -281,7 +281,7 @@ Builds on push to `main`, PRs, weekly schedule (`0 4 * * 1`), and manual dispatc
 | Ref | Policy |
 |---|---|
 | Hyprland ecosystem + non-hyprwm source builds | Pinned tags in `build.sh` |
-| `basecamp/omarchy` | Unpinned — weekly CI picks up main |
+| `basecamp/omarchy` | Pinned `OMARCHY_REF` in `build.sh`; resolved commit recorded in `/usr/share/atomic-hyprland/versions.env` |
 | Fedora packages / COPRs / Docker CE / VS Code | Unpinned |
 
 Upgrading a pinned ref is a one-line change in `build.sh` → CI builds `:pr-<N>` → rebase to test → merge.

@@ -43,7 +43,7 @@ There are no unit tests. The build itself is the test — if `build.sh` exits no
 - **Bash:** `set -euo pipefail`. Use `|| true` only for tolerable failures (e.g., Firefox removal). UPPERCASE for constants/pinned tags, lowercase for locals.
 - **Packages:** always `--setopt=install_weak_deps=False`. Group by purpose with comments.
 - **Repos left enabled** (pgdev/ghostty, pgo/gpu-screen-recorder, VS Code, Docker CE) vs **isolated COPRs** (che/nerd-fonts, ublue-os/packages, errornointernet/packages). Isolated COPRs must use `copr_install_isolated` so no `.repo` survives.
-- **Pinned refs** (SDDM, source builds) use `*_TAG`/`*_COMMIT` variables at the top of build.sh. Omarchy is unpinned (tracks main).
+- **Pinned refs** use `*_TAG`/`*_COMMIT` variables at the top of `build.sh`; Omarchy is pinned via `OMARCHY_REF`.
 - **Systemd units** use `atomic-hyprland-` prefix.
 - **Static overlay files** go in `files/` mirroring the filesystem root.
 - **justfile variables** use `overwrite := "0"` syntax (not recipe parameters) so `ujust recipe key=value` works.

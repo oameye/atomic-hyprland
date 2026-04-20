@@ -25,7 +25,7 @@ This file documents intent and invariants. Current values (pinned tags, package 
 
 - **Hyprland ecosystem** — all source-built in `source-builds.sh`. See [Source builds](#source-builds).
 - **Session / greeter** — `sddm` + `qt6-qtdeclarative` + `qt6-qtsvg` for omarchy's Qt Quick SDDM theme.
-- **Desktop runtime** — packages omarchy expects: waybar, mako, swaybg, swayosd, fcitx5, gnome-calculator, polkit-gnome, nautilus, ghostty (first-class omarchy-themed terminal; xdg-terminals.list is patched to prefer it over upstream's Alacritty default), wl-clipboard, grim/slurp/swappy, audio stack, wallust, mpv, btop, fastfetch, tmux, imv, starship, neovim (LazyVim bootstrapped by `/etc/skel/.config/nvim/init.lua` on first launch; a plugin spec sources `~/.config/omarchy/current/neovim.lua` so the active omarchy theme's colorscheme plugin loads automatically); walker + elephant are source-built.
+- **Desktop runtime** — packages omarchy expects: waybar, mako, swaybg, swayosd, fcitx5, gnome-calculator, polkit-gnome, nautilus, ghostty (first-class omarchy-themed terminal; xdg-terminals.list is patched to prefer it over upstream's Alacritty default), wl-clipboard, grim/slurp/swappy, audio stack, wallust, mpv, btop, fastfetch, tmux, imv, starship, neovim (LazyVim bootstrapped by `/etc/skel/.config/nvim/init.lua` on first launch; a plugin spec sources `~/.config/omarchy/current/neovim.lua` so the active omarchy theme's colorscheme plugin loads automatically); `rsms-inter-fonts` preserves Omarchy's GTK typography baseline; walker + elephant are source-built.
 - **Qt theming** — `qt5ct` + `kvantum-qt5` (Qt5) and `qt6ct` + `qt6-qt5compat` (Qt6) for Qt app theming.
 - **Developer tooling** — VS Code (RPM), make, gcc-c++. Everything else (`fd`, `fzf`, `lazygit`, `yazi`, …) via `brew`.
 - **Containers** — `podman-compose`, `podman-tui`, `podman-machine`, `flatpak-builder`, Docker CE.
@@ -63,7 +63,8 @@ The entire Hyprland ecosystem is source-built for exact version control and ABI 
 | `hyprshot` | curl (shell script) | screenshot helper |
 | `cliphist` | Go | clipboard history |
 | `nwg-look` | Go + GTK3 | GTK settings GUI |
-| `uwsm` | Python / meson | Wayland session manager |
+| `uwsm` | Python / meson | Wayland session manager (`uwsm-app` helper enabled) |
+| `xdg-terminal-exec` | shell script | default terminal selector used by current Omarchy bindings |
 | `walker` | Go + GTK4 + gtk-layer-shell | application launcher (omarchy default) |
 | `elephant` | Go | walker data provider (required for walker ≥ v2) |
 | `wiremix` | Cargo | PipeWire audio TUI (Super+Ctrl+A) |
@@ -80,6 +81,8 @@ Build-only toolchains (cmake, meson, rust/cargo, golang, Qt6 devel) are removed 
 - `default/` → `/etc/skel/.local/share/omarchy/default/` (hyprland.conf sources `default/hypr/**/*.conf` at runtime; templates in `default/themed/*.tpl` feed the theme renderer)
 - `themes/` → `/etc/skel/.local/share/omarchy/themes/` (19 built-in themes)
 - `bin/` → `/etc/skel/.local/share/omarchy/bin/` (waybar menu, theme switching, launchers)
+
+Omarchy's upstream `applications/` tree is intentionally **not** shipped wholesale. This image only adds the narrow desktop-entry overrides it owns locally (for example the Ghostty `xdg-terminal-exec` metadata under `files/usr/local/share/applications/`), so desktop assets remain explicitly curated instead of being inherited en masse from upstream.
 
 Shell + env integration:
 
@@ -224,7 +227,7 @@ Firefox is removed (`rpm-ostree override remove`). User-facing desktop apps are 
 
 A small `/usr/bin/chromium` shim under `files/usr/bin/` `exec`s the Flatpak, so `omarchy-cmd-present chromium` returns true and all the Chromium-touching omarchy scripts (webapp launcher, theme-set-browser, policy refreshes) find it on PATH. The shim passes `--user-data-dir="$HOME/.config/chromium"` so Flatpak chromium stores its config at the standard path — not the sandbox `~/.var/app/…/` — which is where `omarchy-theme-set-browser` writes the managed policy file and where `~/.config/chromium-flags.conf` lives. Two matching `flatpak override --system --filesystem=…` calls in `build.sh` grant the sandbox access needed for that redirection.
 
-All four ride the `flatpak-preinstall.service` pipeline — drop a `.preinstall` file under `files/usr/share/flatpak/preinstall.d/` and the service reruns whenever that directory changes. Flathub is pre-added system-wide.
+All seven ride the `flatpak-preinstall.service` pipeline — drop a `.preinstall` file under `files/usr/share/flatpak/preinstall.d/` and the helper will install each declared ref with `flatpak install --system` whenever that directory's manifest hash changes. Flathub is pre-added system-wide.
 
 ## Build & release
 

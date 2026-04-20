@@ -1,7 +1,7 @@
 # atomic-hyprland custom ujust recipes.
 # Loaded by ublue-os-just's /usr/share/ublue-os/justfile via `import "/usr/share/ublue-os/just/*.just"`.
 
-# Rsync the shipped skel (Hyprland-Dots + our overrides) into $HOME.
+# Rsync the shipped skel (Omarchy + our overrides) into $HOME.
 # Pass overwrite=1 to replace managed files from the shipped skel and prune
 # files that previous overwrite runs synced but upstream has since removed.
 # Leave the default to only copy files that don't yet exist.

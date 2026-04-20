@@ -1,6 +1,5 @@
-# Installed by atomic-hyprland-flatpak-preinstall when the preinstall
-# manifest changes.
-# Format: https://man.archlinux.org/man/flatpak-preinstall.1
+# Installed by atomic-hyprland-flatpak-preinstall when the manifest changes.
+# Parsed locally by /usr/bin/atomic-hyprland-flatpak-preinstall.
 # Uninstallation is opt-in (user removes with `flatpak uninstall`).
 
 [Flatpak Preinstall com.github.xournalpp.xournalpp]

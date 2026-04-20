@@ -57,7 +57,7 @@ There are no unit tests. The build itself is the test — if `build.sh` exits no
 
 ## Adding a Flatpak
 
-Drop a `.preinstall` file in `files/usr/share/flatpak/preinstall.d/`. The existing `flatpak-preinstall.service` picks it up on first boot.
+Drop a `.preinstall` file in `files/usr/share/flatpak/preinstall.d/`. The existing `flatpak-preinstall.service` helper installs it on first boot.
 
 ## Omarchy overrides
 

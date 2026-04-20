@@ -2,7 +2,7 @@
 
 > **Personal use only.** This image is built for a single machine: AMD GPU, Fedora 43, no Nvidia support. It is not a general-purpose distribution and is not maintained for anyone else's hardware or workflow. Feel free to fork it as a starting point, but don't expect it to work out of the box for you.
 
-A personal Fedora Atomic image based on [Universal Blue `base-main`](https://github.com/ublue-os/main), shipping Hyprland with [LinuxBeginnings/Hyprland-Dots](https://github.com/LinuxBeginnings/Hyprland-Dots) baked in.
+A personal Fedora Atomic image based on [Universal Blue `base-main`](https://github.com/ublue-os/main), shipping Hyprland with [basecamp/omarchy](https://github.com/basecamp/omarchy) baked in.
 
 See [`DESIGN.md`](./DESIGN.md) for the full design.
 
@@ -17,7 +17,7 @@ systemctl reboot
 
 ## First boot
 
-The full LinuxBeginnings Hyprland-Dots rice is shipped in `/etc/skel`. **New user accounts** get it automatically on first login.
+The full Omarchy port is shipped in `/etc/skel`. **New user accounts** get it automatically on first login.
 
 **Existing accounts** (if you rebased in, your `$HOME` pre-exists) — sync the skel into your home once.
 
@@ -44,7 +44,7 @@ One manual `ujust sync-skel-config` after the first rebase is the price for that
 
 ### Picking up upstream updates
 
-`ujust sync-skel-config` by default **skips files that already exist**, so running it repeatedly is safe but a no-op past the first run. To pull in new Hyprland-Dots configs after upstream has evolved:
+`ujust sync-skel-config` by default **skips files that already exist**, so running it repeatedly is safe but a no-op past the first run. To pull in new Omarchy configs after upstream has evolved:
 
 ```sh
 ujust sync-skel-config overwrite=1
@@ -55,7 +55,7 @@ This replaces the managed files with the new skel. On the first forced sync it r
 ## Updates
 
 - `rpm-ostree upgrade` (or `ujust update`) pulls new images nightly via the inherited uBlue auto-update timers.
-- Every weekly image build pulls the **latest** LinuxBeginnings/Hyprland-Dots master — no manual dots update step.
+- Every weekly image build pulls the **latest** upstream Omarchy `master` — no manual dotfiles update step.
 - After reboot, `ujust sync-skel-config overwrite=1` if you want the new upstream configs to replace yours.
 
 ## Rollback

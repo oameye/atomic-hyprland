@@ -49,6 +49,7 @@ PACKAGES=(
     # Fonts and theming — nerd-fonts installed via copr_install_isolated below.
     fontawesome-fonts-all
     google-noto-emoji-fonts google-noto-color-emoji-fonts google-noto-sans-cjk-fonts
+    rsms-inter-fonts
     liberation-fonts jetbrains-mono-fonts
     adobe-source-code-pro-fonts fira-code-fonts google-droid-sans-fonts
     adwaita-icon-theme papirus-icon-theme

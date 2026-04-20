@@ -184,8 +184,18 @@ go build -C "${BUILD_WORK}/elephant" -o /usr/bin/elephant .
 # ── non-hyprwm tools (meson) ────────────────────────────────────────
 git clone --depth 1 --branch "${UWSM_TAG}" \
     https://github.com/Vladimir-csp/uwsm.git "${BUILD_WORK}/uwsm"
-meson setup "${BUILD_WORK}/uwsm/build" "${BUILD_WORK}/uwsm" --prefix=/usr
+meson setup "${BUILD_WORK}/uwsm/build" "${BUILD_WORK}/uwsm" \
+    --prefix=/usr \
+    -Duwsm-app=enabled
 meson install -C "${BUILD_WORK}/uwsm/build"
+
+# xdg-terminal-exec is Omarchy's default terminal selector.
+git clone --depth 1 --branch "${XDG_TERMINAL_EXEC_TAG}" \
+    https://github.com/Vladimir-csp/xdg-terminal-exec.git "${BUILD_WORK}/xdg-terminal-exec"
+install -Dm755 "${BUILD_WORK}/xdg-terminal-exec/xdg-terminal-exec" \
+    /usr/bin/xdg-terminal-exec
+install -Dm644 "${BUILD_WORK}/xdg-terminal-exec/xdg-terminals.list" \
+    /usr/share/xdg-terminal-exec/xdg-terminals.list
 
 rm -rf "${BUILD_WORK}"
 dnf5 -y remove --no-autoremove "${BUILD_TOOLCHAIN[@]}"

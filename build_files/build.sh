@@ -1,57 +1,14 @@
 #!/usr/bin/env bash
+# Layer 2 of 2 — packages, desktop, systemd, cleanup.
+# Repos and source-built binaries are already in the image from source-builds.sh.
 set -euo pipefail
 
 RELEASE="$(rpm -E %fedora)"
-echo "Fedora version: ${RELEASE}"
 
-# Pinned upstream tags / commits.
 SDDM_HYPRLAND_TAG="v0.48.0"
 SDDM_ASTRONAUT_COMMIT="d73842c"
 SDDM_ASTRONAUT_VARIANT="astronaut"
 
-# hyprland-guiutils (successor to the archived hyprland-qtutils) is built
-# from source — the COPR doesn't package it yet. It uses hyprtoolkit
-# (Wayland-native), not Qt6, so it has no private-ABI issues. As of
-# v0.2.1 it requires hyprtoolkit>=0.4.0 and hyprutils>=0.10.2, newer than
-# what the solopasha COPR ships, so the full hyprwm toolkit dependency
-# chain (hyprwayland-scanner → hyprutils → hyprgraphics → aquamarine →
-# hyprtoolkit) is also source-built below.
-HYPR_GUIUTILS_TAG="v0.2.1"
-HYPRWAYLAND_SCANNER_TAG="v0.4.5"
-HYPRUTILS_TAG="v0.12.0"
-HYPRGRAPHICS_TAG="v0.5.1"
-AQUAMARINE_TAG="v0.10.0"
-HYPRTOOLKIT_TAG="v0.5.3"
-
-# awww — preferred wallpaper daemon for Hyprland-Dots (swww is the fallback).
-# Not packaged in any COPR; built from source with cargo.
-AWWW_TAG="v0.12.0"
-
-# hyprland-qt-support + hyprpolkitagent — built from source against the system
-# Qt6 to sidestep the solopasha COPR's Qt6.9/6.10 private-ABI mismatch.
-HYPR_QT_SUPPORT_TAG="v0.1.0"
-HYPR_POLKITAGENT_TAG="v0.1.3"
-
-############################################
-# 1. Enable COPR repos
-#    solopasha/hyprland, pgdev/ghostty, errornointernet/quickshell stay
-#    live so rpm-ostree upgrade can pick up updates between CI rebuilds.
-############################################
-for i in solopasha/hyprland pgdev/ghostty errornointernet/quickshell; do
-    owner="${i%%/*}"
-    repo="${i##*/}"
-    curl -fsSL \
-        "https://copr.fedorainfracloud.org/coprs/${owner}/${repo}/repo/fedora-${RELEASE}/${owner}-${repo}-fedora-${RELEASE}.repo" \
-        -o "/etc/yum.repos.d/_copr_${owner}-${repo}.repo"
-done
-
-############################################
-# 1b. copr_install_isolated helper (copied verbatim from
-#     ublue-os/bluefin -> build_files/shared/copr-helpers.sh).
-#     Enables a COPR, disables it, then installs packages from the
-#     disabled COPR via --enablerepo in one transaction. Leaves no
-#     .repo file live for the end-user.
-############################################
 copr_install_isolated() {
     local copr_name="$1"
     shift
@@ -65,27 +22,7 @@ copr_install_isolated() {
 }
 
 ############################################
-# 2. VS Code repo
-############################################
-cat > /etc/yum.repos.d/vscode.repo <<'EOF'
-[code]
-name=Visual Studio Code
-baseurl=https://packages.microsoft.com/yumrepos/vscode
-enabled=1
-gpgcheck=1
-gpgkey=https://packages.microsoft.com/keys/microsoft.asc
-EOF
-
-############################################
-# 3. Docker CE repo -- added but disabled by default (uBlue pattern)
-############################################
-dnf5 config-manager addrepo --from-repofile=https://download.docker.com/linux/fedora/docker-ce.repo
-sed -i 's/^enabled=.*/enabled=0/g' /etc/yum.repos.d/docker-ce.repo
-
-echo "Repos enabled."
-
-############################################
-# 4. Install the full package set
+# Packages
 #    --setopt=install_weak_deps=False for image-size reduction.
 ############################################
 PACKAGES=(
@@ -184,142 +121,10 @@ copr_install_isolated "errornointernet/packages" "wallust"
 
 echo "Packages installed."
 
-############################################
-# 5. Remove Firefox -- user installs Zen Browser Flatpak instead
-############################################
 rpm-ostree override remove firefox firefox-langpacks || true
-# `|| true` -- base-main may not ship Firefox in all variants; tolerate absence.
 
 ############################################
-# 6. Source builds (hyprland-guiutils, awww, hyprland-qt-support,
-#    hyprpolkitagent). See DESIGN.md -> "Source builds" for rationale.
-############################################
-# BUILD_DEPS are installed for the source builds below. The heavy
-# toolchain bits (cmake, rust, cargo, qt6-*-devel) are removed again at the
-# end of section 6; the smaller -devel libs are left in place because
-# removing them triggers a large Requires cascade (see DESIGN.md).
-BUILD_DEPS=(
-    # Common toolchain -- removed at end
-    cmake
-    # hyprwm toolkit chain (hyprwayland-scanner, hyprutils, hyprgraphics,
-    # aquamarine, hyprtoolkit) + hyprland-guiutils.
-    # hyprutils-devel/hyprtoolkit-devel intentionally NOT listed: the COPR
-    # versions are too old for hyprland-guiutils v0.2.1, so we source-build
-    # them here and let our builds provide the pkg-config files.
-    hyprlang-devel
-    wayland-devel wayland-protocols-devel libxkbcommon-devel
-    pixman-devel libdrm-devel mesa-libEGL-devel mesa-libgbm-devel
-    libglvnd-devel cairo-devel pango-devel
-    pugixml-devel iniparser-devel
-    libseat-devel libinput-devel libdisplay-info-devel hwdata
-    systemd-devel
-    libjpeg-turbo-devel libwebp-devel libpng-devel librsvg2-devel
-    libjxl-devel libheif-devel file-devel
-    # awww (Rust/Cargo) -- rust+cargo removed at end
-    rust cargo lz4-devel
-    # hyprland-qt-support + hyprpolkitagent (Qt6/CMake) -- removed at end
-    qt6-qtbase-devel qt6-qtdeclarative-devel
-    polkit-devel polkit-qt6-1-devel
-)
-# Heavy toolchain bits that are safe to strip after the builds. Removing
-# the library -devel packages triggers a huge `Requires` cascade (flatpak,
-# gtk*, ghostty, …), so leave those alone.
-BUILD_TOOLCHAIN=(
-    cmake
-    rust cargo
-    qt6-qtbase-devel qt6-qtdeclarative-devel
-)
-dnf5 -y install --setopt=install_weak_deps=False "${BUILD_DEPS[@]}"
-
-BUILD_WORK=$(mktemp -d)
-
-# Helper: clone + cmake configure/build/install into /usr. Used for the
-# whole hyprwm toolkit chain below.
-cmake_build_install() {
-    local name="$1" tag="$2" url="$3"
-    shift 3
-    git clone --depth 1 --branch "${tag}" "${url}" "${BUILD_WORK}/${name}"
-    cmake -S "${BUILD_WORK}/${name}" -B "${BUILD_WORK}/${name}/build" \
-        -DCMAKE_BUILD_TYPE=Release \
-        -DCMAKE_INSTALL_PREFIX=/usr \
-        -DCMAKE_INSTALL_LIBDIR=lib64 \
-        "$@"
-    cmake --build "${BUILD_WORK}/${name}/build" -j"$(nproc)"
-    cmake --install "${BUILD_WORK}/${name}/build"
-}
-
-# 6a. hyprwayland-scanner — codegen tool used by aquamarine and hyprtoolkit.
-cmake_build_install hyprwayland-scanner "${HYPRWAYLAND_SCANNER_TAG}" \
-    https://github.com/hyprwm/hyprwayland-scanner.git
-
-# 6b. hyprutils — common C++ utilities, required by the rest of the chain.
-cmake_build_install hyprutils "${HYPRUTILS_TAG}" \
-    https://github.com/hyprwm/hyprutils.git \
-    -DBUILD_TESTING=OFF
-
-# 6c. hyprgraphics — image/graphics helpers used by hyprtoolkit.
-cmake_build_install hyprgraphics "${HYPRGRAPHICS_TAG}" \
-    https://github.com/hyprwm/hyprgraphics.git \
-    -DBUILD_TESTING=OFF
-
-# 6d. aquamarine — wlroots-style backend library used by hyprtoolkit.
-#     Fedora's `hwdata` package does not ship a pkg-config file (unlike Arch),
-#     but aquamarine looks one up to locate `pci.ids`. Synthesize a minimal
-#     .pc pointing at Fedora's /usr/share/hwdata directory.
-cat >/usr/lib64/pkgconfig/hwdata.pc <<'HWDATA_PC'
-prefix=/usr
-datarootdir=${prefix}/share
-pkgdatadir=${datarootdir}/hwdata
-
-Name: hwdata
-Description: hwdata
-Version: 0
-HWDATA_PC
-cmake_build_install aquamarine "${AQUAMARINE_TAG}" \
-    https://github.com/hyprwm/aquamarine.git \
-    -DBUILD_TESTING=OFF
-
-# 6e. hyprtoolkit — Wayland-native GUI toolkit powering hyprland-guiutils.
-cmake_build_install hyprtoolkit "${HYPRTOOLKIT_TAG}" \
-    https://github.com/hyprwm/hyprtoolkit.git
-
-# 6f. hyprland-guiutils — successor to the archived hyprland-qtutils.
-#     Provides hyprland-dialog etc. Uses hyprtoolkit (Wayland-native), not Qt6.
-cmake_build_install hyprland-guiutils "${HYPR_GUIUTILS_TAG}" \
-    https://github.com/hyprwm/hyprland-guiutils.git
-
-# 6g. awww — preferred wallpaper daemon for Hyprland-Dots (swww is fallback).
-#     Not packaged in any COPR; built from source with cargo.
-#     `/root` is a dangling symlink (→ /var/roothome) in bootc/ostree base
-#     images, so cargo can't create its default `$HOME/.cargo`. Pin CARGO_HOME
-#     and RUSTUP_HOME into the ephemeral build dir instead.
-export CARGO_HOME="${BUILD_WORK}/.cargo"
-export RUSTUP_HOME="${BUILD_WORK}/.rustup"
-git clone --depth 1 --branch "${AWWW_TAG}" \
-    https://codeberg.org/LGFae/awww.git "${BUILD_WORK}/awww"
-cargo build --release --manifest-path "${BUILD_WORK}/awww/Cargo.toml"
-install -Dm755 "${BUILD_WORK}/awww/target/release/awww" /usr/bin/awww
-install -Dm755 "${BUILD_WORK}/awww/target/release/awww-daemon" /usr/bin/awww-daemon
-
-# 6h. hyprland-qt-support — QML style plugin. Runtime dep for hyprpolkitagent.
-#     INSTALL_QML_PREFIX=/lib64/qt6/qml matches Fedora's Qt6 QML install path.
-cmake_build_install hyprland-qt-support "${HYPR_QT_SUPPORT_TAG}" \
-    https://github.com/hyprwm/hyprland-qt-support.git \
-    -DINSTALL_QML_PREFIX=/lib64/qt6/qml
-
-# 6i. hyprpolkitagent — Hyprland-native polkit authentication agent.
-cmake_build_install hyprpolkitagent "${HYPR_POLKITAGENT_TAG}" \
-    https://github.com/hyprwm/hyprpolkitagent.git
-
-rm -rf "${BUILD_WORK}"
-echo "Source builds complete (hyprwm toolkit chain, hyprland-guiutils, awww, hyprland-qt-support, hyprpolkitagent)."
-
-# Build-only toolchains do not belong in the final image. Strip only the
-# heavy ones; removing the -devel libs cascades into flatpak/gtk/etc.
-dnf5 -y remove --no-autoremove "${BUILD_TOOLCHAIN[@]}"
-
-############################################
-# 7. SDDM Wayland-compositor integration (sddm-hyprland) + theme.
+# SDDM Wayland-compositor integration (sddm-hyprland) + theme.
 ############################################
 WORK=$(mktemp -d)
 

@@ -46,6 +46,13 @@ jobs:
           fi
           echo "tags=${TAGS}" >> "$GITHUB_OUTPUT"
 
+      - name: Log in to GHCR
+        uses: redhat-actions/podman-login@v1
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Build image
         id: build
         uses: redhat-actions/buildah-build@v2
@@ -55,6 +62,9 @@ jobs:
           containerfiles: ./Containerfile
           build-args: FEDORA_VERSION=${{ env.FEDORA_VERSION }}
           oci: true
+          extra-args: |
+            --cache-from ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+            --layers
 
       - name: Rechunk image
         if: github.event_name == 'schedule'
@@ -68,13 +78,6 @@ jobs:
           labels: |
             org.opencontainers.image.title=${{ env.IMAGE_NAME }}
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
-
-      - name: Log in to GHCR
-        uses: redhat-actions/podman-login@v1
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Push rechunked image
         if: github.event_name == 'schedule'

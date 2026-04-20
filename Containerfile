@@ -28,6 +28,16 @@ COPY --from=ghcr.io/ublue-os/brew:latest /system_files /
 COPY --from=ghcr.io/ublue-os/bluefin:stable \
     /usr/share/ublue-os/bling /usr/share/ublue-os/bling
 
+# Layer 1 — repos + source builds.
+# Cached across builds when no tag in source-builds.sh changes.
+RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
+    --mount=type=cache,dst=/var/cache \
+    --mount=type=cache,dst=/var/log \
+    --mount=type=tmpfs,dst=/tmp \
+    /ctx/source-builds.sh
+
+# Layer 2 — packages, desktop, systemd, cleanup.
+# Inherits repos from Layer 1; rebuilds on every package-list or rice change.
 RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
     --mount=type=cache,dst=/var/cache \
     --mount=type=cache,dst=/var/log \

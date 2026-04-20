@@ -1,5 +1,7 @@
 # atomic-hyprland
 
+> **Personal use only.** This image is built for a single machine: AMD GPU, Fedora 43, no Nvidia support. It is not a general-purpose distribution and is not maintained for anyone else's hardware or workflow. Feel free to fork it as a starting point, but don't expect it to work out of the box for you.
+
 A personal Fedora Atomic image based on [Universal Blue `base-main`](https://github.com/ublue-os/main), shipping Hyprland with [LinuxBeginnings/Hyprland-Dots](https://github.com/LinuxBeginnings/Hyprland-Dots) baked in.
 
 See [`DESIGN.md`](./DESIGN.md) for the full design.

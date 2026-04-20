@@ -2,14 +2,18 @@
 
 ## What is this project?
 
-A personal Fedora Atomic desktop image built on Universal Blue's `base-main`, shipping Hyprland with LinuxBeginnings/Hyprland-Dots baked in. Single-user, AMD GPU, no Nvidia variant.
+A personal Fedora Atomic desktop image built for one machine: AMD GPU, Fedora 43, single user. It ships Hyprland with LinuxBeginnings/Hyprland-Dots baked in. It is not designed to be general-purpose — assumptions about GPU, hardware, and workflow are hard-coded throughout.
 
 ## Key files
 
 - `Containerfile` — two-stage OCI build (scratch context + base-main)
-- `build_files/build.sh` — all build logic (bind-mounted, never in final image)
+- `build_files/build.sh` — entry point: pinned tags, sources sub-scripts, handles Flathub/systemd/cleanup
+- `build_files/repos.sh` — COPR/repo setup + `copr_install_isolated` helper
+- `build_files/packages.sh` — all dnf5 package installs
+- `build_files/source-builds.sh` — full Hyprland ecosystem + non-hyprwm source builds
+- `build_files/desktop.sh` — SDDM greeter + Hyprland-Dots into `/etc/skel`
 - `files/` — static filesystem overlay (systemd units, SDDM configs, ujust recipes)
-- `DESIGN.md` — architectural decisions and upstream attribution
+- `DESIGN.md` — architecture and design decisions
 - `.github/workflows/build.yml` — CI/CD (weekly + push + PR)
 
 ## Build & test
@@ -22,20 +26,17 @@ just format         # shfmt all .sh files
 
 There are no unit tests. The build itself is the test — if `build.sh` exits non-zero or `bootc container lint` fails, CI catches it.
 
-## build.sh structure
+## build_files structure
 
-The script has 10 numbered sections. Keep section numbers in comments when editing:
+`build.sh` sources the other scripts in order, then handles Flathub, systemd units, and cleanup inline. All pinned tags live at the top of `build.sh`.
 
-1. Enable live COPRs (pgdev/ghostty, errornointernet/quickshell)
-2. VS Code repo
-3. Docker CE repo (disabled by default)
-4. Main `dnf5 install` + isolated COPR installs (nerd-fonts, bazaar/uupd, wallust)
-5. Remove Firefox
-6. Source builds (hyprland-guiutils via CMake, awww via Cargo)
-7. SDDM greeter + theme + Hyprland-Dots into `/etc/skel`
-8. Flathub remote
-9. Enable systemd units
-10. Cleanup (`dnf5 clean all`, purge `/var/cache`, `/tmp`)
+| File | Responsibility |
+|---|---|
+| `build.sh` | Entry point, pinned tags, orchestration |
+| `repos.sh` | COPR enablement, VS Code repo, Docker CE repo, `copr_install_isolated` helper |
+| `packages.sh` | `dnf5 install`, isolated COPR installs, Firefox removal |
+| `source-builds.sh` | All source builds + `cmake_build_install` / `cargo_install` helpers |
+| `desktop.sh` | SDDM greeter + theme + Hyprland-Dots into `/etc/skel` |
 
 ## Conventions
 
@@ -49,10 +50,10 @@ The script has 10 numbered sections. Keep section numbers in comments when editi
 
 ## Adding a package
 
-1. Add to the `PACKAGES=()` array in `build.sh` section 4, in the appropriate category block.
-2. If the package is in a new COPR that should stay enabled, add it to the loop in section 1.
-3. If the package is in a COPR that should NOT stay enabled, use `copr_install_isolated`.
-4. If the package isn't in any repo, add a source-build block in section 6 with a pinned tag variable at the top.
+1. Add to `PACKAGES=()` in `packages.sh`, in the appropriate category block.
+2. If the package is in a new COPR that should stay enabled, add it to the loop in `repos.sh`.
+3. If the package is in a COPR that should NOT stay enabled, call `copr_install_isolated` in `packages.sh`.
+4. If the package isn't in any repo, add a source-build block in `source-builds.sh` with a pinned tag in `build.sh`.
 
 ## Adding a Flatpak
 
@@ -60,7 +61,7 @@ Drop a `.preinstall` file in `files/usr/share/flatpak/preinstall.d/`. The existi
 
 ## Hyprland-Dots overrides
 
-Baked-in overrides are sed patches in section 7b of build.sh. Currently:
+Baked-in overrides are sed patches in `desktop.sh`. Currently:
 - `$term = ghostty` (upstream default: kitty)
 - `$files = nautilus` (upstream default: thunar)
 
@@ -68,7 +69,7 @@ Do not append config blocks to UserSettings.conf unless absolutely necessary —
 
 ## Source builds
 
-The entire Hyprland ecosystem is source-built in `build.sh` section 6. All use the shared `cmake_build_install` helper and are pinned via `*_TAG` variables at the top of `build.sh`.
+The entire Hyprland ecosystem is source-built in `source-builds.sh`. Helpers `cmake_build_install` and `cargo_install` reduce repetition. All tags are pinned at the top of `build.sh`.
 
 **Core libs** (build order): **hyprwayland-scanner** → **hyprutils** → **hyprlang** → **hyprcursor** → **hyprgraphics** → **aquamarine**
 

@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
+# Layer 2 of 2 — packages, desktop, systemd, cleanup.
+# Repos and source-built binaries are already in the image from source-builds.sh.
 set -euo pipefail
 
-RELEASE="$(rpm -E %fedora)"
 DIR="$(dirname "$0")"
 
 # ── Pinned refs — bump these in PRs to upgrade ───────────────────────
@@ -9,43 +10,22 @@ SDDM_HYPRLAND_TAG="v0.48.0"
 SDDM_ASTRONAUT_COMMIT="d73842c"
 SDDM_ASTRONAUT_VARIANT="astronaut"
 
-# Build order: hyprwayland-scanner → hyprutils → hyprlang → hyprcursor
-#   → hyprgraphics → aquamarine → hyprwire → hyprland
-#   → hyprtoolkit → hyprland-guiutils
-#   → satellite tools → Qt6 components
-HYPRWAYLAND_SCANNER_TAG="v0.4.5"
-HYPRUTILS_TAG="v0.12.0"
-HYPRLANG_TAG="v0.6.8"
-HYPRCURSOR_TAG="v0.1.13"
-HYPRGRAPHICS_TAG="v0.5.1"
-AQUAMARINE_TAG="v0.10.0"
-HYPRWIRE_TAG="v0.3.0"
-HYPRLAND_PROTOCOLS_TAG="v0.7.0"
-GLAZE_TAG="v7.1.1"
-HYPRLAND_TAG="v0.54.3"
-HYPRTOOLKIT_TAG="v0.5.3"
-HYPR_GUIUTILS_TAG="v0.2.1"
-HYPRLOCK_TAG="v0.9.5"
-HYPRIDLE_TAG="v0.1.7"
-HYPRPAPER_TAG="v0.8.3"
-HYPRPICKER_TAG="v0.4.6"
-HYPRSUNSET_TAG="v0.3.3"
-XDP_HYPRLAND_TAG="v1.3.11"
-HYPR_QT_SUPPORT_TAG="v0.1.0"
-HYPR_POLKITAGENT_TAG="v0.1.3"
+# Enable a COPR, immediately disable it, then install packages from it via
+# --enablerepo so no .repo file survives in the final image.
+copr_install_isolated() {
+    local copr_name="$1"
+    shift
+    local packages=("$@")
+    local repo_id="copr:copr.fedorainfracloud.org:${copr_name//\//:}"
 
-AWWW_TAG="v0.12.0"
-SWWW_TAG="v0.11.2"
-SATTY_TAG="v0.20.1"
-HYPRSHOT_TAG="1.3.0"
-CLIPHIST_TAG="v0.7.0"
-NWGLOOK_TAG="v1.0.6"
-UWSM_TAG="v0.26.4"
+    dnf5 -y copr enable "$copr_name"
+    dnf5 -y copr disable "$copr_name"
+    dnf5 -y install --setopt=install_weak_deps=False \
+        --enablerepo="$repo_id" "${packages[@]}"
+}
 
-# ── Sub-scripts ──────────────────────────────────────────────────────
-source "${DIR}/repos.sh"
+# ── Layer 2 steps ────────────────────────────────────────────────────
 source "${DIR}/packages.sh"
-source "${DIR}/source-builds.sh"
 source "${DIR}/desktop.sh"
 
 # ── Flathub ──────────────────────────────────────────────────────────

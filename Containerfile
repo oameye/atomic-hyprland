@@ -10,6 +10,15 @@ COPY build_files /
 # Base image
 FROM ghcr.io/ublue-os/base-main:${FEDORA_VERSION}
 
+# Layer 1 — repos + source builds.
+# Keep this ahead of filesystem overlays and floating upstream COPY sources so
+# unrelated changes do not invalidate the expensive compile layer.
+RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
+    --mount=type=cache,dst=/var/cache \
+    --mount=type=cache,dst=/var/log \
+    --mount=type=tmpfs,dst=/tmp \
+    /ctx/source-builds.sh
+
 # System-file overlay (systemd units, dx-groups helper, SDDM confs, etc.)
 COPY files/ /
 
@@ -27,14 +36,6 @@ COPY --from=ghcr.io/ublue-os/brew:latest /system_files /
 # separate OCI image or RPM for it.
 COPY --from=ghcr.io/ublue-os/bluefin:stable \
     /usr/share/ublue-os/bling /usr/share/ublue-os/bling
-
-# Layer 1 — repos + source builds.
-# Cached across builds when no tag in source-builds.sh changes.
-RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
-    --mount=type=cache,dst=/var/cache \
-    --mount=type=cache,dst=/var/log \
-    --mount=type=tmpfs,dst=/tmp \
-    /ctx/source-builds.sh
 
 # Layer 2 — packages, desktop, systemd, cleanup.
 # Inherits repos from Layer 1; rebuilds on every package-list or rice change.

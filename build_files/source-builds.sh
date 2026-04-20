@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 set -euo pipefail
 
 BUILD_DEPS=(
@@ -152,11 +153,10 @@ cargo_install awww  "${AWWW_TAG}"  https://codeberg.org/LGFae/awww.git        aw
 cargo_install swww  "${SWWW_TAG}"  https://github.com/LGFae/swww.git          swww swww-daemon
 cargo_install satty "${SATTY_TAG}" https://github.com/gabm/Satty.git          satty
 
-# hyprshot is a single shell script.
-curl -fsSL \
-    "https://raw.githubusercontent.com/Gustash/Hyprshot/${HYPRSHOT_TAG}/hyprshot" \
-    -o /usr/bin/hyprshot
-chmod +x /usr/bin/hyprshot
+# hyprshot is a single shell script — clone the pinned tag so git verifies integrity.
+git clone --depth 1 --branch "${HYPRSHOT_TAG}" \
+    https://github.com/Gustash/Hyprshot.git "${BUILD_WORK}/hyprshot"
+install -Dm755 "${BUILD_WORK}/hyprshot/hyprshot" /usr/bin/hyprshot
 
 # ── non-hyprwm tools (Go) ───────────────────────────────────────────
 git clone --depth 1 --branch "${CLIPHIST_TAG}" \

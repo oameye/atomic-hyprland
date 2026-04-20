@@ -71,7 +71,7 @@ Do not append config blocks to UserSettings.conf unless absolutely necessary —
 
 The entire Hyprland ecosystem is source-built in `source-builds.sh`. Helpers `cmake_build_install` and `cargo_install` reduce repetition. All tags are pinned at the top of `build.sh`.
 
-**Core libs** (build order): **hyprwayland-scanner** → **hyprutils** → **hyprlang** → **hyprcursor** → **hyprgraphics** → **aquamarine**
+**Core libs** (build order): **hyprwayland-scanner** → **hyprutils** → **hyprlang** → **hyprcursor** → **hyprgraphics** → **aquamarine** → **hyprwire** → **hyprland-protocols** (meson) → **glaze**
 
 **Compositor**: **hyprland** (CMake, uses `--recurse-submodules` for bundled udis86 + hyprland-protocols)
 

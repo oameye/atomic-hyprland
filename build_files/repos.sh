@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 set -euo pipefail
 
 # Enable a COPR, immediately disable it, then install packages from it via

@@ -30,7 +30,7 @@ The full LinuxBeginnings Hyprland-Dots rice is shipped in `/etc/skel`. **New use
 >
 > After this first sync, use the default (`ujust sync-skel-config`, no `overwrite=1`) for routine runs — it will preserve any customizations you've made. `overwrite=1` is the stronger refresh mode: on the first forced sync it refreshes the managed skel subtrees, and on later runs it also prunes files that earlier overwrite runs synced but upstream has since removed.
 
-The default terminal is `ghostty` and the default file manager is `nautilus` (we patch Hyprland-Dots' `$term` and `$files` at build time).
+The default terminal is `ghostty` (omarchy's `xdg-terminals.list` is patched to prefer it over upstream's Alacritty default; all three of alacritty/kitty/ghostty are first-class in omarchy's theme system), the default file manager is `nautilus`, and the default browser is Zen Browser (Flatpak, preinstalled).
 
 ### Why isn't this step automatic?
 
@@ -38,7 +38,7 @@ The default terminal is `ghostty` and the default file manager is `nautilus` (we
 
 We deliberately did **not** add an automatic first-login sync because:
 1. It races with the compositor startup — a user systemd oneshot can fire after Hyprland has already read `~/.config/hypr/`, leaving a half-synced session.
-2. On subsequent image updates (weekly CI picks up upstream Hyprland-Dots changes) we don't want to silently overwrite any customizations you may have made. Keeping it explicit is the consent boundary.
+2. On subsequent image updates (weekly CI picks up upstream omarchy changes) we don't want to silently overwrite any customizations you may have made. Keeping it explicit is the consent boundary.
 
 One manual `ujust sync-skel-config` after the first rebase is the price for that simplicity.
 

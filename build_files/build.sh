@@ -1,14 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-RELEASE="$(rpm -E %fedora)"
 DIR="$(dirname "$0")"
 
 # ── Pinned refs — bump these in PRs to upgrade ───────────────────────
-SDDM_HYPRLAND_TAG="v0.48.0"
-SDDM_ASTRONAUT_COMMIT="d73842c"
-SDDM_ASTRONAUT_VARIANT="astronaut"
-
 # Build order: hyprwayland-scanner → hyprutils → hyprlang → hyprcursor
 #   → hyprgraphics → aquamarine → hyprwire → hyprland
 #   → hyprtoolkit → hyprland-guiutils
@@ -41,6 +36,11 @@ HYPRSHOT_TAG="1.3.0"
 CLIPHIST_TAG="v0.7.0"
 NWGLOOK_TAG="v1.0.6"
 UWSM_TAG="v0.26.4"
+WALKER_TAG="v2.16.0"
+ELEPHANT_TAG="v2.21.0"
+WIREMIX_TAG="v0.10.0"
+BLUETUI_TAG="v0.8.1"
+IMPALA_TAG="v0.7.4"
 
 # ── Sub-scripts ──────────────────────────────────────────────────────
 source "${DIR}/repos.sh"
@@ -52,6 +52,17 @@ source "${DIR}/desktop.sh"
 flatpak remote-add --if-not-exists --system flathub \
     https://dl.flathub.org/repo/flathub.flatpakrepo
 
+# Chromium Flatpak overrides — grant filesystem access to the standard
+# chromium config paths so the /usr/bin/chromium shim's --user-data-dir
+# redirection actually works and omarchy's ~/.config/chromium-flags.conf
+# gets picked up by the Flatpak launcher. Override files land under
+# /var/lib/flatpak/overrides/ and are in place before the preinstall
+# service ever installs the Flatpak on first boot.
+flatpak override --system \
+    --filesystem=xdg-config/chromium \
+    --filesystem=xdg-config/chromium-flags.conf \
+    org.chromium.Chromium
+
 # ── Systemd units ────────────────────────────────────────────────────
 systemctl enable sddm.service
 systemctl enable docker.socket
@@ -60,9 +71,74 @@ systemctl enable flatpak-system-update.timer
 systemctl enable podman-auto-update.timer
 systemctl --global enable flatpak-user-update.timer
 systemctl --global enable podman-auto-update.timer
+systemctl --global enable atomic-hyprland-detect-kb-layout.service
 systemctl enable atomic-hyprland-dx-groups.service
+systemctl enable atomic-hyprland-sddm-autologin.service
 systemctl enable flatpak-preinstall.service
 systemctl enable uupd.timer
+
+# Printing + mDNS discovery (omarchy install/config/hardware/printer.sh).
+systemctl enable cups.service
+systemctl enable cups-browsed.service
+systemctl enable avahi-daemon.service
+
+# Bluetooth on by default (omarchy install/config/hardware/bluetooth.sh).
+systemctl enable bluetooth.service
+
+# ── Ported omarchy install/config tweaks ─────────────────────────────
+# These edit distro-shipped files that we can't replace wholesale via an
+# overlay; sed-patching in place matches how omarchy's installer applies
+# them on Arch.
+
+# faillock: 10 retries before lockout (omarchy install/config/increase-sudo-tries.sh).
+sed -i 's/^# *deny = .*/deny = 10/' /etc/security/faillock.conf
+
+# PAM faillock tuning (omarchy install/config/increase-lockout-limit.sh).
+sed -i 's|^\(auth\s\+required\s\+pam_faillock.so\)\s\+preauth.*$|\1 preauth silent deny=10 unlock_time=120|' \
+    /etc/pam.d/system-auth
+sed -i 's|^\(auth\s\+\[default=die\]\s\+pam_faillock.so\)\s\+authfail.*$|\1 authfail deny=10 unlock_time=120|' \
+    /etc/pam.d/system-auth
+# sddm-autologin shouldn't trigger faillock on every boot (sees "no password"
+# as a failure). Drop the preauth line and inject an authsucc after the
+# pam_permit line so the lockout counter resets on successful boot.
+if [[ -f /etc/pam.d/sddm-autologin ]]; then
+    sed -i '/pam_faillock\.so preauth/d' /etc/pam.d/sddm-autologin
+    sed -i '/auth.*pam_permit\.so/a auth        required    pam_faillock.so authsucc' \
+        /etc/pam.d/sddm-autologin
+fi
+
+# Physical power button → ignore (omarchy binds Super+Escape to the power
+# menu; ignore-power-button.sh). Prevents accidental host shutdowns.
+sed -i 's/.*HandlePowerKey=.*/HandlePowerKey=ignore/' /etc/systemd/logind.conf
+
+# nsswitch: mDNS resolution for .local via nss-mdns (omarchy printer.sh).
+sed -i 's/^hosts:.*/hosts: mymachines mdns_minimal [NOTFOUND=return] resolve files myhostname dns/' \
+    /etc/nsswitch.conf
+
+# cups-browsed: auto-add remote network printers (omarchy printer.sh).
+if ! grep -q '^CreateRemotePrinters Yes' /etc/cups/cups-browsed.conf; then
+    echo 'CreateRemotePrinters Yes' >> /etc/cups/cups-browsed.conf
+fi
+
+# powerprofilesctl: force system python over mise's user python
+# (omarchy install/config/fix-powerprofilesctl-shebang.sh).
+if [[ -f /usr/bin/powerprofilesctl ]]; then
+    sed -i '/env python3/ c\#!/bin/python3' /usr/bin/powerprofilesctl
+fi
+
+# Plymouth: ship omarchy's theme and set as default. initramfs rebuild is
+# handled by rpm-ostree's dracut integration at deploy time.
+if [[ -d /etc/skel/.local/share/omarchy/default/plymouth ]]; then
+    cp -r /etc/skel/.local/share/omarchy/default/plymouth \
+        /usr/share/plymouth/themes/omarchy
+    plymouth-set-default-theme omarchy
+fi
+
+# ── dconf system db ──────────────────────────────────────────────────
+# Compile the keyfiles under /etc/dconf/db/site.d/ into the `site` binary db
+# referenced by /etc/dconf/profile/user. This is how GTK apps pick up the
+# dark-mode + Papirus-Dark defaults without per-user gsettings setup.
+dconf update
 
 # ── Cleanup ───────────────────────────────────────────────────────────
 dnf5 clean all

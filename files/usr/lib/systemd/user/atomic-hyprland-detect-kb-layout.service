@@ -1,0 +1,11 @@
+[Unit]
+Description=First-login keyboard layout detection for Hyprland
+ConditionPathExists=%h/.config/hypr/input.conf
+ConditionPathExists=!%h/.local/state/atomic-hyprland/kb-layout-done
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/atomic-hyprland-detect-kb-layout
+
+[Install]
+WantedBy=default.target

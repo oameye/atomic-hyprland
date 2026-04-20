@@ -1,0 +1,12 @@
+[Unit]
+Description=First-boot SDDM autologin setup for the first non-system user
+ConditionPathExists=!/etc/sddm.conf.d/autologin.conf
+After=systemd-user-sessions.service
+Before=sddm.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/atomic-hyprland-sddm-autologin
+
+[Install]
+WantedBy=default.target

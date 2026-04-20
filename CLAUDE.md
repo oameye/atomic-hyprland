@@ -2,7 +2,7 @@
 
 ## What is this project?
 
-A personal Fedora Atomic desktop image built for one machine: AMD GPU, Fedora 43, single user. It ships Hyprland with LinuxBeginnings/Hyprland-Dots baked in. It is not designed to be general-purpose — assumptions about GPU, hardware, and workflow are hard-coded throughout.
+A personal Fedora Atomic desktop image built for one machine: AMD GPU, Fedora 43, single user. It ships Hyprland with basecamp/omarchy baked in. It is not designed to be general-purpose — assumptions about GPU, hardware, and workflow are hard-coded throughout.
 
 ## Key files
 
@@ -11,7 +11,7 @@ A personal Fedora Atomic desktop image built for one machine: AMD GPU, Fedora 43
 - `build_files/repos.sh` — COPR/repo setup + `copr_install_isolated` helper
 - `build_files/packages.sh` — all dnf5 package installs
 - `build_files/source-builds.sh` — full Hyprland ecosystem + non-hyprwm source builds
-- `build_files/desktop.sh` — SDDM greeter + Hyprland-Dots into `/etc/skel`
+- `build_files/desktop.sh` — SDDM greeter + omarchy into `/etc/skel`
 - `files/` — static filesystem overlay (systemd units, SDDM configs, ujust recipes)
 - `DESIGN.md` — architecture and design decisions
 - `.github/workflows/build.yml` — CI/CD (weekly + push + PR)
@@ -36,14 +36,14 @@ There are no unit tests. The build itself is the test — if `build.sh` exits no
 | `repos.sh` | COPR enablement, VS Code repo, Docker CE repo, `copr_install_isolated` helper |
 | `packages.sh` | `dnf5 install`, isolated COPR installs, Firefox removal |
 | `source-builds.sh` | All source builds + `cmake_build_install` / `cargo_install` helpers |
-| `desktop.sh` | SDDM greeter + theme + Hyprland-Dots into `/etc/skel` |
+| `desktop.sh` | SDDM greeter + theme + omarchy into `/etc/skel` |
 
 ## Conventions
 
 - **Bash:** `set -euo pipefail`. Use `|| true` only for tolerable failures (e.g., Firefox removal). UPPERCASE for constants/pinned tags, lowercase for locals.
 - **Packages:** always `--setopt=install_weak_deps=False`. Group by purpose with comments.
-- **COPRs left enabled** (pgdev/ghostty, errornointernet/quickshell, VS Code, Docker CE) vs **isolated** (che/nerd-fonts, ublue-os/packages, errornointernet/packages). Isolated COPRs must use `copr_install_isolated` so no `.repo` survives.
-- **Pinned refs** (SDDM, source builds) use `*_TAG`/`*_COMMIT` variables at the top of build.sh. Hyprland-Dots is unpinned (tracks master).
+- **Repos left enabled** (pgdev/ghostty, pgo/gpu-screen-recorder, VS Code, Docker CE) vs **isolated COPRs** (che/nerd-fonts, ublue-os/packages, errornointernet/packages). Isolated COPRs must use `copr_install_isolated` so no `.repo` survives.
+- **Pinned refs** (SDDM, source builds) use `*_TAG`/`*_COMMIT` variables at the top of build.sh. Omarchy is unpinned (tracks main).
 - **Systemd units** use `atomic-hyprland-` prefix.
 - **Static overlay files** go in `files/` mirroring the filesystem root.
 - **justfile variables** use `overwrite := "0"` syntax (not recipe parameters) so `ujust recipe key=value` works.
@@ -59,13 +59,18 @@ There are no unit tests. The build itself is the test — if `build.sh` exits no
 
 Drop a `.preinstall` file in `files/usr/share/flatpak/preinstall.d/`. The existing `flatpak-preinstall.service` picks it up on first boot.
 
-## Hyprland-Dots overrides
+## Omarchy overrides
 
-Baked-in overrides are sed patches in `desktop.sh`. Currently:
-- `$term = ghostty` (upstream default: kitty)
-- `$files = nautilus` (upstream default: thunar)
+Arch-specific bits are stripped out at build time rather than sed-patched:
 
-Do not append config blocks to UserSettings.conf unless absolutely necessary — prefer sed patches on existing variables.
+- All `omarchy-install-*`, `omarchy-pkg-*`, `omarchy-webapp-*`, `omarchy-tui-*`, and `omarchy-windows-*` scripts are deleted from skel. The image ships apps via Flatpak/COPR/brew, not pacman/yay.
+- The "Install" entry is sed-stripped from the top-level `omarchy-menu` (both the menu string and the case handler).
+- `omarchy-update` is overwritten with a one-line stub that calls `ujust update` (which handles bootc + flatpak + brew).
+- Default monospace font is switched from `JetBrainsMono Nerd Font` to `CaskaydiaMono Nerd Font` via a recursive sed across `/etc/skel` and `/usr/share/sddm/themes/omarchy`.
+
+Default Hyprland theme is `tokyo-night`, symlinked at `/etc/skel/.config/omarchy/current`.
+
+Do not patch config/ files unless the change cannot be done by the user after first login.
 
 ## Source builds
 

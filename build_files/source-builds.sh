@@ -19,8 +19,8 @@ BUILD_DEPS=(
     sdbus-cpp-devel pam-devel pipewire-devel
     # Rust/Cargo (awww, swww, satty) — removed after builds
     rust cargo lz4-devel
-    # satty requires GTK4 + libadwaita
-    gtk4-devel libadwaita-devel
+    # satty requires GTK4 + libadwaita; walker requires gtk-layer-shell
+    gtk4-devel libadwaita-devel gtk-layer-shell-devel
     # Go (cliphist, nwg-look) + CGo GTK3 (nwg-look) — removed after builds
     golang gtk3-devel
     # uwsm man pages
@@ -151,9 +151,12 @@ cmake_build_install hyprpolkitagent "${HYPR_POLKITAGENT_TAG}" \
     https://github.com/hyprwm/hyprpolkitagent.git
 
 # ── non-hyprwm tools (Cargo) ────────────────────────────────────────
-cargo_install awww  "${AWWW_TAG}"  https://codeberg.org/LGFae/awww.git        awww awww-daemon
-cargo_install swww  "${SWWW_TAG}"  https://github.com/LGFae/swww.git          swww swww-daemon
-cargo_install satty "${SATTY_TAG}" https://github.com/gabm/Satty.git          satty
+cargo_install awww    "${AWWW_TAG}"    https://codeberg.org/LGFae/awww.git        awww awww-daemon
+cargo_install swww    "${SWWW_TAG}"    https://github.com/LGFae/swww.git          swww swww-daemon
+cargo_install satty   "${SATTY_TAG}"   https://github.com/gabm/Satty.git          satty
+cargo_install wiremix "${WIREMIX_TAG}" https://github.com/tsowell/wiremix.git     wiremix
+cargo_install bluetui "${BLUETUI_TAG}" https://github.com/pythops/bluetui.git     bluetui
+cargo_install impala  "${IMPALA_TAG}"  https://github.com/pythops/impala.git      impala
 
 # hyprshot is a single shell script — clone the pinned tag so git verifies integrity.
 git clone --depth 1 --branch "${HYPRSHOT_TAG}" \
@@ -169,6 +172,14 @@ git clone --depth 1 --branch "${NWGLOOK_TAG}" \
     https://github.com/nwg-piotr/nwg-look.git "${BUILD_WORK}/nwg-look"
 make -C "${BUILD_WORK}/nwg-look" build
 make -C "${BUILD_WORK}/nwg-look" install PREFIX=/usr
+
+git clone --depth 1 --branch "${WALKER_TAG}" \
+    https://github.com/abenz1267/walker.git "${BUILD_WORK}/walker"
+go build -C "${BUILD_WORK}/walker" -o /usr/bin/walker .
+
+git clone --depth 1 --branch "${ELEPHANT_TAG}" \
+    https://github.com/abenz1267/elephant.git "${BUILD_WORK}/elephant"
+go build -C "${BUILD_WORK}/elephant" -o /usr/bin/elephant .
 
 # ── non-hyprwm tools (meson) ────────────────────────────────────────
 git clone --depth 1 --branch "${UWSM_TAG}" \

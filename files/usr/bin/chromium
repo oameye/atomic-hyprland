@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# Shim so `chromium` on PATH invokes the Flatpak build.
+# omarchy-launch-webapp, omarchy-theme-set-browser, and any manual invocation
+# call the binary by bare name; this keeps their code paths working without
+# patching each script.
+#
+# --user-data-dir redirects Flatpak chromium's config from its sandbox path
+# (~/.var/app/org.chromium.Chromium/config/chromium/) to the standard
+# ~/.config/chromium/ so omarchy-theme-set-browser's managed-policy write
+# actually lands where chromium will read it. Requires a matching flatpak
+# override granting xdg-config/chromium filesystem access (in build.sh).
+# Any later --user-data-dir= argument in "$@" wins, so callers can override.
+exec flatpak run org.chromium.Chromium \
+    --user-data-dir="$HOME/.config/chromium" \
+    "$@"

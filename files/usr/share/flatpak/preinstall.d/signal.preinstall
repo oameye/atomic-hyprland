@@ -1,0 +1,8 @@
+# Installed by atomic-hyprland-flatpak-preinstall when the preinstall
+# manifest changes.
+# Format: https://man.archlinux.org/man/flatpak-preinstall.1
+# Uninstallation is opt-in (user removes with `flatpak uninstall`).
+
+[Flatpak Preinstall org.signal.Signal]
+Branch=stable
+IsRuntime=false

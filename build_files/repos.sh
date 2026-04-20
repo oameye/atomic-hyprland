@@ -16,12 +16,13 @@ copr_install_isolated() {
 }
 
 # Live COPRs — left enabled so rpm-ostree upgrade picks up updates.
-for i in pgdev/ghostty errornointernet/quickshell; do
-    owner="${i%%/*}"
-    repo="${i##*/}"
+release="$(rpm -E %fedora)"
+for copr in pgdev/ghostty pgo/gpu-screen-recorder; do
+    owner="${copr%%/*}"
+    name="${copr##*/}"
     curl -fsSL \
-        "https://copr.fedorainfracloud.org/coprs/${owner}/${repo}/repo/fedora-${RELEASE}/${owner}-${repo}-fedora-${RELEASE}.repo" \
-        -o "/etc/yum.repos.d/_copr_${owner}-${repo}.repo"
+        "https://copr.fedorainfracloud.org/coprs/${owner}/${name}/repo/fedora-${release}/${owner}-${name}-fedora-${release}.repo" \
+        -o "/etc/yum.repos.d/_copr_${owner}-${name}.repo"
 done
 
 cat > /etc/yum.repos.d/vscode.repo <<'EOF'

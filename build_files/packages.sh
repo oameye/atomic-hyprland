@@ -2,22 +2,30 @@
 set -euo pipefail
 
 PACKAGES=(
-    # Greeter — Qt6 only; sddm-astronaut-theme needs these Qt6 modules.
-    # layer-shell-qt is required by sddm-hyprland for compositor-hosted rendering.
-    sddm layer-shell-qt
-    qt6-qtsvg qt6-qtmultimedia qt6-qtdeclarative qt6-qtvirtualkeyboard
+    # Greeter — omarchy ships a Qt Quick SDDM theme. Needs qtdeclarative (QtQuick)
+    # and qtsvg (for the logo.svg).
+    sddm
+    qt6-qtsvg qt6-qtdeclarative
 
-    # Desktop — matches the Hyprland-Dots expected runtime.
-    # kitty stays alongside ghostty because Hyprland-Dots' theme switcher references it.
-    # rofi-wayland provides the rofi binary; polkit agent is hyprpolkitagent (source-built).
-    ghostty kitty waybar rofi-wayland swaync quickshell
+    # Desktop — matches the omarchy expected runtime.
+    # walker (launcher) + elephant (walker data provider) are source-built.
+    ghostty waybar mako
+    swaybg swayosd fcitx5
+    gnome-calculator polkit-gnome
     nautilus nautilus-python ffmpegthumbnailer xarchiver
+    tmux imv starship neovim
     wl-clipboard
-    grim slurp swappy
-    network-manager-applet blueman bluez-tools python3-cairo
+    grim slurp swappy gpu-screen-recorder
+    network-manager-applet iwd blueman bluez-tools python3-cairo
     pavucontrol playerctl pamixer pulseaudio-utils
     pipewire-alsa pipewire-utils
     mpv mpv-mpris cava
+    # Printing (omarchy config/hardware/printer.sh) + mDNS discovery
+    cups cups-browsed avahi nss-mdns
+    # AMD Vulkan (gaming)
+    mesa-vulkan-drivers
+    # Plymouth boot splash (omarchy ships its own theme)
+    plymouth plymouth-plugin-label plymouth-plugin-script
     xdg-desktop-portal-gtk polkit
     brightnessctl ddcutil wlr-randr wlogout
     loupe gtk-murrine-engine
@@ -51,6 +59,12 @@ dnf5 -y install --setopt=install_weak_deps=False "${PACKAGES[@]}"
 
 dnf5 -y install --setopt=install_weak_deps=False --enablerepo=docker-ce-stable \
     docker-ce docker-ce-cli docker-compose-plugin docker-buildx-plugin containerd.io
+
+# tte (terminaltexteffects) — Python 3 CLI used by omarchy-launch-screensaver.
+# Not packaged for Fedora; install from PyPI system-wide into /usr. Because we
+# own the distribution we can safely use --break-system-packages here.
+pip3 install --prefix=/usr --break-system-packages --no-cache-dir \
+    terminaltexteffects
 
 copr_install_isolated "che/nerd-fonts" "nerd-fonts"
 copr_install_isolated "ublue-os/packages" "bazaar" "uupd"

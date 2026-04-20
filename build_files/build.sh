@@ -5,6 +5,7 @@ RELEASE="$(rpm -E %fedora)"
 DIR="$(dirname "$0")"
 
 # ── Pinned refs — bump these in PRs to upgrade ───────────────────────
+# shellcheck disable=SC2034  # variables are consumed by sourced sub-scripts
 SDDM_HYPRLAND_TAG="v0.48.0"
 SDDM_ASTRONAUT_COMMIT="d73842c"
 SDDM_ASTRONAUT_VARIANT="astronaut"

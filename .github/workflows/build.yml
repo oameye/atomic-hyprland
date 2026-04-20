@@ -15,6 +15,7 @@ on:
 env:
   IMAGE_NAME: atomic-hyprland
   IMAGE_REGISTRY: ghcr.io/${{ github.repository_owner }}
+  IMAGE_CACHE_REGISTRY: ghcr.io/${{ github.repository_owner }}/atomic-hyprland-cache
   FEDORA_VERSION: "43"
 
 jobs:
@@ -66,9 +67,10 @@ jobs:
           containerfiles: ./Containerfile
           build-args: FEDORA_VERSION=${{ env.FEDORA_VERSION }}
           oci: true
+          layers: true
           extra-args: |
-            --cache-from ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:latest
-            --layers
+            --cache-from ${{ env.IMAGE_CACHE_REGISTRY }}
+            --cache-to ${{ env.IMAGE_CACHE_REGISTRY }}
 
       - name: Rechunk image
         if: github.event_name == 'schedule'

@@ -43,13 +43,9 @@ NWGLOOK_TAG="v1.0.6"
 UWSM_TAG="v0.26.4"
 
 # ── Sub-scripts ──────────────────────────────────────────────────────
-# shellcheck source=repos.sh
 source "${DIR}/repos.sh"
-# shellcheck source=packages.sh
 source "${DIR}/packages.sh"
-# shellcheck source=source-builds.sh
 source "${DIR}/source-builds.sh"
-# shellcheck source=desktop.sh
 source "${DIR}/desktop.sh"
 
 # ── Flathub ──────────────────────────────────────────────────────────

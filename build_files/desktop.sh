@@ -7,6 +7,8 @@ WORK=$(mktemp -d)
 git clone --depth 1 --branch "${SDDM_HYPRLAND_TAG}" \
     https://github.com/HyDE-Project/sddm-hyprland.git "${WORK}/sddm-hyprland"
 make -C "${WORK}/sddm-hyprland" install PREFIX=/usr
+# windowrulev2 deprecated in Hyprland 0.42+; replace with windowrule (same syntax)
+sed -i 's/^windowrulev2\s*=/windowrule =/' /usr/share/hype/sddm/hyprland.conf
 
 git clone https://github.com/keyitdev/sddm-astronaut-theme.git \
     /usr/share/sddm/themes/sddm-astronaut-theme

@@ -23,6 +23,8 @@ BUILD_DEPS=(
     gtk4-devel libadwaita-devel
     # Go (cliphist, nwg-look) + CGo GTK3 (nwg-look) — removed after builds
     golang gtk3-devel
+    # uwsm man pages
+    scdoc
     # Qt6 (hyprland-qt-support, hyprpolkitagent) — removed after builds
     qt6-qtbase-devel qt6-qtdeclarative-devel
     polkit-devel polkit-qt6-1-devel
@@ -30,7 +32,7 @@ BUILD_DEPS=(
 
 # Removing -devel libs triggers a cascade into flatpak/gtk/ghostty, so only
 # strip the pure toolchain executables.
-BUILD_TOOLCHAIN=(cmake meson rust cargo golang qt6-qtbase-devel qt6-qtdeclarative-devel)
+BUILD_TOOLCHAIN=(cmake meson rust cargo golang scdoc qt6-qtbase-devel qt6-qtdeclarative-devel)
 
 dnf5 -y install --setopt=install_weak_deps=False "${BUILD_DEPS[@]}"
 
@@ -165,14 +167,8 @@ go build -C "${BUILD_WORK}/cliphist" -o /usr/bin/cliphist .
 
 git clone --depth 1 --branch "${NWGLOOK_TAG}" \
     https://github.com/nwg-piotr/nwg-look.git "${BUILD_WORK}/nwg-look"
-go build -C "${BUILD_WORK}/nwg-look" -o /usr/bin/nwg-look .
-[[ -d "${BUILD_WORK}/nwg-look/desktop" ]] && \
-    cp -r "${BUILD_WORK}/nwg-look/desktop" /usr/share/nwg-look
-[[ -f "${BUILD_WORK}/nwg-look/nwg-look.desktop" ]] && \
-    install -Dm644 "${BUILD_WORK}/nwg-look/nwg-look.desktop" \
-        /usr/share/applications/nwg-look.desktop
-[[ -d "${BUILD_WORK}/nwg-look/langs" ]] && \
-    cp -r "${BUILD_WORK}/nwg-look/langs" /usr/share/nwg-look/langs
+make -C "${BUILD_WORK}/nwg-look" build
+make -C "${BUILD_WORK}/nwg-look" install PREFIX=/usr
 
 # ── non-hyprwm tools (meson) ────────────────────────────────────────
 git clone --depth 1 --branch "${UWSM_TAG}" \

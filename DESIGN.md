@@ -110,7 +110,7 @@ Upstream's pacman `PostTransaction` hook is skipped (rpm-ostree rebuilds pick up
 
 ### GTK / GNOME defaults
 
-Dark-mode + Papirus-Dark + CaskaydiaMono Nerd Font are baked in as a **dconf system db** under `files/etc/dconf/db/site.d/10-omarchy-gtk`. `dconf update` runs at the end of `build.sh` to compile the binary. `/etc/dconf/profile/user` chains `user-db:user` over `system-db:site`, so per-user `gsettings set` still overrides, but the baseline is coherent before any user has logged in. `omarchy-theme-set-gnome` flips these keys at runtime to match each theme.
+Dark-mode + Papirus-Dark + JetBrainsMono Nerd Font are baked in as a **dconf system db** under `files/etc/dconf/db/site.d/10-omarchy-gtk`. `dconf update` runs at the end of `build.sh` to compile the binary. `/etc/dconf/profile/user` chains `user-db:user` over `system-db:site`, so per-user `gsettings set` still overrides, but the baseline is coherent before any user has logged in. `omarchy-theme-set-gnome` flips these keys at runtime to match each theme.
 
 ### Misc system tweaks (ported from `install/config/`)
 
@@ -177,7 +177,7 @@ The static user unit at [`files/usr/lib/systemd/user/elephant.service`](./files/
 
 Mimeapps: omarchy ships no `mimeapps.list`, so `files/etc/skel/.config/mimeapps.list` fills the gap. It mirrors omarchy's upstream `install/config/mimetypes.sh`, adapted for Fedora + Flatpak: URLs/HTML → Zen Browser (Flatpak), mailto → Thunderbird (Flatpak), PDFs → GNOME Papers (Flatpak), images → imv, video/audio → mpv, directories → Nautilus, archives → Xarchiver, text files → nvim. Because `files/` is overlaid before `desktop.sh` copies omarchy's `config/`, and omarchy has no same-path conflict, this static file survives the build intact.
 
-Default Hyprland theme `tokyo-night` is bootstrapped as a real directory at `/etc/skel/.config/omarchy/current/theme/`. Default monospace font is `CaskaydiaMono Nerd Font` (omarchy upstream uses JetBrainsMono); a recursive sed in `desktop.sh` rewrites every reference in `/etc/skel` and the SDDM theme.
+Default Hyprland theme `tokyo-night` is bootstrapped as a real directory at `/etc/skel/.config/omarchy/current/theme/`. Default monospace font is `JetBrainsMono Nerd Font` (omarchy upstream default), source-installed from the `ryanoasis/nerd-fonts` release in `source-builds.sh` because neither Fedora main nor the `che/nerd-fonts` COPR ships the patched variant. A `files/etc/fonts/conf.d/80-atomic-hyprland-monospace.conf` pins the `monospace` fontconfig alias so walker and anything else using the generic family resolves correctly.
 
 ### Bin script audit
 

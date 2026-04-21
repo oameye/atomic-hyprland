@@ -66,7 +66,7 @@ Arch-specific bits are stripped out at build time rather than sed-patched:
 - All `omarchy-install-*`, `omarchy-pkg-*`, `omarchy-webapp-*`, `omarchy-tui-*`, and `omarchy-windows-*` scripts are deleted from skel. The image ships apps via Flatpak/COPR/brew, not pacman/yay.
 - The "Install" entry is sed-stripped from the top-level `omarchy-menu` (both the menu string and the case handler).
 - `omarchy-update` is overwritten with a one-line stub that calls `ujust update` (which handles bootc + flatpak + brew).
-- Default monospace font is switched from `JetBrainsMono Nerd Font` to `CaskaydiaMono Nerd Font` via a recursive sed across `/etc/skel` and `/usr/share/sddm/themes/omarchy`.
+- `JetBrainsMono Nerd Font` (omarchy upstream default) is source-installed from the `ryanoasis/nerd-fonts` release in `source-builds.sh`; `files/etc/fonts/conf.d/80-atomic-hyprland-monospace.conf` pins the `monospace` fontconfig alias so walker and other generic-alias consumers resolve correctly.
 
 Default Hyprland theme is `tokyo-night`, bootstrapped at build time as a real directory at `/etc/skel/.config/omarchy/current/theme/` (via `omarchy-theme-set-templates` rendering + atomic `mv` into place — no symlink).
 

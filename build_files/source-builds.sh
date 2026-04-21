@@ -44,6 +44,7 @@ GUM_TAG="v0.17.0"
 STARSHIP_TAG="v1.25.0"
 HYPRLAND_PREVIEW_SHARE_PICKER_TAG="v0.2.1"
 GHOSTTY_TAG="v1.3.1"
+NERD_FONTS_TAG="v3.4.0"
 
 # ── Repos ────────────────────────────────────────────────────────────
 source "${DIR}/repos.sh"
@@ -302,6 +303,17 @@ install -Dm644 "${BUILD_WORK}/xdg-terminal-exec/xdg-terminals.list" \
 # ghostty config. Tag bumps should track ghostty-org/ghostty releases and
 # double-check build.zig.zon's minimum_zig_version against the Fedora zig.
 zig_build_install ghostty "${GHOSTTY_TAG}" https://github.com/ghostty-org/ghostty.git
+
+# ── Fonts (upstream Nerd Fonts release) ─────────────────────────────
+# Omarchy's configs reference "JetBrainsMono Nerd Font". Fedora main
+# ships jetbrains-mono-fonts (non-nerd) and che/nerd-fonts only ships
+# symbols-only — neither provides the patched JetBrains Mono Nerd variant.
+# Pull the pre-patched release tarball from upstream, equivalent to
+# Arch's ttf-jetbrains-mono-nerd package.
+install -d /usr/share/fonts/jetbrains-mono-nerd
+curl -fsSL "https://github.com/ryanoasis/nerd-fonts/releases/download/${NERD_FONTS_TAG}/JetBrainsMono.tar.xz" |
+    tar -xJ -C /usr/share/fonts/jetbrains-mono-nerd
+fc-cache -f /usr/share/fonts/jetbrains-mono-nerd
 
 rm -rf "${BUILD_WORK}"
 dnf5 -y remove --no-autoremove "${BUILD_TOOLCHAIN[@]}"

@@ -435,11 +435,4 @@ ln -sf ../../.local/share/omarchy/default/omarchy-skill \
 # /etc/sddm.conf.d/theme.conf points at this theme name.
 cp -a "${WORK}/omarchy/default/sddm/omarchy" /usr/share/sddm/themes/omarchy
 
-# ── Font default: CaskaydiaMono Nerd Font ───────────────────────────
-# Omarchy's upstream default is JetBrainsMono Nerd Font; switch every
-# reference in the deployed configs to CaskaydiaMono (shipped by the
-# che/nerd-fonts COPR as part of the nerd-fonts meta-package).
-find /etc/skel /usr/share/sddm/themes/omarchy -type f -exec \
-    sed -i 's/JetBrainsMono Nerd Font/CaskaydiaMono Nerd Font/g' {} +
-
 rm -rf "${WORK}"

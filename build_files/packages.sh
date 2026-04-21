@@ -10,10 +10,10 @@ PACKAGES=(
     # Desktop — matches the omarchy expected runtime.
     # walker (launcher) + elephant (walker data provider) are source-built.
     ghostty waybar mako
-    swaybg swayosd fcitx5
-    gnome-calculator polkit-gnome
+    swaybg fcitx5
+    gnome-calculator
     nautilus nautilus-python ffmpegthumbnailer xarchiver
-    tmux imv starship neovim
+    tmux imv neovim
     wl-clipboard
     grim slurp gpu-screen-recorder
     # ffmpeg-free + v4l-utils for omarchy-cmd-screenrecord (preview/trim + webcam).
@@ -70,5 +70,6 @@ pip3 install --prefix=/usr --break-system-packages --no-cache-dir \
 
 copr_install_isolated "che/nerd-fonts" "nerd-fonts"
 copr_install_isolated "ublue-os/packages" "bazaar" "uupd"
+copr_install_isolated "erikreider/swayosd" "swayosd"
 
 rpm-ostree override remove firefox firefox-langpacks || true

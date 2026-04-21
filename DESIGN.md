@@ -25,7 +25,7 @@ This file documents intent and invariants. Current values (pinned tags, package 
 
 - **Hyprland ecosystem** — all source-built in `source-builds.sh`. See [Source builds](#source-builds).
 - **Session / greeter** — `sddm` + `qt6-qtdeclarative` + `qt6-qtsvg` for omarchy's Qt Quick SDDM theme.
-- **Desktop runtime** — packages omarchy expects: waybar, mako, swaybg, swayosd, fcitx5, gnome-calculator, polkit-gnome, nautilus, ghostty (first-class omarchy-themed terminal; xdg-terminals.list is patched to prefer it over upstream's Alacritty default), wl-clipboard, grim/slurp/swappy, audio stack, wallust, mpv, btop, fastfetch, tmux, imv, starship, neovim (LazyVim bootstrapped by `/etc/skel/.config/nvim/init.lua` on first launch; a plugin spec sources `~/.config/omarchy/current/neovim.lua` so the active omarchy theme's colorscheme plugin loads automatically); `rsms-inter-fonts` preserves Omarchy's GTK typography baseline; walker + elephant are source-built.
+- **Desktop runtime** — packages omarchy expects: waybar, mako, swaybg, fcitx5, gnome-calculator, nautilus, ghostty (first-class omarchy-themed terminal; xdg-terminals.list is patched to prefer it over upstream's Alacritty default), wl-clipboard, grim/slurp/swappy, audio stack, wallust, mpv, btop, fastfetch, tmux, imv, neovim (LazyVim bootstrapped by `/etc/skel/.config/nvim/init.lua` on first launch; a plugin spec sources `~/.config/omarchy/current/neovim.lua` so the active omarchy theme's colorscheme plugin loads automatically); `rsms-inter-fonts` preserves Omarchy's GTK typography baseline; `swayosd` comes from an isolated COPR, `starship` is source-built, and PolicyKit auth is handled by source-built `hyprpolkitagent`.
 - **Qt theming** — none. Omarchy theme-switches only GTK via `omarchy-theme-set-gnome`; the Hyprland-Dots-era `qt5ct` / `qt6ct` / `kvantum` / `qt6-qt5compat` stack is dropped. Qt apps fall back to system defaults (Adwaita-dark via dconf).
 - **Developer tooling** — VS Code (RPM), make, gcc-c++. Everything else (`fd`, `fzf`, `lazygit`, `yazi`, …) via `brew`.
 - **Containers** — `podman-compose`, `podman-tui`, `podman-machine`, `flatpak-builder`, Docker CE.
@@ -34,8 +34,8 @@ This file documents intent and invariants. Current values (pinned tags, package 
 
 ### COPR policy
 
-- **Left enabled** — `pgdev/ghostty` Copr (ghostty isn't in Fedora default repos), `pgo/gpu-screen-recorder` Copr (upstream author's own packaging; the `-w portal` recording path used by `omarchy-cmd-screenrecord` needs the native binary, not a Flatpak, so `pkill -f "^gpu-screen-recorder"` matches the process on stop), VS Code, Docker CE (`enabled=0`, used via `--enablerepo`).
-- **Isolated** — `che/nerd-fonts`, `ublue-os/packages`, `errornointernet/packages`. Installed via `copr_install_isolated`; no `.repo` file survives in the final image.
+- **Left enabled** — `pgdev/ghostty` Copr (ghostty isn't in Fedora default repos), `brycensranch/gpu-screen-recorder-git` Copr (the old `pgo/gpu-screen-recorder` project no longer publishes Fedora 43 metadata; this replacement still ships the native `gpu-screen-recorder` package that `omarchy-cmd-screenrecord` expects, so `pkill -f "^gpu-screen-recorder"` continues to match the host process), VS Code, Docker CE (`enabled=0`, used via `--enablerepo`).
+- **Isolated** — `che/nerd-fonts`, `ublue-os/packages`, `erikreider/swayosd`. Installed via `copr_install_isolated`; no `.repo` file survives in the final image.
 
 ## Source builds
 
@@ -61,9 +61,10 @@ The entire Hyprland ecosystem is source-built for exact version control and ABI 
 | `hyprshot` | curl (shell script) | screenshot helper |
 | `cliphist` | Go | clipboard history |
 | `gum` | Go | interactive prompts (used by `omarchy-menu`, `omarchy-migrate`, etc.) |
+| `starship` | Cargo | shell prompt used by omarchy's bash defaults |
 | `uwsm` | Python / meson | Wayland session manager (`uwsm-app` helper enabled) |
 | `xdg-terminal-exec` | shell script | default terminal selector used by current Omarchy bindings |
-| `walker` | Go + GTK4 + gtk-layer-shell | application launcher (omarchy default) |
+| `walker` | Cargo + GTK4 + gtk4-layer-shell + poppler-glib | application launcher (omarchy default) |
 | `elephant` | Go | walker data provider (required for walker ≥ v2) |
 | `wiremix` | Cargo | PipeWire audio TUI (Super+Ctrl+A) |
 | `bluetui` | Cargo | Bluetooth TUI (Super+Ctrl+B) |

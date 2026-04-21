@@ -11,17 +11,20 @@ BUILD_DEPS=(
     pugixml-devel iniparser-devel
     libseat-devel libinput-devel libdisplay-info-devel hwdata
     systemd-devel
+    # wiremix's bindgen step needs the unversioned libclang.so symlink.
+    clang-devel
     libjpeg-turbo-devel libwebp-devel libpng-devel librsvg2-devel
     libjxl-devel libheif-devel file-devel
     tomlplusplus-devel libzip-devel
     muParser-devel re2-devel libuuid-devel
     libxcb-devel xcb-util-wm-devel xcb-util-errors-devel libXcursor-devel
+    protobuf-compiler
     sdbus-cpp-devel pam-devel pipewire-devel
     # Rust/Cargo (awww, swww, satty) — removed after builds
     rust cargo lz4-devel
-    # satty requires GTK4 + libadwaita; walker requires gtk-layer-shell
-    gtk4-devel libadwaita-devel gtk-layer-shell-devel
-    # Go (cliphist, walker, elephant, gum) — removed after builds
+    # satty requires GTK4 + libadwaita + epoxy; walker requires gtk4-layer-shell + poppler-glib
+    gtk4-devel libadwaita-devel gtk4-layer-shell-devel poppler-glib-devel libepoxy-devel
+    # Go (cliphist, elephant, gum) — removed after builds
     golang
     # uwsm man pages
     scdoc
@@ -32,7 +35,7 @@ BUILD_DEPS=(
 
 # Removing -devel libs triggers a cascade into flatpak/gtk/ghostty, so only
 # strip the pure toolchain executables.
-BUILD_TOOLCHAIN=(cmake meson rust cargo golang scdoc qt6-qtbase-devel qt6-qtdeclarative-devel)
+BUILD_TOOLCHAIN=(cmake meson rust cargo golang scdoc clang-devel qt6-qtbase-devel qt6-qtdeclarative-devel)
 
 dnf5 -y install --setopt=install_weak_deps=False "${BUILD_DEPS[@]}"
 
@@ -150,10 +153,19 @@ cmake_build_install hyprpolkitagent "${HYPR_POLKITAGENT_TAG}" \
     https://github.com/hyprwm/hyprpolkitagent.git
 
 # ── non-hyprwm tools (Cargo) ────────────────────────────────────────
-cargo_install satty   "${SATTY_TAG}"   https://github.com/gabm/Satty.git          satty
-cargo_install wiremix "${WIREMIX_TAG}" https://github.com/tsowell/wiremix.git     wiremix
-cargo_install bluetui "${BLUETUI_TAG}" https://github.com/pythops/bluetui.git     bluetui
-cargo_install impala  "${IMPALA_TAG}"  https://github.com/pythops/impala.git      impala
+cargo_install satty    "${SATTY_TAG}"    https://github.com/gabm/Satty.git          satty
+cargo_install wiremix  "${WIREMIX_TAG}"  https://github.com/tsowell/wiremix.git     wiremix
+cargo_install bluetui  "${BLUETUI_TAG}"  https://github.com/pythops/bluetui.git     bluetui
+cargo_install impala   "${IMPALA_TAG}"   https://github.com/pythops/impala.git      impala
+cargo_install starship "${STARSHIP_TAG}" https://github.com/starship/starship.git   starship
+git clone --depth 1 --branch "${WALKER_TAG}" \
+    https://github.com/abenz1267/walker.git "${BUILD_WORK}/walker"
+cargo build --release --manifest-path "${BUILD_WORK}/walker/Cargo.toml"
+install -Dm755 "${BUILD_WORK}/walker/target/release/walker" /usr/bin/walker
+install -Dm644 "${BUILD_WORK}/walker/LICENSE" /usr/share/licenses/walker/LICENSE
+install -Dm644 "${BUILD_WORK}/walker/resources/config.toml" /etc/xdg/walker/config.toml
+install -d /etc/xdg/walker/themes/default
+cp -r "${BUILD_WORK}/walker/resources/themes/default/." /etc/xdg/walker/themes/default/
 
 # hyprshot is a single shell script — clone the pinned tag so git verifies integrity.
 git clone --depth 1 --branch "${HYPRSHOT_TAG}" \
@@ -164,10 +176,6 @@ install -Dm755 "${BUILD_WORK}/hyprshot/hyprshot" /usr/bin/hyprshot
 git clone --depth 1 --branch "${CLIPHIST_TAG}" \
     https://github.com/sentriz/cliphist.git "${BUILD_WORK}/cliphist"
 go build -C "${BUILD_WORK}/cliphist" -o /usr/bin/cliphist .
-
-git clone --depth 1 --branch "${WALKER_TAG}" \
-    https://github.com/abenz1267/walker.git "${BUILD_WORK}/walker"
-go build -C "${BUILD_WORK}/walker" -o /usr/bin/walker .
 
 git clone --depth 1 --branch "${ELEPHANT_TAG}" \
     https://github.com/abenz1267/elephant.git "${BUILD_WORK}/elephant"

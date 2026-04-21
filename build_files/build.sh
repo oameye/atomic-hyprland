@@ -41,6 +41,7 @@ WIREMIX_TAG="v0.10.0"
 BLUETUI_TAG="v0.8.1"
 IMPALA_TAG="v0.7.4"
 GUM_TAG="v0.17.0"
+STARSHIP_TAG="v1.25.0"
 
 # ── Sub-scripts ──────────────────────────────────────────────────────
 source "${DIR}/repos.sh"

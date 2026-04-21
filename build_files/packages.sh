@@ -8,7 +8,8 @@ PACKAGES=(
     qt6-qtsvg qt6-qtdeclarative
 
     # Desktop — matches the omarchy expected runtime.
-    # walker (launcher) + elephant (walker data provider) + ghostty are source-built.
+    # walker (launcher) + elephant (walker data provider) are source-built;
+    # ghostty is installed from scottames/ghostty COPR (see below).
     waybar mako
     swaybg fcitx5 fcitx5-gtk fcitx5-qt
     gnome-calculator
@@ -76,5 +77,7 @@ pip3 install --prefix=/usr --break-system-packages --no-cache-dir \
 
 copr_install_isolated "ublue-os/packages" "bazaar" "uupd"
 copr_install_isolated "erikreider/swayosd" "swayosd"
+# ghostty: recommended by upstream ghostty.org install docs.
+copr_install_isolated "scottames/ghostty" "ghostty"
 
 rpm-ostree override remove firefox firefox-langpacks || true

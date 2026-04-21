@@ -232,6 +232,8 @@ Static config in `files/etc/sddm.conf.d/theme.conf` sets `Current=omarchy`. No s
 
 `atomic-hyprland-sddm-autologin.service` is a `Before=sddm.service` oneshot that writes `/etc/sddm.conf.d/autologin.conf` on first boot. The helper at `/usr/bin/atomic-hyprland-sddm-autologin` finds the first `UID_MIN..UID_MAX` user (respecting `/etc/login.defs`) and sets `User=<that>` + `Session=hyprland-uwsm` — same format omarchy's installer produces.
 
+Before writing, the helper sweeps `/etc/sddm.conf.d/` and renames any other `*.conf` containing an `[Autologin]` section to `<name>.conf.disabled-by-atomic-hyprland`. This covers the rebase case where a prior OS deployment left its own autologin config on the system (e.g. a `kde_settings.conf` carried over from Fedora Plasma pointing `Session=plasma`): without the sweep, SDDM reads `*.conf` in lexicographic order and the other file can win, causing the wrong session to auto-select, `graphical-session.target` to never activate, and `elephant.service` (walker's data provider) to silently stay down. Disabled-by-rename preserves the original content on disk for inspection and is reversible with a plain `mv`.
+
 `ConditionPathExists=!/etc/sddm.conf.d/autologin.conf` makes the unit a no-op after success. If the unit runs before any user exists (unusual but possible on early-stage image deployments), the helper exits cleanly and the unit retries next boot since the target file still doesn't exist.
 
 ### SDDM waits for the Flatpak preinstall

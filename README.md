@@ -6,6 +6,10 @@ A personal Fedora Atomic image based on [Universal Blue `base-main`](https://git
 
 See [`DESIGN.md`](./DESIGN.md) for the full design.
 
+### Why not [wayblue](https://github.com/wayblueorg/wayblue) or [cjuniorfox/hyprland-atomic](https://github.com/cjuniorfox/hyprland-atomic)?
+
+Both are the obvious-looking prior art (Fedora Atomic + Hyprland). Wayblue installs the hyprwm stack from the `solopasha/hyprland` COPR; cjuniorfox defaults to Fedora's `hyprland` package and optionally falls back to the same `solopasha/hyprland` COPR. Both sources consistently lag behind upstream Hyprland releases. This image source-builds the whole hyprwm ecosystem from pinned git tags ([`source-builds.sh`](./build_files/source-builds.sh)) so it can track current upstream.
+
 ## Rebase
 
 ```sh

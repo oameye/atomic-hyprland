@@ -317,8 +317,7 @@ Upgrading a pinned ref is a one-line change in `build.sh` → CI builds `:pr-<N>
 
 ## Update flow
 
-- `ujust update` (or automatic nightly) pulls the latest image via `rpm-ostree upgrade`.
-- Flatpak and Homebrew updates are chained by `ujust update`.
+- `ujust update` delegates to `uupd-manual.service`; `uupd.timer` fires the same cycle nightly. Both chain `rpm-ostree upgrade`, `flatpak update`, `distrobox upgrade`, and `brew update && brew upgrade` in one shot. The `ublue-os-just` shipped `10-update.just` predates `uupd` and still gates on `ublue-update.timer`, so we overlay our own at `files/usr/share/ublue-os/just/10-update.just` to route through `uupd` instead.
 - After a rebuild that includes new dotfiles, `ujust sync-skel-config overwrite=1` applies them to `$HOME`.
 - Rollback: `sudo bootc rollback && systemctl reboot`.
 

@@ -273,6 +273,21 @@ git clone --depth 1 --branch "${ELEPHANT_TAG}" \
     https://github.com/abenz1267/elephant.git "${BUILD_WORK}/elephant"
 go build -C "${BUILD_WORK}/elephant/cmd/elephant" -buildvcs=false -trimpath -o /usr/bin/elephant .
 install -Dm644 "${BUILD_WORK}/elephant/LICENSE" /usr/share/licenses/elephant/LICENSE
+# Providers are loaded as Go plugins (.so) from /etc/xdg/elephant/providers/.
+# Upstream's top-level makefile only builds the main binary; each provider
+# directory has its own makefile using -buildmode=plugin. Build them here
+# with the same toolchain so the Go plugin ABI matches /usr/bin/elephant —
+# any mismatch triggers "no plugin module data" at load time.
+for provider_dir in "${BUILD_WORK}/elephant/internal/providers/"*/; do
+    [[ -f "${provider_dir}makefile" ]] || continue
+    name="$(basename "${provider_dir}")"
+    (
+        cd "${provider_dir}"
+        go build -buildvcs=false -buildmode=plugin -trimpath -o "${name}.so" .
+    )
+    install -Dm755 "${provider_dir}${name}.so" \
+        "/etc/xdg/elephant/providers/${name}.so"
+done
 
 # gum — interactive prompts + confirmations used by omarchy-menu and several
 # helper scripts (omarchy-migrate, omarchy-debug upload prompts, …). Not in

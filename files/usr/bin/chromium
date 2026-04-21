@@ -6,9 +6,9 @@
 #
 # --user-data-dir redirects Flatpak chromium's config from its sandbox path
 # (~/.var/app/org.chromium.Chromium/config/chromium/) to the standard
-# ~/.config/chromium/ so omarchy-theme-set-browser's managed-policy write
-# actually lands where chromium will read it. Requires a matching flatpak
-# override granting xdg-config/chromium filesystem access (in build.sh).
+# ~/.config/chromium/ so omarchy's flags/config live where its scripts expect.
+# Theme color is delivered separately through /etc/chromium/policies/managed,
+# exposed to the sandbox via a matching flatpak override in build.sh.
 # Any later --user-data-dir= argument in "$@" wins, so callers can override.
 exec flatpak run org.chromium.Chromium \
     --user-data-dir="$HOME/.config/chromium" \

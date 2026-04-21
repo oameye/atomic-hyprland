@@ -26,6 +26,12 @@ require_upstream_literal() {
 mkdir -p /etc/skel/.config
 cp -a "${WORK}/omarchy/config/." /etc/skel/.config/
 
+# Desktop image — no battery. Upstream ships a per-user battery monitor
+# service/timer via config/systemd/user/; drop them from skel so no user
+# ends up with a unit that polls a non-existent battery.
+rm -f /etc/skel/.config/systemd/user/omarchy-battery-monitor.service \
+      /etc/skel/.config/systemd/user/omarchy-battery-monitor.timer
+
 # Layer 2: omarchy system layer. Upstream layout is `$OMARCHY_PATH/{default,themes,bin}`
 # where $OMARCHY_PATH resolves to ~/.local/share/omarchy (set by config/uwsm/env and
 # default/bash/envs). Matching this layout lets every `omarchy-*` script find siblings
@@ -87,22 +93,18 @@ sed -i -E \
 sed -i 's|pacman -Q 2>/dev/null \|\| echo "Failed to get package list"|rpm -qa \| sort|' \
     "${SKEL_OMARCHY}/bin/omarchy-upload-log"
 
-# omarchy-theme-set-browser writes Chromium policy to `/etc/chromium/...`
-# which needs root and breaks when invoked from a user theme switch.
-# Rewrite to use user-scoped policies under ~/.config/chromium/Policies/
-# (Chromium reads both; the user path works unprivileged). Also simplified
-# to a single browser since we ship chromium as Flatpak; the brave branch
-# is dead code.
+# omarchy-theme-set-browser still targets the supported Linux managed-policy
+# path under /etc/chromium/policies/managed, but we only keep the Chromium
+# branch because Brave is not shipped on this image.
 cat > "${SKEL_OMARCHY}/bin/omarchy-theme-set-browser" <<'EOF'
 #!/usr/bin/env bash
-# Apply the current omarchy theme's accent color to Chromium via a
-# user-level managed policy file. Silently exits if chromium isn't on PATH.
+# Apply the current omarchy theme's accent color to Chromium via its
+# managed-policy file. Silently exits if chromium isn't on PATH.
 
 omarchy-cmd-present chromium || exit 0
 
 chromium_theme=~/.config/omarchy/current/theme/chromium.theme
-policy_dir=~/.config/chromium/Policies/Managed
-mkdir -p "$policy_dir"
+policy_dir=/etc/chromium/policies/managed
 
 if [[ -f $chromium_theme ]]; then
     rgb=$(<"$chromium_theme")
@@ -118,6 +120,57 @@ printf '{"BrowserThemeColor": "%s", "BrowserColorScheme": "device"}\n' "$hex" \
 chromium --refresh-platform-policy --no-startup-window >/dev/null 2>&1 || true
 EOF
 chmod +x "${SKEL_OMARCHY}/bin/omarchy-theme-set-browser"
+
+# omarchy-launch-webapp upstream reads Exec= from host chromium.desktop to
+# resolve the PWA launcher. chromium is a Flatpak on this image and its
+# .desktop lives in /var/lib/flatpak/exports/share/applications/ — a path
+# the upstream sed lookup does not check, so Exec= comes back empty and
+# the exec line runs with no command. Go directly to the Flatpak instead;
+# the --user-data-dir + managed-policy bridges still apply via the Flatpak
+# override + /etc/chromium/policies/managed configured in build.sh.
+cat > "${SKEL_OMARCHY}/bin/omarchy-launch-webapp" <<'EOF'
+#!/usr/bin/env bash
+# Launch a URL as a standalone web app via Flatpak Chromium's --app mode.
+exec setsid uwsm-app -- flatpak run org.chromium.Chromium --app="$1" "${@:2}"
+EOF
+chmod +x "${SKEL_OMARCHY}/bin/omarchy-launch-webapp"
+
+# omarchy-theme-set-obsidian upstream reads ~/.config/obsidian/obsidian.json
+# for the list of vault paths; Flatpak Obsidian keeps that sandboxed under
+# ~/.var/app/md.obsidian.Obsidian/config/obsidian/. Flathub's manifest grants
+# --filesystem=home, so the vault paths stored inside resolve on the host
+# unchanged — just the config location shifts.
+cat > "${SKEL_OMARCHY}/bin/omarchy-theme-set-obsidian" <<'EOF'
+#!/usr/bin/env bash
+# Sync Omarchy theme to all Obsidian vaults registered with Flatpak Obsidian.
+
+CURRENT_THEME_DIR="$HOME/.config/omarchy/current/theme"
+OBSIDIAN_CONFIG="$HOME/.var/app/md.obsidian.Obsidian/config/obsidian/obsidian.json"
+
+[[ -f $CURRENT_THEME_DIR/obsidian.css ]] || exit 0
+[[ -f $OBSIDIAN_CONFIG ]] || exit 0
+
+jq -r '.vaults | values[].path' "$OBSIDIAN_CONFIG" 2>/dev/null | while read -r vault_path; do
+    [[ -d $vault_path/.obsidian ]] || continue
+
+    theme_dir="$vault_path/.obsidian/themes/Omarchy"
+    mkdir -p "$theme_dir"
+
+    [[ -f $theme_dir/manifest.json ]] || cat > "$theme_dir/manifest.json" <<'MANIFEST'
+{
+  "name": "Omarchy",
+  "version": "1.0.0",
+  "minAppVersion": "0.16.0",
+  "description": "Automatically syncs with your current Omarchy system theme colors and fonts",
+  "author": "Omarchy",
+  "authorUrl": "https://omarchy.org"
+}
+MANIFEST
+
+    cp "$CURRENT_THEME_DIR/obsidian.css" "$theme_dir/theme.css"
+done
+EOF
+chmod +x "${SKEL_OMARCHY}/bin/omarchy-theme-set-obsidian"
 
 # Strip menu entries that lead to deleted scripts:
 #   - "Install" top-level entry → show_install_menu (Install scripts deleted).
@@ -227,6 +280,25 @@ require_upstream_literal \
 sed -i 's|"on-click-right": "alacritty"|"on-click-right": "xdg-terminal-exec"|' \
     /etc/skel/.config/waybar/config.jsonc
 
+# Re-target the bindings that have a direct Flatpak equivalent, and strip the
+# ones whose backing apps are intentionally not layered into this image.
+require_upstream_literal \
+    /etc/skel/.config/hypr/bindings.conf \
+    'bindd = SUPER SHIFT, G, Signal, exec, omarchy-launch-or-focus ^signal$ "uwsm-app -- signal-desktop"' \
+    'Signal binding'
+require_upstream_literal \
+    /etc/skel/.config/hypr/bindings.conf \
+    'bindd = SUPER SHIFT, O, Obsidian, exec, omarchy-launch-or-focus ^obsidian$ "uwsm-app -- obsidian -disable-gpu --enable-wayland-ime"' \
+    'Obsidian binding'
+sed -i \
+    -e 's|bindd = SUPER SHIFT, G, Signal, exec, omarchy-launch-or-focus \^signal\$ "uwsm-app -- signal-desktop"|bindd = SUPER SHIFT, G, Signal, exec, omarchy-launch-or-focus signal "uwsm-app -- flatpak run org.signal.Signal"|' \
+    -e 's|bindd = SUPER SHIFT, O, Obsidian, exec, omarchy-launch-or-focus \^obsidian\$ "uwsm-app -- obsidian -disable-gpu --enable-wayland-ime"|bindd = SUPER SHIFT, O, Obsidian, exec, omarchy-launch-or-focus obsidian "uwsm-app -- flatpak run md.obsidian.Obsidian --disable-gpu --enable-wayland-ime"|' \
+    -e '/bindd = SUPER SHIFT, M, Music, exec, omarchy-launch-or-focus spotify/d' \
+    -e '/bindd = SUPER SHIFT, D, Docker, exec, omarchy-launch-tui lazydocker/d' \
+    -e '/bindd = SUPER SHIFT, W, Typora, exec, uwsm-app -- typora --enable-wayland-ime/d' \
+    -e '/bindd = SUPER SHIFT, SLASH, Passwords, exec, uwsm-app -- 1password/d' \
+    /etc/skel/.config/hypr/bindings.conf
+
 # Browser: upstream omarchy-launch-browser resolves the .desktop via
 # xdg-settings, which doesn't search Flatpak export paths. Replace it with
 # a direct Zen Browser (Flatpak) wrapper — Zen is preinstalled via
@@ -276,6 +348,22 @@ ln -s ../../../.local/share/omarchy/default/elephant/omarchy_themes.lua \
 ln -s ../../../.local/share/omarchy/default/elephant/omarchy_background_selector.lua \
     /etc/skel/.config/elephant/menus/omarchy_background_selector.lua
 
+# ── nautilus-python extensions ──────────────────────────────────────
+# Upstream install/config/nautilus-python.sh copies localsend.py into the
+# user's extensions dir. Relative symlink so it picks up updates on each
+# OMARCHY_REF bump and resolves the same in skel and any $HOME.
+mkdir -p /etc/skel/.local/share/nautilus-python/extensions
+ln -sf ../../omarchy/default/nautilus-python/extensions/localsend.py \
+    /etc/skel/.local/share/nautilus-python/extensions/localsend.py
+
+# ── Claude Code skill symlink ───────────────────────────────────────
+# Upstream install/config/omarchy-ai-skill.sh exposes the shipped omarchy
+# skill under ~/.claude/skills/ for Claude Code. Relative symlink so it
+# resolves the same in skel and any $HOME.
+mkdir -p /etc/skel/.claude/skills
+ln -sf ../../.local/share/omarchy/default/omarchy-skill \
+    /etc/skel/.claude/skills/omarchy
+
 # ── Bootstrap the initial theme ─────────────────────────────────────
 # Replays bin/omarchy-theme-set's logic against /etc/skel so first login
 # finds ~/.config/omarchy/current/theme/ fully populated with rendered
@@ -308,6 +396,18 @@ ln -s ../../../.local/share/omarchy/default/elephant/omarchy_background_selector
     rm -rf "${CURRENT}"
     mv "${NEXT}" "${CURRENT}"
     echo "${INITIAL_THEME}" > "${HOME}/.config/omarchy/current/theme.name"
+
+    # App-specific symlinks into the current theme. Upstream omarchy sets
+    # these up in install/config/theme.sh; replay them here so btop and mako
+    # pick up themed colors/style on first boot without waiting for the
+    # first `omarchy-theme-set` invocation.
+    mkdir -p "${HOME}/.config/btop/themes"
+    ln -sf ../../omarchy/current/theme/btop.theme \
+        "${HOME}/.config/btop/themes/current.theme"
+
+    mkdir -p "${HOME}/.config/mako"
+    ln -sf ../omarchy/current/theme/mako.ini \
+        "${HOME}/.config/mako/config"
 
     # Seed ~/.config/omarchy/current/background with the first theme
     # background. omarchy-theme-bg-next handles cycling at runtime, but

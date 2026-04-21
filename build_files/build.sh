@@ -43,13 +43,28 @@ EOF
 flatpak remote-add --if-not-exists --system flathub \
     https://dl.flathub.org/repo/flathub.flatpakrepo
 
+# Chromium theming uses the supported Linux managed-policy path under
+# /etc/chromium/policies/managed. Make it user-writable like upstream
+# omarchy so theme switches can update BrowserThemeColor without sudo.
+install -d -m 0777 /etc/chromium/policies/managed
+
+# Baseline policy so the first chromium launch (before any omarchy-theme-set
+# invocation) already renders with the tokyo-night accent + follows the
+# system colour scheme. Background RGB #1a1b26 → "#1a1b26"; later theme
+# switches rewrite this file via omarchy-theme-set-browser.
+cat > /etc/chromium/policies/managed/color.json <<'EOF'
+{"BrowserThemeColor": "#1a1b26", "BrowserColorScheme": "device"}
+EOF
+chmod 0666 /etc/chromium/policies/managed/color.json
+
 # Chromium Flatpak overrides — grant filesystem access to the standard
-# chromium config paths so the /usr/bin/chromium shim's --user-data-dir
-# redirection actually works and omarchy's ~/.config/chromium-flags.conf
-# gets picked up by the Flatpak launcher. Override files land under
-# /var/lib/flatpak/overrides/ and are in place before the preinstall
-# service ever installs the Flatpak on first boot.
+# chromium config paths plus the managed-policy directory so the shim's
+# --user-data-dir redirection works, ~/.config/chromium-flags.conf gets
+# picked up, and Flatpak Chromium can read the host policy file.
+# Override files land under /var/lib/flatpak/overrides/ and are in place
+# before the preinstall service ever installs the Flatpak on first boot.
 flatpak override --system \
+    --filesystem=/etc/chromium:ro \
     --filesystem=xdg-config/chromium \
     --filesystem=xdg-config/chromium-flags.conf \
     org.chromium.Chromium
@@ -63,6 +78,7 @@ systemctl enable podman-auto-update.timer
 systemctl --global enable flatpak-user-update.timer
 systemctl --global enable podman-auto-update.timer
 systemctl --global enable atomic-hyprland-detect-kb-layout.service
+systemctl --global enable elephant.service
 systemctl enable atomic-hyprland-dx-groups.service
 systemctl enable atomic-hyprland-sddm-autologin.service
 systemctl enable flatpak-preinstall.service
@@ -96,6 +112,14 @@ if [[ -f /etc/pam.d/sddm-autologin ]]; then
     sed -i '/pam_faillock\.so preauth/d' /etc/pam.d/sddm-autologin
     sed -i '/auth.*pam_permit\.so/a auth        required    pam_faillock.so authsucc' \
         /etc/pam.d/sddm-autologin
+fi
+
+# Prevent password-based SDDM logins from creating an encrypted login keyring
+# that conflicts with the passwordless Default_keyring shipped under
+# /etc/skel/.local/share/keyrings (omarchy install/login/sddm.sh).
+if [[ -f /etc/pam.d/sddm ]]; then
+    sed -i '/-auth.*pam_gnome_keyring\.so/d' /etc/pam.d/sddm
+    sed -i '/-password.*pam_gnome_keyring\.so/d' /etc/pam.d/sddm
 fi
 
 # Physical power button → ignore (omarchy binds Super+Escape to the power
@@ -148,6 +172,13 @@ if [[ -d /etc/skel/.local/share/keyrings ]]; then
     chmod 0600 /etc/skel/.local/share/keyrings/Default_keyring.keyring
     chmod 0644 /etc/skel/.local/share/keyrings/default
 fi
+
+# sudo refuses to read sudoers.d entries that are group/world writable, and
+# modern versions want 0440. `COPY files/ /` flattens them to 0644 — restore
+# the strict mode so the rules actually take effect.
+for f in /etc/sudoers.d/passwd-tries /etc/sudoers.d/omarchy-tzupdate; do
+    [[ -f $f ]] && chmod 0440 "$f"
+done
 
 # ── dconf system db ──────────────────────────────────────────────────
 # Compile the keyfiles under /etc/dconf/db/site.d/ into the `site` binary db

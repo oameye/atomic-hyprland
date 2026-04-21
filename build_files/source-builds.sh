@@ -42,6 +42,7 @@ BLUETUI_TAG="v0.8.1"
 IMPALA_TAG="v0.7.4"
 GUM_TAG="v0.17.0"
 STARSHIP_TAG="v1.25.0"
+HYPRLAND_PREVIEW_SHARE_PICKER_TAG="v0.2.1"
 
 # ── Repos ────────────────────────────────────────────────────────────
 source "${DIR}/repos.sh"
@@ -218,6 +219,15 @@ cargo_install impala "${IMPALA_TAG}" https://github.com/pythops/impala.git \
     impala
 cargo_install starship "${STARSHIP_TAG}" https://github.com/starship/starship.git \
     starship
+git clone --depth 1 --branch "${HYPRLAND_PREVIEW_SHARE_PICKER_TAG}" \
+    --recurse-submodules \
+    https://github.com/WhySoBad/hyprland-preview-share-picker.git \
+    "${BUILD_WORK}/hyprland-preview-share-picker"
+cargo build --release \
+    --manifest-path "${BUILD_WORK}/hyprland-preview-share-picker/Cargo.toml"
+install -Dm755 \
+    "${BUILD_WORK}/hyprland-preview-share-picker/target/release/hyprland-preview-share-picker" \
+    /usr/bin/hyprland-preview-share-picker
 git clone --depth 1 --branch "${WALKER_TAG}" \
     https://github.com/abenz1267/walker.git "${BUILD_WORK}/walker"
 cargo build --release --manifest-path "${BUILD_WORK}/walker/Cargo.toml"

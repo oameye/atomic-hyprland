@@ -10,7 +10,7 @@ PACKAGES=(
     # Desktop — matches the omarchy expected runtime.
     # walker (launcher) + elephant (walker data provider) are source-built.
     ghostty waybar mako
-    swaybg fcitx5
+    swaybg fcitx5 fcitx5-gtk fcitx5-qt
     gnome-calculator
     nautilus nautilus-python ffmpegthumbnailer xarchiver
     tmux imv neovim
@@ -23,6 +23,9 @@ PACKAGES=(
     playerctl pulseaudio-utils pamixer
     pipewire-alsa pipewire-utils
     mpv mpv-mpris
+    # power-profiles-daemon ships powerprofilesctl, which omarchy scripts
+    # call (and which build.sh patches the shebang of to dodge mise's python).
+    power-profiles-daemon
     # Printing (omarchy config/hardware/printer.sh) + mDNS discovery
     cups cups-browsed avahi nss-mdns
     # AMD Vulkan (gaming)
@@ -37,6 +40,7 @@ PACKAGES=(
     dbus-tools bc jq nano rsync unzip wget2
     python3-requests python3-pyquery python3-pip
     btop fastfetch
+    gnome-keyring libsecret
 
     # Developer tooling
     code

@@ -32,6 +32,13 @@ cp -a "${WORK}/omarchy/config/." /etc/skel/.config/
 rm -f /etc/skel/.config/systemd/user/omarchy-battery-monitor.service \
       /etc/skel/.config/systemd/user/omarchy-battery-monitor.timer
 
+# Omarchy's logo font ships inside config/ (upstream install.sh copies it
+# to ~/.local/share/fonts/ at install time). Ship it system-wide instead
+# so waybar's `<span font='omarchy'>` resolves on first boot without a
+# per-user migration, and drop the stray copy from skel.
+install -Dm644 /etc/skel/.config/omarchy.ttf /usr/share/fonts/omarchy/omarchy.ttf
+rm -f /etc/skel/.config/omarchy.ttf
+
 # Layer 2: omarchy system layer. Upstream layout is `$OMARCHY_PATH/{default,themes,bin}`
 # where $OMARCHY_PATH resolves to ~/.local/share/omarchy (set by config/uwsm/env and
 # default/bash/envs). Matching this layout lets every `omarchy-*` script find siblings
@@ -324,8 +331,10 @@ monitor = DP-1, 1920x1080@74.973, 0x0, 1, vrr, 1
 # Samsung S24R35x on HDMI — rotated 90° counter-clockwise (portrait).
 # transform: 1 = 90° CW, 3 = 270° CW (= -90° CCW). Flip to 1 if the
 # image ends up upside down vs. physical rotation.
-# After rotation the logical size is 1080x1920; placed to the right of DP-1.
-monitor = HDMI-A-1, 1920x1080@71.91, 1920x0, 1, transform, 3, vrr, 1
+# After rotation the logical size is 1080x1920; placed to the right of DP-1
+# and shifted up 420px so the portrait's vertical center aligns with the
+# landscape's center (avoids a cursor jump when crossing the seam).
+monitor = HDMI-A-1, 1920x1080@71.91, 1920x-420, 1, transform, 3, vrr, 1
 
 # Fallback for any other/new displays (e.g. hot-plugged).
 monitor = , preferred, auto, 1

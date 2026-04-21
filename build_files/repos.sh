@@ -15,13 +15,14 @@ copr_install_isolated() {
         --enablerepo="$repo_id" "${packages[@]}"
 }
 
-# Live COPRs — left enabled so rpm-ostree upgrade picks up updates.
-for i in pgdev/ghostty errornointernet/quickshell; do
-    owner="${i%%/*}"
-    repo="${i##*/}"
-    curl -fsSL \
-        "https://copr.fedorainfracloud.org/coprs/${owner}/${repo}/repo/fedora-${RELEASE}/${owner}-${repo}-fedora-${RELEASE}.repo" \
-        -o "/etc/yum.repos.d/_copr_${owner}-${repo}.repo"
+# Live COPRs — leave them enabled so rpm-ostree upgrade keeps pulling updates.
+# Use dnf5's COPR integration instead of hard-coding the .repo URL layout:
+# some COPRs do not publish the legacy fedora-$release filename pattern.
+#
+# gpu-screen-recorder moved off the old pgo COPR for Fedora 43; this repo
+# still publishes the native package name the image layers (`gpu-screen-recorder`).
+for copr in pgdev/ghostty brycensranch/gpu-screen-recorder-git; do
+    dnf5 -y copr enable "$copr"
 done
 
 cat > /etc/yum.repos.d/vscode.repo <<'EOF'

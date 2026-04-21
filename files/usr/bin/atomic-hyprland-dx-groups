@@ -1,15 +1,16 @@
 #!/usr/bin/env bash
 
-# Add wheel members to docker/incus-admin/libvirt groups on first boot.
+# Add wheel members to docker/incus-admin/libvirt/input groups on first boot.
 # Group creation itself is handled declaratively by
 # /usr/lib/sysusers.d/atomic-hyprland.conf; this script only touches
-# group *membership*.
+# group *membership*. `input` is always present on Fedora (shipped by
+# systemd/util-linux) so no groupadd fallback is needed for it.
 #
 # Derived from ublue-os/bluefin bluefin-dx-groups.
 
 set -euo pipefail
 
-GROUP_SETUP_VER=2
+GROUP_SETUP_VER=3
 GROUP_SETUP_VER_FILE="/etc/atomic-hyprland/dx-groups-version"
 GROUP_SETUP_VER_RAN=$(cat "$GROUP_SETUP_VER_FILE" 2>/dev/null || echo "")
 
@@ -30,6 +31,7 @@ for user in "${wheelarray[@]}"; do
   usermod -aG docker "$user"
   usermod -aG incus-admin "$user"
   usermod -aG libvirt "$user"
+  usermod -aG input "$user"
 done
 
 echo "$GROUP_SETUP_VER" >"$GROUP_SETUP_VER_FILE"

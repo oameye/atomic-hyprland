@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+# Configure SDDM autologin for the first non-system user.
+# Runs once at boot via atomic-hyprland-sddm-autologin.service; the unit's
+# ConditionPathExists=!/etc/sddm.conf.d/autologin.conf prevents re-runs after
+# it succeeds, and an empty /etc/passwd (pre-firstboot) triggers a clean
+# no-op so we retry on next boot until a user exists.
+
+set -euo pipefail
+
+target=/etc/sddm.conf.d/autologin.conf
+[[ -f $target ]] && exit 0
+
+uid_min=$(awk '/^UID_MIN/ {print $2}' /etc/login.defs 2>/dev/null || echo 1000)
+uid_max=$(awk '/^UID_MAX/ {print $2}' /etc/login.defs 2>/dev/null || echo 60000)
+
+user=$(getent passwd \
+    | awk -F: -v min="$uid_min" -v max="$uid_max" \
+        '$3 >= min && $3 <= max { print $1; exit }')
+
+if [[ -z $user ]]; then
+    # No interactive user yet — the unit will fire again next boot.
+    exit 0
+fi
+
+mkdir -p "$(dirname "$target")"
+cat > "$target" <<EOF
+[Autologin]
+User=${user}
+Session=hyprland-uwsm
+EOF

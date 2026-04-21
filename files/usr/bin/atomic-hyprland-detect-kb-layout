@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+# First-login per-user helper that copies the system X11 keyboard layout
+# (set during Fedora install via Anaconda, queryable via localectl) into
+# the user's ~/.config/hypr/input.conf. Mirrors omarchy's upstream
+# install/config/detect-keyboard-layout.sh, adapted for Fedora's
+# /etc/X11/xorg.conf.d/00-keyboard.conf source of truth instead of
+# /etc/vconsole.conf (which is console-only on Fedora).
+#
+# Idempotent: skips if input.conf already has a non-comment kb_layout line
+# or if localectl reports the Hyprland default (us). A tombstone at
+# ~/.local/state/atomic-hyprland/kb-layout-done prevents re-runs; the
+# systemd user unit's ConditionPathExists=! also short-circuits invocation.
+
+set -euo pipefail
+
+tombstone="$HOME/.local/state/atomic-hyprland/kb-layout-done"
+hypr="$HOME/.config/hypr/input.conf"
+
+mark_done() {
+    mkdir -p "$(dirname "$tombstone")"
+    touch "$tombstone"
+}
+
+[[ -f $hypr ]] || { mark_done; exit 0; }
+
+# User already configured something — don't overwrite.
+if grep -qE '^[[:space:]]*kb_layout[[:space:]]*=' "$hypr"; then
+    mark_done
+    exit 0
+fi
+
+layout=$(localectl status 2>/dev/null \
+    | awk -F': +' '/X11 Layout/ {print $2}' | tr -d '[:space:]')
+variant=$(localectl status 2>/dev/null \
+    | awk -F': +' '/X11 Variant/ {print $2}' | tr -d '[:space:]')
+
+if [[ -z $layout || $layout == us ]]; then
+    # Hyprland's default is us; no edit needed.
+    mark_done
+    exit 0
+fi
+
+# Insert active kb_layout (+ optional kb_variant) before the first kb_options line.
+sed -i "/^[[:space:]]*kb_options[[:space:]]*=/i\\
+  kb_layout = $layout" "$hypr"
+
+if [[ -n $variant ]]; then
+    sed -i "/^[[:space:]]*kb_options[[:space:]]*=/i\\
+  kb_variant = $variant" "$hypr"
+fi
+
+mark_done

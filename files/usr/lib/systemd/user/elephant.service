@@ -1,0 +1,16 @@
+# Static equivalent of `elephant service enable` — that command writes this
+# same unit into ~/.config/systemd/user/ at first-login time; shipping it
+# under /usr/lib/ means `systemctl --global enable` in build.sh wires it up
+# for every user before any interactive login. Keeps walker's data provider
+# running persistently so the first query doesn't stall on cold elephant.
+[Unit]
+Description=Elephant
+After=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/elephant
+Restart=on-failure
+
+[Install]
+WantedBy=graphical-session.target

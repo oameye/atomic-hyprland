@@ -24,7 +24,33 @@ if [[ "$current_hash" == "$previous_hash" ]]; then
     exit 0
 fi
 
-flatpak preinstall -y
+install_manifest() {
+    local manifest="$1"
+    local app_id branch remote
+
+    app_id="$(sed -n 's/^\[Flatpak Preinstall \(.*\)\]$/\1/p' "$manifest" | head -n1)"
+    branch="$(sed -n 's/^Branch=//p' "$manifest" | head -n1)"
+    remote="$(sed -n 's/^Remote=//p' "$manifest" | head -n1)"
+
+    [[ -n "$app_id" ]] || {
+        echo "Failed to parse app ID from $manifest" >&2
+        exit 1
+    }
+
+    branch="${branch:-stable}"
+    remote="${remote:-flathub}"
+
+    if flatpak info --system "${app_id}//${branch}" >/dev/null 2>&1; then
+        echo "${app_id}//${branch} already installed. Skipping."
+        return
+    fi
+
+    flatpak install --system --noninteractive -y "$remote" "${app_id}//${branch}"
+}
+
+while IFS= read -r manifest; do
+    install_manifest "$manifest"
+done < <(find "$PREINSTALL_DIR" -maxdepth 1 -type f -name '*.preinstall' | LC_ALL=C sort)
 
 install -d "$STATE_DIR"
 printf '%s\n' "$current_hash" > "$STAMP_FILE"

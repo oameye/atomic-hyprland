@@ -4,7 +4,6 @@
 # Changes here (tag bumps, new source-built tools) invalidate only this layer.
 set -euo pipefail
 
-RELEASE="$(rpm -E %fedora)"
 DIR="$(dirname "$0")"
 
 # Build order: hyprwayland-scanner → hyprutils → hyprlang → hyprcursor
@@ -25,20 +24,25 @@ HYPRTOOLKIT_TAG="v0.5.3"
 HYPR_GUIUTILS_TAG="v0.2.1"
 HYPRLOCK_TAG="v0.9.5"
 HYPRIDLE_TAG="v0.1.7"
-HYPRPAPER_TAG="v0.8.3"
 HYPRPICKER_TAG="v0.4.6"
 HYPRSUNSET_TAG="v0.3.3"
 XDP_HYPRLAND_TAG="v1.3.11"
 HYPR_QT_SUPPORT_TAG="v0.1.0"
 HYPR_POLKITAGENT_TAG="v0.1.3"
 
-AWWW_TAG="v0.12.0"
-SWWW_TAG="v0.11.2"
 SATTY_TAG="v0.20.1"
 HYPRSHOT_TAG="1.3.0"
 CLIPHIST_TAG="v0.7.0"
-NWGLOOK_TAG="v1.0.6"
 UWSM_TAG="v0.26.4"
+XDG_TERMINAL_EXEC_TAG="v0.12.0"
+WALKER_TAG="v2.16.0"
+ELEPHANT_TAG="v2.21.0"
+WIREMIX_TAG="v0.10.0"
+BLUETUI_TAG="v0.8.1"
+IMPALA_TAG="v0.7.4"
+GUM_TAG="v0.17.0"
+STARSHIP_TAG="v1.25.0"
+HYPRLAND_PREVIEW_SHARE_PICKER_TAG="v0.2.1"
 
 # ── Repos ────────────────────────────────────────────────────────────
 source "${DIR}/repos.sh"
@@ -53,18 +57,22 @@ BUILD_DEPS=(
     pugixml-devel iniparser-devel
     libseat-devel libinput-devel libdisplay-info-devel hwdata
     systemd-devel
+    # wiremix's bindgen step needs the unversioned libclang.so symlink.
+    clang-devel
     libjpeg-turbo-devel libwebp-devel libpng-devel librsvg2-devel
     libjxl-devel libheif-devel file-devel
     tomlplusplus-devel libzip-devel
     muParser-devel re2-devel libuuid-devel
     libxcb-devel xcb-util-wm-devel xcb-util-errors-devel libXcursor-devel
+    protobuf-compiler
     sdbus-cpp-devel pam-devel pipewire-devel
-    # Rust/Cargo (awww, swww, satty) — removed after builds
+    # Rust/Cargo (satty, walker, wiremix, bluetui, impala, starship) — removed
+    # after builds
     rust cargo lz4-devel
-    # satty requires GTK4 + libadwaita
-    gtk4-devel libadwaita-devel
-    # Go (cliphist, nwg-look) + CGo GTK3 (nwg-look) — removed after builds
-    golang gtk3-devel
+    # satty requires GTK4 + libadwaita + epoxy; walker requires gtk4-layer-shell + poppler-glib
+    gtk4-devel libadwaita-devel gtk4-layer-shell-devel poppler-glib-devel libepoxy-devel
+    # Go (cliphist, elephant, gum) — removed after builds
+    golang
     # uwsm man pages
     scdoc
     # Qt6 (hyprland-qt-support, hyprpolkitagent) — removed after builds
@@ -74,7 +82,7 @@ BUILD_DEPS=(
 
 # Removing -devel libs triggers a cascade into flatpak/gtk/ghostty, so only
 # strip the pure toolchain executables.
-BUILD_TOOLCHAIN=(cmake meson rust cargo golang scdoc qt6-qtbase-devel qt6-qtdeclarative-devel)
+BUILD_TOOLCHAIN=(cmake meson rust cargo golang scdoc clang-devel qt6-qtbase-devel qt6-qtdeclarative-devel)
 
 dnf5 -y install --setopt=install_weak_deps=False "${BUILD_DEPS[@]}"
 
@@ -184,8 +192,6 @@ cmake_build_install hyprlock "${HYPRLOCK_TAG}" \
     https://github.com/hyprwm/hyprlock.git
 cmake_build_install hypridle "${HYPRIDLE_TAG}" \
     https://github.com/hyprwm/hypridle.git
-cmake_build_install hyprpaper "${HYPRPAPER_TAG}" \
-    https://github.com/hyprwm/hyprpaper.git
 cmake_build_install hyprpicker "${HYPRPICKER_TAG}" \
     https://github.com/hyprwm/hyprpicker.git
 cmake_build_install hyprsunset "${HYPRSUNSET_TAG}" \
@@ -203,12 +209,33 @@ cmake_build_install hyprpolkitagent "${HYPR_POLKITAGENT_TAG}" \
     https://github.com/hyprwm/hyprpolkitagent.git
 
 # ── non-hyprwm tools (Cargo) ────────────────────────────────────────
-cargo_install awww "${AWWW_TAG}" https://codeberg.org/LGFae/awww.git \
-    awww awww-daemon
-cargo_install swww "${SWWW_TAG}" https://github.com/LGFae/swww.git \
-    swww swww-daemon
 cargo_install satty "${SATTY_TAG}" https://github.com/gabm/Satty.git \
     satty
+cargo_install wiremix "${WIREMIX_TAG}" https://github.com/tsowell/wiremix.git \
+    wiremix
+cargo_install bluetui "${BLUETUI_TAG}" https://github.com/pythops/bluetui.git \
+    bluetui
+cargo_install impala "${IMPALA_TAG}" https://github.com/pythops/impala.git \
+    impala
+cargo_install starship "${STARSHIP_TAG}" https://github.com/starship/starship.git \
+    starship
+git clone --depth 1 --branch "${HYPRLAND_PREVIEW_SHARE_PICKER_TAG}" \
+    --recurse-submodules \
+    https://github.com/WhySoBad/hyprland-preview-share-picker.git \
+    "${BUILD_WORK}/hyprland-preview-share-picker"
+cargo build --release \
+    --manifest-path "${BUILD_WORK}/hyprland-preview-share-picker/Cargo.toml"
+install -Dm755 \
+    "${BUILD_WORK}/hyprland-preview-share-picker/target/release/hyprland-preview-share-picker" \
+    /usr/bin/hyprland-preview-share-picker
+git clone --depth 1 --branch "${WALKER_TAG}" \
+    https://github.com/abenz1267/walker.git "${BUILD_WORK}/walker"
+cargo build --release --manifest-path "${BUILD_WORK}/walker/Cargo.toml"
+install -Dm755 "${BUILD_WORK}/walker/target/release/walker" /usr/bin/walker
+install -Dm644 "${BUILD_WORK}/walker/LICENSE" /usr/share/licenses/walker/LICENSE
+install -Dm644 "${BUILD_WORK}/walker/resources/config.toml" /etc/xdg/walker/config.toml
+install -d /etc/xdg/walker/themes/default
+cp -r "${BUILD_WORK}/walker/resources/themes/default/." /etc/xdg/walker/themes/default/
 
 # hyprshot is a single shell script — clone the pinned tag so git verifies integrity.
 git clone --depth 1 --branch "${HYPRSHOT_TAG}" \
@@ -220,16 +247,33 @@ git clone --depth 1 --branch "${CLIPHIST_TAG}" \
     https://github.com/sentriz/cliphist.git "${BUILD_WORK}/cliphist"
 go build -C "${BUILD_WORK}/cliphist" -o /usr/bin/cliphist .
 
-git clone --depth 1 --branch "${NWGLOOK_TAG}" \
-    https://github.com/nwg-piotr/nwg-look.git "${BUILD_WORK}/nwg-look"
-make -C "${BUILD_WORK}/nwg-look" build
-make -C "${BUILD_WORK}/nwg-look" install PREFIX=/usr
+git clone --depth 1 --branch "${ELEPHANT_TAG}" \
+    https://github.com/abenz1267/elephant.git "${BUILD_WORK}/elephant"
+go build -C "${BUILD_WORK}/elephant/cmd/elephant" -buildvcs=false -trimpath -o /usr/bin/elephant .
+install -Dm644 "${BUILD_WORK}/elephant/LICENSE" /usr/share/licenses/elephant/LICENSE
+
+# gum — interactive prompts + confirmations used by omarchy-menu and several
+# helper scripts (omarchy-migrate, omarchy-debug upload prompts, …). Not in
+# Fedora default repos; source-built in the same Go pattern as cliphist.
+git clone --depth 1 --branch "${GUM_TAG}" \
+    https://github.com/charmbracelet/gum.git "${BUILD_WORK}/gum"
+go build -C "${BUILD_WORK}/gum" -o /usr/bin/gum .
 
 # ── non-hyprwm tools (meson) ────────────────────────────────────────
 git clone --depth 1 --branch "${UWSM_TAG}" \
     https://github.com/Vladimir-csp/uwsm.git "${BUILD_WORK}/uwsm"
-meson setup "${BUILD_WORK}/uwsm/build" "${BUILD_WORK}/uwsm" --prefix=/usr
+meson setup "${BUILD_WORK}/uwsm/build" "${BUILD_WORK}/uwsm" \
+    --prefix=/usr \
+    -Duwsm-app=enabled
 meson install -C "${BUILD_WORK}/uwsm/build"
+
+# xdg-terminal-exec is Omarchy's default terminal selector.
+git clone --depth 1 --branch "${XDG_TERMINAL_EXEC_TAG}" \
+    https://github.com/Vladimir-csp/xdg-terminal-exec.git "${BUILD_WORK}/xdg-terminal-exec"
+install -Dm755 "${BUILD_WORK}/xdg-terminal-exec/xdg-terminal-exec" \
+    /usr/bin/xdg-terminal-exec
+install -Dm644 "${BUILD_WORK}/xdg-terminal-exec/xdg-terminals.list" \
+    /usr/share/xdg-terminal-exec/xdg-terminals.list
 
 rm -rf "${BUILD_WORK}"
 dnf5 -y remove --no-autoremove "${BUILD_TOOLCHAIN[@]}"

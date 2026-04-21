@@ -2,6 +2,6 @@
 # Parsed locally by /usr/bin/atomic-hyprland-flatpak-preinstall.
 # Uninstallation is opt-in (user removes with `flatpak uninstall`).
 
-[Flatpak Preinstall app.zen_browser.zen]
+[Flatpak Preinstall org.gnome.Papers]
 Branch=stable
 IsRuntime=false

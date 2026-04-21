@@ -8,8 +8,8 @@ PACKAGES=(
     qt6-qtsvg qt6-qtdeclarative
 
     # Desktop — matches the omarchy expected runtime.
-    # walker (launcher) + elephant (walker data provider) are source-built.
-    ghostty waybar mako
+    # walker (launcher) + elephant (walker data provider) + ghostty are source-built.
+    waybar mako
     swaybg fcitx5 fcitx5-gtk fcitx5-qt
     gnome-calculator
     nautilus nautilus-python ffmpegthumbnailer xarchiver
@@ -52,13 +52,15 @@ PACKAGES=(
     # ROCm (AMD GPU compute)
     rocm-hip rocm-opencl rocm-smi
 
-    # Fonts and theming — nerd-fonts installed via copr_install_isolated below.
+    # Fonts and theming — JetBrainsMono Nerd Font is source-installed from the
+    # ryanoasis/nerd-fonts release in source-builds.sh (Fedora has no Nerd variant
+    # and che/nerd-fonts only ships symbols-only).
     fontawesome-fonts-all
     google-noto-emoji-fonts google-noto-color-emoji-fonts google-noto-sans-cjk-fonts
     rsms-inter-fonts
     liberation-fonts jetbrains-mono-fonts
     adobe-source-code-pro-fonts fira-code-fonts google-droid-sans-fonts
-    adwaita-icon-theme papirus-icon-theme
+    adwaita-icon-theme papirus-icon-theme yaru-icon-theme
 )
 
 dnf5 -y install --setopt=install_weak_deps=False "${PACKAGES[@]}"
@@ -72,7 +74,6 @@ dnf5 -y install --setopt=install_weak_deps=False --enablerepo=docker-ce-stable \
 pip3 install --prefix=/usr --break-system-packages --no-cache-dir \
     terminaltexteffects
 
-copr_install_isolated "che/nerd-fonts" "nerd-fonts"
 copr_install_isolated "ublue-os/packages" "bazaar" "uupd"
 copr_install_isolated "erikreider/swayosd" "swayosd"
 

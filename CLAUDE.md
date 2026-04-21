@@ -42,11 +42,11 @@ The build is split into two layers. `source-builds.sh` runs first for repos + so
 
 - **Bash:** `set -euo pipefail`. Use `|| true` only for tolerable failures (e.g., Firefox removal). UPPERCASE for constants/pinned tags, lowercase for locals.
 - **Packages:** always `--setopt=install_weak_deps=False`. Group by purpose with comments.
-- **Repos left enabled** (pgdev/ghostty, brycensranch/gpu-screen-recorder-git, VS Code, Docker CE) vs **isolated COPRs** (che/nerd-fonts, ublue-os/packages, erikreider/swayosd). Isolated COPRs must use `copr_install_isolated` so no `.repo` survives.
+- **Repos left enabled** (brycensranch/gpu-screen-recorder-git, VS Code, Docker CE) vs **isolated COPRs** (che/nerd-fonts, ublue-os/packages, erikreider/swayosd). Isolated COPRs must use `copr_install_isolated` so no `.repo` survives.
 - **Pinned refs** use `*_TAG`/`*_COMMIT` variables near the top of the layer that consumes them. Source-build pins live in `source-builds.sh`; Omarchy is pinned via `OMARCHY_REF` in `build.sh`.
 - **Systemd units** use `atomic-hyprland-` prefix.
 - **Static overlay files** go in `files/` mirroring the filesystem root.
-- **justfile variables** use `overwrite := "0"` syntax (not recipe parameters) so `ujust recipe key=value` works.
+- **justfile user-tunable knobs** use module-level `key := "0"` assignments and are overridden from the CLI as `ujust key=value recipe` (the override must precede the recipe name — that's how `just` parses its command line). Do *not* use recipe parameters for this: `just` has no named-parameter CLI syntax, so `ujust recipe key=value` silently passes the literal string `"key=value"` as the positional value instead of setting the parameter.
 
 ## Adding a package
 
@@ -66,7 +66,7 @@ Arch-specific bits are stripped out at build time rather than sed-patched:
 - All `omarchy-install-*`, `omarchy-pkg-*`, `omarchy-webapp-*`, `omarchy-tui-*`, and `omarchy-windows-*` scripts are deleted from skel. The image ships apps via Flatpak/COPR/brew, not pacman/yay.
 - The "Install" entry is sed-stripped from the top-level `omarchy-menu` (both the menu string and the case handler).
 - `omarchy-update` is overwritten with a one-line stub that calls `ujust update` (which handles bootc + flatpak + brew).
-- Default monospace font is switched from `JetBrainsMono Nerd Font` to `CaskaydiaMono Nerd Font` via a recursive sed across `/etc/skel` and `/usr/share/sddm/themes/omarchy`.
+- `JetBrainsMono Nerd Font` (omarchy upstream default) is source-installed from the `ryanoasis/nerd-fonts` release in `source-builds.sh`; `files/etc/fonts/conf.d/80-atomic-hyprland-monospace.conf` pins the `monospace` fontconfig alias so walker and other generic-alias consumers resolve correctly.
 
 Default Hyprland theme is `tokyo-night`, bootstrapped at build time as a real directory at `/etc/skel/.config/omarchy/current/theme/` (via `omarchy-theme-set-templates` rendering + atomic `mv` into place — no symlink).
 

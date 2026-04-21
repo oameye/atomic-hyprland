@@ -47,17 +47,17 @@ One manual `ujust sync-skel-config` after the first rebase is the price for that
 `ujust sync-skel-config` by default **skips files that already exist**, so running it repeatedly is safe but a no-op past the first run. To pull in new Omarchy configs after upstream has evolved:
 
 ```sh
-ujust sync-skel-config overwrite=1
+ujust overwrite=1 sync-skel-config
 ```
 
-This replaces the managed files with the new skel. On the first forced sync it refreshes the managed skel subtrees, and on later runs it also prunes files that older overwrite runs had synced but upstream no longer ships. Commit your `~/.config` to git first if you want a recovery path.
+(The variable override must come *before* the recipe name — that's how `just` parses its CLI.) This replaces the managed files with the new skel. On the first forced sync it refreshes the managed skel subtrees, and on later runs it also prunes files that older overwrite runs had synced but upstream no longer ships. Commit your `~/.config` to git first if you want a recovery path.
 
 ## Updates
 
 - `rpm-ostree upgrade` (or `ujust update`) pulls new images nightly via the inherited uBlue auto-update timers.
 - Omarchy is pinned in `build_files/build.sh`; upgrades happen when this repo intentionally bumps `OMARCHY_REF`.
 - The shipped image records the resolved Omarchy commit in `/usr/share/atomic-hyprland/versions.env`.
-- After reboot, `ujust sync-skel-config overwrite=1` if you want the new upstream configs to replace yours.
+- After reboot, `ujust overwrite=1 sync-skel-config` if you want the new upstream configs to replace yours.
 
 ## Rollback
 

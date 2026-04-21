@@ -21,9 +21,7 @@ copr_install_isolated() {
 #
 # gpu-screen-recorder moved off the old pgo COPR for Fedora 43; this repo
 # still publishes the native package name the image layers (`gpu-screen-recorder`).
-for copr in pgdev/ghostty brycensranch/gpu-screen-recorder-git; do
-    dnf5 -y copr enable "$copr"
-done
+dnf5 -y copr enable brycensranch/gpu-screen-recorder-git
 
 cat > /etc/yum.repos.d/vscode.repo <<'EOF'
 [code]

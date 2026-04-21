@@ -32,15 +32,33 @@ cp -a "${WORK}/omarchy/config/." /etc/skel/.config/
 rm -f /etc/skel/.config/systemd/user/omarchy-battery-monitor.service \
       /etc/skel/.config/systemd/user/omarchy-battery-monitor.timer
 
+# Omarchy's logo font ships inside config/ (upstream install.sh copies it
+# to ~/.local/share/fonts/ at install time). Ship it system-wide instead
+# so waybar's `<span font='omarchy'>` resolves on first boot without a
+# per-user migration, and drop the stray copy from skel.
+install -Dm644 /etc/skel/.config/omarchy.ttf /usr/share/fonts/omarchy/omarchy.ttf
+rm -f /etc/skel/.config/omarchy.ttf
+
 # Layer 2: omarchy system layer. Upstream layout is `$OMARCHY_PATH/{default,themes,bin}`
 # where $OMARCHY_PATH resolves to ~/.local/share/omarchy (set by config/uwsm/env and
 # default/bash/envs). Matching this layout lets every `omarchy-*` script find siblings
 # and templates without patching.
 mkdir -p "${SKEL_OMARCHY}"
-cp -a "${WORK}/omarchy/default" "${SKEL_OMARCHY}/default"
-cp -a "${WORK}/omarchy/themes"  "${SKEL_OMARCHY}/themes"
-cp -a "${WORK}/omarchy/bin"     "${SKEL_OMARCHY}/bin"
+cp -a "${WORK}/omarchy/default"      "${SKEL_OMARCHY}/default"
+cp -a "${WORK}/omarchy/themes"       "${SKEL_OMARCHY}/themes"
+cp -a "${WORK}/omarchy/bin"          "${SKEL_OMARCHY}/bin"
+cp -a "${WORK}/omarchy/applications" "${SKEL_OMARCHY}/applications"
 chmod +x "${SKEL_OMARCHY}/bin/"*
+
+# Upstream's install/packaging/icons.sh copies the bundled app icons into
+# ~/.local/share/applications/icons/; omarchy-refresh-applications later
+# re-copies them to ~/.local/share/icons/hicolor/48x48/apps/. Install them
+# system-wide at the hicolor path so the launcher + .desktop files resolve
+# them on first boot without a per-user refresh.
+install -d /usr/share/icons/hicolor/48x48/apps
+install -m644 -t /usr/share/icons/hicolor/48x48/apps \
+    "${WORK}/omarchy/applications/icons/"*.png
+gtk-update-icon-cache /usr/share/icons/hicolor 2>/dev/null || true
 
 # Strip install-related scripts — Arch package names don't map to Fedora and
 # the image ships apps via Flatpak/COPR/brew instead.
@@ -247,7 +265,13 @@ sed -i \
 # default/ tree honest with what's actually on the image. If a future user
 # installs any of these via Flatpak later, the rules live in the original
 # omarchy repo — they can copy them back manually.
-rm -f "${SKEL_OMARCHY}/default/hypr/apps/"{1password,bitwarden,davinci-resolve,geforce,localsend,moonlight,qemu,retroarch,steam,telegram,webcam-overlay}.conf
+# We also strip the matching source= lines from apps.conf: Hyprland treats a
+# source= pointing at a missing file as a config error and paints the red
+# error bar at the top of the screen on every reload.
+for app in 1password bitwarden davinci-resolve geforce localsend moonlight qemu retroarch steam telegram webcam-overlay; do
+    rm -f "${SKEL_OMARCHY}/default/hypr/apps/${app}.conf"
+    sed -i "\|apps/${app}\.conf\$|d" "${SKEL_OMARCHY}/default/hypr/apps.conf"
+done
 
 # Ship icon.txt + logo.txt (omarchy's ASCII branding) at the repo root;
 # omarchy-font-set and friends reference $OMARCHY_PATH/icon.txt directly.
@@ -298,6 +322,34 @@ sed -i \
     -e '/bindd = SUPER SHIFT, W, Typora, exec, uwsm-app -- typora --enable-wayland-ime/d' \
     -e '/bindd = SUPER SHIFT, SLASH, Passwords, exec, uwsm-app -- 1password/d' \
     /etc/skel/.config/hypr/bindings.conf
+
+# Monitor layout — hard-coded for this specific machine per the project's
+# single-machine scope (CLAUDE.md): LG FHD on DisplayPort (horizontal, left)
+# + Samsung S24R35x on HDMI (rotated 90° CCW, portrait, right of LG).
+# Users rebasing onto different hardware should run
+# `omarchy-refresh-config hypr/monitors.conf` after first login to reset.
+cat > /etc/skel/.config/hypr/monitors.conf <<'EOF'
+# See https://wiki.hyprland.org/Configuring/Monitors/
+# List current monitors and resolutions possible: hyprctl monitors
+# Format: monitor = [port], resolution, position, scale
+
+# Dual 1080p setup — GDK_SCALE=1 so GTK apps aren't rendered at 2x.
+env = GDK_SCALE,1
+
+# LG FHD on DisplayPort — horizontal, left.
+monitor = DP-1, 1920x1080@74.973, 0x0, 1, vrr, 1
+
+# Samsung S24R35x on HDMI — rotated 90° counter-clockwise (portrait).
+# transform: 1 = 90° CW, 3 = 270° CW (= -90° CCW). Flip to 1 if the
+# image ends up upside down vs. physical rotation.
+# After rotation the logical size is 1080x1920; placed to the right of DP-1
+# and shifted up 420px so the portrait's vertical center aligns with the
+# landscape's center (avoids a cursor jump when crossing the seam).
+monitor = HDMI-A-1, 1920x1080@71.91, 1920x-420, 1, transform, 3, vrr, 1
+
+# Fallback for any other/new displays (e.g. hot-plugged).
+monitor = , preferred, auto, 1
+EOF
 
 # Browser: upstream omarchy-launch-browser resolves the .desktop via
 # xdg-settings, which doesn't search Flatpak export paths. Replace it with
@@ -428,12 +480,5 @@ ln -sf ../../.local/share/omarchy/default/omarchy-skill \
 # Omarchy ships its own Qt Quick SDDM theme. Deploy it system-wide;
 # /etc/sddm.conf.d/theme.conf points at this theme name.
 cp -a "${WORK}/omarchy/default/sddm/omarchy" /usr/share/sddm/themes/omarchy
-
-# ── Font default: CaskaydiaMono Nerd Font ───────────────────────────
-# Omarchy's upstream default is JetBrainsMono Nerd Font; switch every
-# reference in the deployed configs to CaskaydiaMono (shipped by the
-# che/nerd-fonts COPR as part of the nerd-fonts meta-package).
-find /etc/skel /usr/share/sddm/themes/omarchy -type f -exec \
-    sed -i 's/JetBrainsMono Nerd Font/CaskaydiaMono Nerd Font/g' {} +
 
 rm -rf "${WORK}"

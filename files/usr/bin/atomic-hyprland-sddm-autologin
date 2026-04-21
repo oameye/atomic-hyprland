@@ -22,6 +22,19 @@ if [[ -z $user ]]; then
     exit 0
 fi
 
+# Rebase-safety: a prior OS deployment may have left an SDDM conf with its
+# own [Autologin] section (e.g. Fedora Plasma's kde_settings.conf pointing
+# Session=plasma). Rename those so SDDM's *.conf glob stops matching them;
+# preserved on disk for inspection, inert at runtime, and our autologin.conf
+# written below becomes the only active source of [Autologin].
+shopt -s nullglob
+for f in /etc/sddm.conf.d/*.conf; do
+    [[ $f == "$target" ]] && continue
+    grep -qE '^[[:space:]]*\[Autologin\]' "$f" || continue
+    mv -- "$f" "${f}.disabled-by-atomic-hyprland"
+done
+shopt -u nullglob
+
 mkdir -p "$(dirname "$target")"
 cat > "$target" <<EOF
 [Autologin]

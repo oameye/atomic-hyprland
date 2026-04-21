@@ -43,6 +43,8 @@ IMPALA_TAG="v0.7.4"
 GUM_TAG="v0.17.0"
 STARSHIP_TAG="v1.25.0"
 HYPRLAND_PREVIEW_SHARE_PICKER_TAG="v0.2.1"
+GHOSTTY_TAG="v1.3.1"
+NERD_FONTS_TAG="v3.4.0"
 
 # ── Repos ────────────────────────────────────────────────────────────
 source "${DIR}/repos.sh"
@@ -78,11 +80,21 @@ BUILD_DEPS=(
     # Qt6 (hyprland-qt-support, hyprpolkitagent) — removed after builds
     qt6-qtbase-devel qt6-qtdeclarative-devel
     polkit-devel polkit-qt6-1-devel
+    # Zig (ghostty) — toolchain removed after build. Remaining -devel libs
+    # (fontconfig, freetype, harfbuzz, zlib, bzip2, expat, oniguruma, glib2,
+    # libX11, ncurses, gstreamer) are kept for runtime dynamic linking against
+    # ghostty. pandoc + libxml2-devel (xmllint) + blueprint-compiler run at
+    # build time only.
+    zig blueprint-compiler pandoc libxml2-devel
+    fontconfig-devel freetype-devel harfbuzz-devel
+    bzip2-devel expat-devel zlib-devel oniguruma-devel
+    glib2-devel libX11-devel ncurses-devel
+    gstreamer1-devel gstreamer1-plugins-good
 )
 
 # Removing -devel libs triggers a cascade into flatpak/gtk/ghostty, so only
 # strip the pure toolchain executables.
-BUILD_TOOLCHAIN=(cmake meson rust cargo golang scdoc clang-devel qt6-qtbase-devel qt6-qtdeclarative-devel)
+BUILD_TOOLCHAIN=(cmake meson rust cargo golang scdoc clang-devel qt6-qtbase-devel qt6-qtdeclarative-devel zig blueprint-compiler pandoc libxml2-devel)
 
 dnf5 -y install --setopt=install_weak_deps=False "${BUILD_DEPS[@]}"
 
@@ -94,6 +106,7 @@ export CARGO_HOME="${BUILD_WORK}/.cargo"
 export RUSTUP_HOME="${BUILD_WORK}/.rustup"
 export GOPATH="${BUILD_WORK}/go"
 export GOCACHE="${BUILD_WORK}/.gocache"
+export ZIG_GLOBAL_CACHE_DIR="${BUILD_WORK}/.zig-cache"
 
 cmake_build_install() {
     local name="$1" tag="$2"
@@ -123,6 +136,16 @@ cargo_install() {
     for bin in "$@"; do
         install -Dm755 "${BUILD_WORK}/${name}/target/release/${bin}" "/usr/bin/${bin}"
     done
+}
+
+zig_build_install() {
+    local name="$1" tag="$2" repo="$3"
+    shift 3
+    git clone --depth 1 --branch "${tag}" "${repo}" "${BUILD_WORK}/${name}"
+    (
+        cd "${BUILD_WORK}/${name}"
+        zig build -Doptimize=ReleaseFast -Dcpu=baseline -p /usr "$@"
+    )
 }
 
 # ── hyprwm core libs ────────────────────────────────────────────────
@@ -251,6 +274,21 @@ git clone --depth 1 --branch "${ELEPHANT_TAG}" \
     https://github.com/abenz1267/elephant.git "${BUILD_WORK}/elephant"
 go build -C "${BUILD_WORK}/elephant/cmd/elephant" -buildvcs=false -trimpath -o /usr/bin/elephant .
 install -Dm644 "${BUILD_WORK}/elephant/LICENSE" /usr/share/licenses/elephant/LICENSE
+# Providers are loaded as Go plugins (.so) from /etc/xdg/elephant/providers/.
+# Upstream's top-level makefile only builds the main binary; each provider
+# directory has its own makefile using -buildmode=plugin. Build them here
+# with the same toolchain so the Go plugin ABI matches /usr/bin/elephant —
+# any mismatch triggers "no plugin module data" at load time.
+for provider_dir in "${BUILD_WORK}/elephant/internal/providers/"*/; do
+    [[ -f "${provider_dir}makefile" ]] || continue
+    name="$(basename "${provider_dir}")"
+    (
+        cd "${provider_dir}"
+        go build -buildvcs=false -buildmode=plugin -trimpath -o "${name}.so" .
+    )
+    install -Dm755 "${provider_dir}${name}.so" \
+        "/etc/xdg/elephant/providers/${name}.so"
+done
 
 # gum — interactive prompts + confirmations used by omarchy-menu and several
 # helper scripts (omarchy-migrate, omarchy-debug upload prompts, …). Not in
@@ -274,6 +312,24 @@ install -Dm755 "${BUILD_WORK}/xdg-terminal-exec/xdg-terminal-exec" \
     /usr/bin/xdg-terminal-exec
 install -Dm644 "${BUILD_WORK}/xdg-terminal-exec/xdg-terminals.list" \
     /usr/share/xdg-terminal-exec/xdg-terminals.list
+
+# ── non-hyprwm tools (Zig) ──────────────────────────────────────────
+# Ghostty is built from source instead of pulled from pgdev/ghostty COPR,
+# which is pinned to 1.1.3 (snapshot 2025-03) — too old for omarchy's shipped
+# ghostty config. Tag bumps should track ghostty-org/ghostty releases and
+# double-check build.zig.zon's minimum_zig_version against the Fedora zig.
+zig_build_install ghostty "${GHOSTTY_TAG}" https://github.com/ghostty-org/ghostty.git
+
+# ── Fonts (upstream Nerd Fonts release) ─────────────────────────────
+# Omarchy's configs reference "JetBrainsMono Nerd Font". Fedora main
+# ships jetbrains-mono-fonts (non-nerd) and che/nerd-fonts only ships
+# symbols-only — neither provides the patched JetBrains Mono Nerd variant.
+# Pull the pre-patched release tarball from upstream, equivalent to
+# Arch's ttf-jetbrains-mono-nerd package.
+install -d /usr/share/fonts/jetbrains-mono-nerd
+curl -fsSL "https://github.com/ryanoasis/nerd-fonts/releases/download/${NERD_FONTS_TAG}/JetBrainsMono.tar.xz" |
+    tar -xJ -C /usr/share/fonts/jetbrains-mono-nerd
+fc-cache -f /usr/share/fonts/jetbrains-mono-nerd
 
 rm -rf "${BUILD_WORK}"
 dnf5 -y remove --no-autoremove "${BUILD_TOOLCHAIN[@]}"

@@ -34,7 +34,7 @@ This file documents intent and invariants. Current values (pinned tags, package 
 
 ### COPR policy
 
-- **Left enabled** — `pgdev/ghostty` Copr (ghostty isn't in Fedora default repos), `brycensranch/gpu-screen-recorder-git` Copr (the old `pgo/gpu-screen-recorder` project no longer publishes Fedora 43 metadata; this replacement still ships the native `gpu-screen-recorder` package that `omarchy-cmd-screenrecord` expects, so `pkill -f "^gpu-screen-recorder"` continues to match the host process), VS Code, Docker CE (`enabled=0`, used via `--enablerepo`).
+- **Left enabled** — `brycensranch/gpu-screen-recorder-git` Copr (the old `pgo/gpu-screen-recorder` project no longer publishes Fedora 43 metadata; this replacement still ships the native `gpu-screen-recorder` package that `omarchy-cmd-screenrecord` expects, so `pkill -f "^gpu-screen-recorder"` continues to match the host process), VS Code, Docker CE (`enabled=0`, used via `--enablerepo`).
 - **Isolated** — `che/nerd-fonts`, `ublue-os/packages`, `erikreider/swayosd`. Installed via `copr_install_isolated`; no `.repo` file survives in the final image.
 
 ## Source builds
@@ -110,7 +110,7 @@ Upstream's pacman `PostTransaction` hook is skipped (rpm-ostree rebuilds pick up
 
 ### GTK / GNOME defaults
 
-Dark-mode + Papirus-Dark + CaskaydiaMono Nerd Font are baked in as a **dconf system db** under `files/etc/dconf/db/site.d/10-omarchy-gtk`. `dconf update` runs at the end of `build.sh` to compile the binary. `/etc/dconf/profile/user` chains `user-db:user` over `system-db:site`, so per-user `gsettings set` still overrides, but the baseline is coherent before any user has logged in. `omarchy-theme-set-gnome` flips these keys at runtime to match each theme.
+Dark-mode + Papirus-Dark + JetBrainsMono Nerd Font are baked in as a **dconf system db** under `files/etc/dconf/db/site.d/10-omarchy-gtk`. `dconf update` runs at the end of `build.sh` to compile the binary. `/etc/dconf/profile/user` chains `user-db:user` over `system-db:site`, so per-user `gsettings set` still overrides, but the baseline is coherent before any user has logged in. `omarchy-theme-set-gnome` flips these keys at runtime to match each theme.
 
 ### Misc system tweaks (ported from `install/config/`)
 
@@ -177,7 +177,7 @@ The static user unit at [`files/usr/lib/systemd/user/elephant.service`](./files/
 
 Mimeapps: omarchy ships no `mimeapps.list`, so `files/etc/skel/.config/mimeapps.list` fills the gap. It mirrors omarchy's upstream `install/config/mimetypes.sh`, adapted for Fedora + Flatpak: URLs/HTML → Zen Browser (Flatpak), mailto → Thunderbird (Flatpak), PDFs → GNOME Papers (Flatpak), images → imv, video/audio → mpv, directories → Nautilus, archives → Xarchiver, text files → nvim. Because `files/` is overlaid before `desktop.sh` copies omarchy's `config/`, and omarchy has no same-path conflict, this static file survives the build intact.
 
-Default Hyprland theme `tokyo-night` is bootstrapped as a real directory at `/etc/skel/.config/omarchy/current/theme/`. Default monospace font is `CaskaydiaMono Nerd Font` (omarchy upstream uses JetBrainsMono); a recursive sed in `desktop.sh` rewrites every reference in `/etc/skel` and the SDDM theme.
+Default Hyprland theme `tokyo-night` is bootstrapped as a real directory at `/etc/skel/.config/omarchy/current/theme/`. Default monospace font is `JetBrainsMono Nerd Font` (omarchy upstream default), source-installed from the `ryanoasis/nerd-fonts` release in `source-builds.sh` because neither Fedora main nor the `che/nerd-fonts` COPR ships the patched variant. A `files/etc/fonts/conf.d/80-atomic-hyprland-monospace.conf` pins the `monospace` fontconfig alias so walker and anything else using the generic family resolves correctly.
 
 ### Bin script audit
 
@@ -231,6 +231,8 @@ Static config in `files/etc/sddm.conf.d/theme.conf` sets `Current=omarchy`. No s
 ### Autologin
 
 `atomic-hyprland-sddm-autologin.service` is a `Before=sddm.service` oneshot that writes `/etc/sddm.conf.d/autologin.conf` on first boot. The helper at `/usr/bin/atomic-hyprland-sddm-autologin` finds the first `UID_MIN..UID_MAX` user (respecting `/etc/login.defs`) and sets `User=<that>` + `Session=hyprland-uwsm` — same format omarchy's installer produces.
+
+Before writing, the helper sweeps `/etc/sddm.conf.d/` and renames any other `*.conf` containing an `[Autologin]` section to `<name>.conf.disabled-by-atomic-hyprland`. This covers the rebase case where a prior OS deployment left its own autologin config on the system (e.g. a `kde_settings.conf` carried over from Fedora Plasma pointing `Session=plasma`): without the sweep, SDDM reads `*.conf` in lexicographic order and the other file can win, causing the wrong session to auto-select, `graphical-session.target` to never activate, and `elephant.service` (walker's data provider) to silently stay down. Disabled-by-rename preserves the original content on disk for inspection and is reversible with a plain `mv`.
 
 `ConditionPathExists=!/etc/sddm.conf.d/autologin.conf` makes the unit a no-op after success. If the unit runs before any user exists (unusual but possible on early-stage image deployments), the helper exits cleanly and the unit retries next boot since the target file still doesn't exist.
 

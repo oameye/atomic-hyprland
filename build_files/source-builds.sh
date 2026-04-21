@@ -30,8 +30,6 @@ XDP_HYPRLAND_TAG="v1.3.11"
 HYPR_QT_SUPPORT_TAG="v0.1.0"
 HYPR_POLKITAGENT_TAG="v0.1.3"
 
-AWWW_TAG="v0.12.0"
-SWWW_TAG="v0.11.2"
 SATTY_TAG="v0.20.1"
 HYPRSHOT_TAG="1.3.0"
 CLIPHIST_TAG="v0.7.0"
@@ -67,8 +65,8 @@ BUILD_DEPS=(
     libxcb-devel xcb-util-wm-devel xcb-util-errors-devel libXcursor-devel
     protobuf-compiler
     sdbus-cpp-devel pam-devel pipewire-devel
-    # Rust/Cargo (awww, swww, satty, walker, wiremix, bluetui, impala, starship)
-    # — removed after builds
+    # Rust/Cargo (satty, walker, wiremix, bluetui, impala, starship) — removed
+    # after builds
     rust cargo lz4-devel
     # satty requires GTK4 + libadwaita + epoxy; walker requires gtk4-layer-shell + poppler-glib
     gtk4-devel libadwaita-devel gtk4-layer-shell-devel poppler-glib-devel libepoxy-devel
@@ -210,10 +208,6 @@ cmake_build_install hyprpolkitagent "${HYPR_POLKITAGENT_TAG}" \
     https://github.com/hyprwm/hyprpolkitagent.git
 
 # ── non-hyprwm tools (Cargo) ────────────────────────────────────────
-cargo_install awww "${AWWW_TAG}" https://codeberg.org/LGFae/awww.git \
-    awww awww-daemon
-cargo_install swww "${SWWW_TAG}" https://github.com/LGFae/swww.git \
-    swww swww-daemon
 cargo_install satty "${SATTY_TAG}" https://github.com/gabm/Satty.git \
     satty
 cargo_install wiremix "${WIREMIX_TAG}" https://github.com/tsowell/wiremix.git \

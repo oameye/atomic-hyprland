@@ -39,7 +39,7 @@ This file documents intent and invariants. Current values (pinned tags, package 
 
 ## Source builds
 
-The entire Hyprland ecosystem is source-built for exact version control and ABI consistency. All tags are pinned in `build.sh`; upgrading is a one-line PR.
+The entire Hyprland ecosystem is source-built for exact version control and ABI consistency. Source-build tags are pinned in `source-builds.sh`; upgrading is a one-line PR.
 
 **Core library chain** (each depends on the previous):
 
@@ -49,7 +49,7 @@ The entire Hyprland ecosystem is source-built for exact version control and ABI 
 
 **Toolkit:** `hyprtoolkit` → `hyprland-guiutils` (Wayland-native).
 
-**Satellite tools:** `hyprlock`, `hypridle`, `hyprpicker`, `hyprsunset`, `xdg-desktop-portal-hyprland`. (`hyprpaper` dropped — omarchy's autostart uses `swaybg`; `awww` / `swww` handle animated wallpapers.)
+**Satellite tools:** `hyprlock`, `hypridle`, `hyprpicker`, `hyprsunset`, `xdg-desktop-portal-hyprland`. (`hyprpaper` dropped — omarchy's autostart uses `swaybg`.)
 
 **Qt6 components:** `hyprland-qt-support` (QML style plugin), `hyprpolkitagent` (polkit agent).
 
@@ -159,7 +159,7 @@ The power-button override intentionally uses a vendor-layer drop-in under `/usr/
 
 Mimeapps: omarchy ships no `mimeapps.list`, so `files/etc/skel/.config/mimeapps.list` fills the gap. It mirrors omarchy's upstream `install/config/mimetypes.sh`, adapted for Fedora + Flatpak: URLs/HTML → Zen Browser (Flatpak), mailto → Thunderbird (Flatpak), PDFs → GNOME Papers (Flatpak), images → imv, video/audio → mpv, directories → Nautilus, archives → Xarchiver, text files → nvim. Because `files/` is overlaid before `desktop.sh` copies omarchy's `config/`, and omarchy has no same-path conflict, this static file survives the build intact.
 
-Default Hyprland theme `tokyo-night` is symlinked at `/etc/skel/.config/omarchy/current`. Default monospace font is `CaskaydiaMono Nerd Font` (omarchy upstream uses JetBrainsMono); a recursive sed in `desktop.sh` rewrites every reference in `/etc/skel` and the SDDM theme.
+Default Hyprland theme `tokyo-night` is bootstrapped as a real directory at `/etc/skel/.config/omarchy/current/theme/`. Default monospace font is `CaskaydiaMono Nerd Font` (omarchy upstream uses JetBrainsMono); a recursive sed in `desktop.sh` rewrites every reference in `/etc/skel` and the SDDM theme.
 
 ### Bin script audit
 

@@ -247,7 +247,13 @@ sed -i \
 # default/ tree honest with what's actually on the image. If a future user
 # installs any of these via Flatpak later, the rules live in the original
 # omarchy repo — they can copy them back manually.
-rm -f "${SKEL_OMARCHY}/default/hypr/apps/"{1password,bitwarden,davinci-resolve,geforce,localsend,moonlight,qemu,retroarch,steam,telegram,webcam-overlay}.conf
+# We also strip the matching source= lines from apps.conf: Hyprland treats a
+# source= pointing at a missing file as a config error and paints the red
+# error bar at the top of the screen on every reload.
+for app in 1password bitwarden davinci-resolve geforce localsend moonlight qemu retroarch steam telegram webcam-overlay; do
+    rm -f "${SKEL_OMARCHY}/default/hypr/apps/${app}.conf"
+    sed -i "\|apps/${app}\.conf\$|d" "${SKEL_OMARCHY}/default/hypr/apps.conf"
+done
 
 # Ship icon.txt + logo.txt (omarchy's ASCII branding) at the repo root;
 # omarchy-font-set and friends reference $OMARCHY_PATH/icon.txt directly.

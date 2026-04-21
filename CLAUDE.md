@@ -42,11 +42,11 @@ The build is split into two layers. `source-builds.sh` runs first for repos + so
 
 - **Bash:** `set -euo pipefail`. Use `|| true` only for tolerable failures (e.g., Firefox removal). UPPERCASE for constants/pinned tags, lowercase for locals.
 - **Packages:** always `--setopt=install_weak_deps=False`. Group by purpose with comments.
-- **Repos left enabled** (pgdev/ghostty, brycensranch/gpu-screen-recorder-git, VS Code, Docker CE) vs **isolated COPRs** (che/nerd-fonts, ublue-os/packages, erikreider/swayosd). Isolated COPRs must use `copr_install_isolated` so no `.repo` survives.
+- **Repos left enabled** (brycensranch/gpu-screen-recorder-git, VS Code, Docker CE) vs **isolated COPRs** (che/nerd-fonts, ublue-os/packages, erikreider/swayosd). Isolated COPRs must use `copr_install_isolated` so no `.repo` survives.
 - **Pinned refs** use `*_TAG`/`*_COMMIT` variables near the top of the layer that consumes them. Source-build pins live in `source-builds.sh`; Omarchy is pinned via `OMARCHY_REF` in `build.sh`.
 - **Systemd units** use `atomic-hyprland-` prefix.
 - **Static overlay files** go in `files/` mirroring the filesystem root.
-- **justfile variables** use `overwrite := "0"` syntax (not recipe parameters) so `ujust recipe key=value` works.
+- **justfile user-tunable knobs** use module-level `key := "0"` assignments and are overridden from the CLI as `ujust key=value recipe` (the override must precede the recipe name — that's how `just` parses its command line). Do *not* use recipe parameters for this: `just` has no named-parameter CLI syntax, so `ujust recipe key=value` silently passes the literal string `"key=value"` as the positional value instead of setting the parameter.
 
 ## Adding a package
 

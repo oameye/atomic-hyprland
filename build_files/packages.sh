@@ -8,8 +8,8 @@ PACKAGES=(
     qt6-qtsvg qt6-qtdeclarative
 
     # Desktop — matches the omarchy expected runtime.
-    # walker (launcher) + elephant (walker data provider) are source-built.
-    ghostty waybar mako
+    # walker (launcher) + elephant (walker data provider) + ghostty are source-built.
+    waybar mako
     swaybg fcitx5 fcitx5-gtk fcitx5-qt
     gnome-calculator
     nautilus nautilus-python ffmpegthumbnailer xarchiver

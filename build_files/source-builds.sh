@@ -43,6 +43,7 @@ IMPALA_TAG="v0.7.4"
 GUM_TAG="v0.17.0"
 STARSHIP_TAG="v1.25.0"
 HYPRLAND_PREVIEW_SHARE_PICKER_TAG="v0.2.1"
+GHOSTTY_TAG="v1.3.1"
 
 # ── Repos ────────────────────────────────────────────────────────────
 source "${DIR}/repos.sh"
@@ -78,11 +79,21 @@ BUILD_DEPS=(
     # Qt6 (hyprland-qt-support, hyprpolkitagent) — removed after builds
     qt6-qtbase-devel qt6-qtdeclarative-devel
     polkit-devel polkit-qt6-1-devel
+    # Zig (ghostty) — toolchain removed after build. Remaining -devel libs
+    # (fontconfig, freetype, harfbuzz, zlib, bzip2, expat, oniguruma, glib2,
+    # libX11, ncurses, gstreamer) are kept for runtime dynamic linking against
+    # ghostty. pandoc + libxml2-devel (xmllint) + blueprint-compiler run at
+    # build time only.
+    zig blueprint-compiler pandoc libxml2-devel
+    fontconfig-devel freetype-devel harfbuzz-devel
+    bzip2-devel expat-devel zlib-devel oniguruma-devel
+    glib2-devel libX11-devel ncurses-devel
+    gstreamer1-devel gstreamer1-plugins-good
 )
 
 # Removing -devel libs triggers a cascade into flatpak/gtk/ghostty, so only
 # strip the pure toolchain executables.
-BUILD_TOOLCHAIN=(cmake meson rust cargo golang scdoc clang-devel qt6-qtbase-devel qt6-qtdeclarative-devel)
+BUILD_TOOLCHAIN=(cmake meson rust cargo golang scdoc clang-devel qt6-qtbase-devel qt6-qtdeclarative-devel zig blueprint-compiler pandoc libxml2-devel)
 
 dnf5 -y install --setopt=install_weak_deps=False "${BUILD_DEPS[@]}"
 
@@ -123,6 +134,16 @@ cargo_install() {
     for bin in "$@"; do
         install -Dm755 "${BUILD_WORK}/${name}/target/release/${bin}" "/usr/bin/${bin}"
     done
+}
+
+zig_build_install() {
+    local name="$1" tag="$2" repo="$3"
+    shift 3
+    git clone --depth 1 --branch "${tag}" "${repo}" "${BUILD_WORK}/${name}"
+    (
+        cd "${BUILD_WORK}/${name}"
+        zig build -Doptimize=ReleaseFast -Dcpu=baseline -p /usr "$@"
+    )
 }
 
 # ── hyprwm core libs ────────────────────────────────────────────────
@@ -274,6 +295,13 @@ install -Dm755 "${BUILD_WORK}/xdg-terminal-exec/xdg-terminal-exec" \
     /usr/bin/xdg-terminal-exec
 install -Dm644 "${BUILD_WORK}/xdg-terminal-exec/xdg-terminals.list" \
     /usr/share/xdg-terminal-exec/xdg-terminals.list
+
+# ── non-hyprwm tools (Zig) ──────────────────────────────────────────
+# Ghostty is built from source instead of pulled from pgdev/ghostty COPR,
+# which is pinned to 1.1.3 (snapshot 2025-03) — too old for omarchy's shipped
+# ghostty config. Tag bumps should track ghostty-org/ghostty releases and
+# double-check build.zig.zon's minimum_zig_version against the Fedora zig.
+zig_build_install ghostty "${GHOSTTY_TAG}" https://github.com/ghostty-org/ghostty.git
 
 rm -rf "${BUILD_WORK}"
 dnf5 -y remove --no-autoremove "${BUILD_TOOLCHAIN[@]}"

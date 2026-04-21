@@ -34,7 +34,7 @@ This file documents intent and invariants. Current values (pinned tags, package 
 
 ### COPR policy
 
-- **Left enabled** — `pgdev/ghostty` Copr (ghostty isn't in Fedora default repos), `brycensranch/gpu-screen-recorder-git` Copr (the old `pgo/gpu-screen-recorder` project no longer publishes Fedora 43 metadata; this replacement still ships the native `gpu-screen-recorder` package that `omarchy-cmd-screenrecord` expects, so `pkill -f "^gpu-screen-recorder"` continues to match the host process), VS Code, Docker CE (`enabled=0`, used via `--enablerepo`).
+- **Left enabled** — `brycensranch/gpu-screen-recorder-git` Copr (the old `pgo/gpu-screen-recorder` project no longer publishes Fedora 43 metadata; this replacement still ships the native `gpu-screen-recorder` package that `omarchy-cmd-screenrecord` expects, so `pkill -f "^gpu-screen-recorder"` continues to match the host process), VS Code, Docker CE (`enabled=0`, used via `--enablerepo`).
 - **Isolated** — `che/nerd-fonts`, `ublue-os/packages`, `erikreider/swayosd`. Installed via `copr_install_isolated`; no `.repo` file survives in the final image.
 
 ## Source builds

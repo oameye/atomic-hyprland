@@ -120,7 +120,11 @@ fi
 
 # Physical power button → ignore (omarchy binds Super+Escape to the power
 # menu; ignore-power-button.sh). Prevents accidental host shutdowns.
-sed -i 's/.*HandlePowerKey=.*/HandlePowerKey=ignore/' /etc/systemd/logind.conf
+install -d /usr/lib/systemd/logind.conf.d
+cat > /usr/lib/systemd/logind.conf.d/atomic-hyprland-power.conf <<'EOF'
+[Login]
+HandlePowerKey=ignore
+EOF
 
 # nsswitch: mDNS resolution for .local via nss-mdns (omarchy printer.sh).
 sed -i 's/^hosts:.*/hosts: mymachines mdns_minimal [NOTFOUND=return] resolve files myhostname dns/' \

@@ -65,7 +65,7 @@ The entire Hyprland ecosystem is source-built for exact version control and ABI 
 | `uwsm` | Python / meson | Wayland session manager (`uwsm-app` helper enabled) |
 | `xdg-terminal-exec` | shell script | default terminal selector used by current Omarchy bindings |
 | `walker` | Cargo + GTK4 + gtk4-layer-shell + poppler-glib | application launcher (omarchy default) |
-| `elephant` | Go | walker data provider (required for walker ≥ v2) |
+| `elephant` | Go (`cmd/elephant`) | walker data provider (required for walker ≥ v2) |
 | `wiremix` | Cargo | PipeWire audio TUI (Super+Ctrl+A) |
 | `bluetui` | Cargo | Bluetooth TUI (Super+Ctrl+B) |
 | `impala` | Cargo | Wi-Fi TUI (Super+Ctrl+W) — talks to iwd |
@@ -134,12 +134,14 @@ Pure static overlays under `files/`:
 | `/etc/security/faillock.conf` | `deny=10` | increase-sudo-tries.sh |
 | `/etc/pam.d/system-auth` | faillock `deny=10 unlock_time=120` on preauth + authfail lines | increase-lockout-limit.sh |
 | `/etc/pam.d/sddm-autologin` | drop preauth faillock, inject `authsucc` after `pam_permit` | same |
-| `/etc/systemd/logind.conf` | `HandlePowerKey=ignore` (bound to power menu via Super+Escape instead) | hardware/ignore-power-button.sh |
+| `/usr/lib/systemd/logind.conf.d/atomic-hyprland-power.conf` | `HandlePowerKey=ignore` (bound to power menu via Super+Escape instead); shipped as a systemd drop-in instead of editing `/etc/systemd/logind.conf` or `/usr/lib/systemd/logind.conf` directly | hardware/ignore-power-button.sh |
 | `/etc/nsswitch.conf` | `hosts: mymachines mdns_minimal [NOTFOUND=return] …` | hardware/printer.sh |
 | `/etc/cups/cups-browsed.conf` | append `CreateRemotePrinters Yes` | same |
 | `/usr/bin/powerprofilesctl` | shebang `#!/bin/python3` to dodge mise's python | fix-powerprofilesctl-shebang.sh |
 
 **Plymouth theme**: `build.sh` copies `default/plymouth/` → `/usr/share/plymouth/themes/omarchy/` and runs `plymouth-set-default-theme omarchy`. Initramfs regeneration is handled by rpm-ostree's dracut integration at deploy time (no `-R` flag needed).
+
+The power-button override intentionally uses a vendor-layer drop-in under `/usr/lib/systemd/logind.conf.d/` because the Universal Blue `base-main` image ships the default logind config in `/usr/lib/systemd/logind.conf` and does not provide `/etc/systemd/logind.conf` by default. A drop-in matches systemd's layering model for immutable images better than sed-patching the vendor file and survives upstream layout changes more cleanly.
 
 **Systemd units enabled** (in addition to the existing sddm/docker/podman/flatpak/uupd lineup): `cups.service`, `cups-browsed.service`, `avahi-daemon.service`, `bluetooth.service`.
 

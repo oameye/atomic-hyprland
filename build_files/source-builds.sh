@@ -179,7 +179,8 @@ go build -C "${BUILD_WORK}/cliphist" -o /usr/bin/cliphist .
 
 git clone --depth 1 --branch "${ELEPHANT_TAG}" \
     https://github.com/abenz1267/elephant.git "${BUILD_WORK}/elephant"
-go build -C "${BUILD_WORK}/elephant" -o /usr/bin/elephant .
+go build -C "${BUILD_WORK}/elephant/cmd/elephant" -buildvcs=false -trimpath -o /usr/bin/elephant .
+install -Dm644 "${BUILD_WORK}/elephant/LICENSE" /usr/share/licenses/elephant/LICENSE
 
 # gum — interactive prompts + confirmations used by omarchy-menu and several
 # helper scripts (omarchy-migrate, omarchy-debug upload prompts, …). Not in

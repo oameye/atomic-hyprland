@@ -44,10 +44,21 @@ rm -f /etc/skel/.config/omarchy.ttf
 # default/bash/envs). Matching this layout lets every `omarchy-*` script find siblings
 # and templates without patching.
 mkdir -p "${SKEL_OMARCHY}"
-cp -a "${WORK}/omarchy/default" "${SKEL_OMARCHY}/default"
-cp -a "${WORK}/omarchy/themes"  "${SKEL_OMARCHY}/themes"
-cp -a "${WORK}/omarchy/bin"     "${SKEL_OMARCHY}/bin"
+cp -a "${WORK}/omarchy/default"      "${SKEL_OMARCHY}/default"
+cp -a "${WORK}/omarchy/themes"       "${SKEL_OMARCHY}/themes"
+cp -a "${WORK}/omarchy/bin"          "${SKEL_OMARCHY}/bin"
+cp -a "${WORK}/omarchy/applications" "${SKEL_OMARCHY}/applications"
 chmod +x "${SKEL_OMARCHY}/bin/"*
+
+# Upstream's install/packaging/icons.sh copies the bundled app icons into
+# ~/.local/share/applications/icons/; omarchy-refresh-applications later
+# re-copies them to ~/.local/share/icons/hicolor/48x48/apps/. Install them
+# system-wide at the hicolor path so the launcher + .desktop files resolve
+# them on first boot without a per-user refresh.
+install -d /usr/share/icons/hicolor/48x48/apps
+install -m644 -t /usr/share/icons/hicolor/48x48/apps \
+    "${WORK}/omarchy/applications/icons/"*.png
+gtk-update-icon-cache /usr/share/icons/hicolor 2>/dev/null || true
 
 # Strip install-related scripts — Arch package names don't map to Fedora and
 # the image ships apps via Flatpak/COPR/brew instead.

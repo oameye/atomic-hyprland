@@ -60,7 +60,7 @@ PACKAGES=(
     rsms-inter-fonts
     liberation-fonts jetbrains-mono-fonts
     adobe-source-code-pro-fonts fira-code-fonts google-droid-sans-fonts
-    adwaita-icon-theme papirus-icon-theme
+    adwaita-icon-theme papirus-icon-theme yaru-icon-theme
 )
 
 dnf5 -y install --setopt=install_weak_deps=False "${PACKAGES[@]}"

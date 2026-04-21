@@ -106,6 +106,7 @@ export CARGO_HOME="${BUILD_WORK}/.cargo"
 export RUSTUP_HOME="${BUILD_WORK}/.rustup"
 export GOPATH="${BUILD_WORK}/go"
 export GOCACHE="${BUILD_WORK}/.gocache"
+export ZIG_GLOBAL_CACHE_DIR="${BUILD_WORK}/.zig-cache"
 
 cmake_build_install() {
     local name="$1" tag="$2"

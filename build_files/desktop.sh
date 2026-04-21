@@ -305,6 +305,32 @@ sed -i \
     -e '/bindd = SUPER SHIFT, SLASH, Passwords, exec, uwsm-app -- 1password/d' \
     /etc/skel/.config/hypr/bindings.conf
 
+# Monitor layout — hard-coded for this specific machine per the project's
+# single-machine scope (CLAUDE.md): LG FHD on DisplayPort (horizontal, left)
+# + Samsung S24R35x on HDMI (rotated 90° CCW, portrait, right of LG).
+# Users rebasing onto different hardware should run
+# `omarchy-refresh-config hypr/monitors.conf` after first login to reset.
+cat > /etc/skel/.config/hypr/monitors.conf <<'EOF'
+# See https://wiki.hyprland.org/Configuring/Monitors/
+# List current monitors and resolutions possible: hyprctl monitors
+# Format: monitor = [port], resolution, position, scale
+
+# Dual 1080p setup — GDK_SCALE=1 so GTK apps aren't rendered at 2x.
+env = GDK_SCALE,1
+
+# LG FHD on DisplayPort — horizontal, left.
+monitor = DP-1, 1920x1080@74.973, 0x0, 1, vrr, 1
+
+# Samsung S24R35x on HDMI — rotated 90° counter-clockwise (portrait).
+# transform: 1 = 90° CW, 3 = 270° CW (= -90° CCW). Flip to 1 if the
+# image ends up upside down vs. physical rotation.
+# After rotation the logical size is 1080x1920; placed to the right of DP-1.
+monitor = HDMI-A-1, 1920x1080@71.91, 1920x0, 1, transform, 3, vrr, 1
+
+# Fallback for any other/new displays (e.g. hot-plugged).
+monitor = , preferred, auto, 1
+EOF
+
 # Browser: upstream omarchy-launch-browser resolves the .desktop via
 # xdg-settings, which doesn't search Flatpak export paths. Replace it with
 # a direct Zen Browser (Flatpak) wrapper — Zen is preinstalled via

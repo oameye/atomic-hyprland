@@ -1,5 +1,52 @@
 #!/usr/bin/env bash
+# Layer 1 of 2 — repos + source builds.
+# Runs before the package install layer so its output is cached independently.
+# Changes here (tag bumps, new source-built tools) invalidate only this layer.
 set -euo pipefail
+
+DIR="$(dirname "$0")"
+
+# Build order: hyprwayland-scanner → hyprutils → hyprlang → hyprcursor
+#   → hyprgraphics → aquamarine → hyprwire → hyprland
+#   → hyprtoolkit → hyprland-guiutils
+#   → satellite tools → Qt6 components
+HYPRWAYLAND_SCANNER_TAG="v0.4.5"
+HYPRUTILS_TAG="v0.12.0"
+HYPRLANG_TAG="v0.6.8"
+HYPRCURSOR_TAG="v0.1.13"
+HYPRGRAPHICS_TAG="v0.5.1"
+AQUAMARINE_TAG="v0.10.0"
+HYPRWIRE_TAG="v0.3.0"
+HYPRLAND_PROTOCOLS_TAG="v0.7.0"
+GLAZE_TAG="v7.1.1"
+HYPRLAND_TAG="v0.54.3"
+HYPRTOOLKIT_TAG="v0.5.3"
+HYPR_GUIUTILS_TAG="v0.2.1"
+HYPRLOCK_TAG="v0.9.5"
+HYPRIDLE_TAG="v0.1.7"
+HYPRPICKER_TAG="v0.4.6"
+HYPRSUNSET_TAG="v0.3.3"
+XDP_HYPRLAND_TAG="v1.3.11"
+HYPR_QT_SUPPORT_TAG="v0.1.0"
+HYPR_POLKITAGENT_TAG="v0.1.3"
+
+AWWW_TAG="v0.12.0"
+SWWW_TAG="v0.11.2"
+SATTY_TAG="v0.20.1"
+HYPRSHOT_TAG="1.3.0"
+CLIPHIST_TAG="v0.7.0"
+UWSM_TAG="v0.26.4"
+XDG_TERMINAL_EXEC_TAG="v0.12.0"
+WALKER_TAG="v2.16.0"
+ELEPHANT_TAG="v2.21.0"
+WIREMIX_TAG="v0.10.0"
+BLUETUI_TAG="v0.8.1"
+IMPALA_TAG="v0.7.4"
+GUM_TAG="v0.17.0"
+STARSHIP_TAG="v1.25.0"
+
+# ── Repos ────────────────────────────────────────────────────────────
+source "${DIR}/repos.sh"
 
 BUILD_DEPS=(
     # Toolchain — removed after builds
@@ -20,7 +67,8 @@ BUILD_DEPS=(
     libxcb-devel xcb-util-wm-devel xcb-util-errors-devel libXcursor-devel
     protobuf-compiler
     sdbus-cpp-devel pam-devel pipewire-devel
-    # Rust/Cargo (awww, swww, satty) — removed after builds
+    # Rust/Cargo (awww, swww, satty, walker, wiremix, bluetui, impala, starship)
+    # — removed after builds
     rust cargo lz4-devel
     # satty requires GTK4 + libadwaita + epoxy; walker requires gtk4-layer-shell + poppler-glib
     gtk4-devel libadwaita-devel gtk4-layer-shell-devel poppler-glib-devel libepoxy-devel
@@ -39,7 +87,7 @@ BUILD_TOOLCHAIN=(cmake meson rust cargo golang scdoc clang-devel qt6-qtbase-deve
 
 dnf5 -y install --setopt=install_weak_deps=False "${BUILD_DEPS[@]}"
 
-BUILD_WORK=$(mktemp -d)
+BUILD_WORK="$(mktemp -d)"
 
 # Redirect cargo/go caches into the ephemeral build dir.
 # /root is a dangling symlink in bootc/ostree images, so the default $HOME/.cargo fails.
@@ -52,8 +100,12 @@ cmake_build_install() {
     local name="$1" tag="$2"
     shift 2
     local git_args=()
-    while [[ "$1" == --* ]]; do git_args+=("$1"); shift; done
-    local url="$1"; shift
+    while [[ "$1" == --* ]]; do
+        git_args+=("$1")
+        shift
+    done
+    local url="$1"
+    shift
     git clone --depth 1 --branch "${tag}" "${git_args[@]}" "${url}" "${BUILD_WORK}/${name}"
     cmake -S "${BUILD_WORK}/${name}" -B "${BUILD_WORK}/${name}/build" \
         -DCMAKE_BUILD_TYPE=Release \
@@ -65,7 +117,8 @@ cmake_build_install() {
 }
 
 cargo_install() {
-    local name="$1" tag="$2" repo="$3"; shift 3
+    local name="$1" tag="$2" repo="$3"
+    shift 3
     git clone --depth 1 --branch "${tag}" "${repo}" "${BUILD_WORK}/${name}"
     cargo build --release --manifest-path "${BUILD_WORK}/${name}/Cargo.toml"
     for bin in "$@"; do
@@ -136,10 +189,14 @@ cmake_build_install hyprland-guiutils "${HYPR_GUIUTILS_TAG}" \
     https://github.com/hyprwm/hyprland-guiutils.git
 
 # ── satellite tools ─────────────────────────────────────────────────
-cmake_build_install hyprlock    "${HYPRLOCK_TAG}"   https://github.com/hyprwm/hyprlock.git
-cmake_build_install hypridle    "${HYPRIDLE_TAG}"   https://github.com/hyprwm/hypridle.git
-cmake_build_install hyprpicker  "${HYPRPICKER_TAG}" https://github.com/hyprwm/hyprpicker.git
-cmake_build_install hyprsunset  "${HYPRSUNSET_TAG}" https://github.com/hyprwm/hyprsunset.git
+cmake_build_install hyprlock "${HYPRLOCK_TAG}" \
+    https://github.com/hyprwm/hyprlock.git
+cmake_build_install hypridle "${HYPRIDLE_TAG}" \
+    https://github.com/hyprwm/hypridle.git
+cmake_build_install hyprpicker "${HYPRPICKER_TAG}" \
+    https://github.com/hyprwm/hyprpicker.git
+cmake_build_install hyprsunset "${HYPRSUNSET_TAG}" \
+    https://github.com/hyprwm/hyprsunset.git
 cmake_build_install xdg-desktop-portal-hyprland "${XDP_HYPRLAND_TAG}" \
     https://github.com/hyprwm/xdg-desktop-portal-hyprland.git
 
@@ -153,11 +210,20 @@ cmake_build_install hyprpolkitagent "${HYPR_POLKITAGENT_TAG}" \
     https://github.com/hyprwm/hyprpolkitagent.git
 
 # ── non-hyprwm tools (Cargo) ────────────────────────────────────────
-cargo_install satty    "${SATTY_TAG}"    https://github.com/gabm/Satty.git          satty
-cargo_install wiremix  "${WIREMIX_TAG}"  https://github.com/tsowell/wiremix.git     wiremix
-cargo_install bluetui  "${BLUETUI_TAG}"  https://github.com/pythops/bluetui.git     bluetui
-cargo_install impala   "${IMPALA_TAG}"   https://github.com/pythops/impala.git      impala
-cargo_install starship "${STARSHIP_TAG}" https://github.com/starship/starship.git   starship
+cargo_install awww "${AWWW_TAG}" https://codeberg.org/LGFae/awww.git \
+    awww awww-daemon
+cargo_install swww "${SWWW_TAG}" https://github.com/LGFae/swww.git \
+    swww swww-daemon
+cargo_install satty "${SATTY_TAG}" https://github.com/gabm/Satty.git \
+    satty
+cargo_install wiremix "${WIREMIX_TAG}" https://github.com/tsowell/wiremix.git \
+    wiremix
+cargo_install bluetui "${BLUETUI_TAG}" https://github.com/pythops/bluetui.git \
+    bluetui
+cargo_install impala "${IMPALA_TAG}" https://github.com/pythops/impala.git \
+    impala
+cargo_install starship "${STARSHIP_TAG}" https://github.com/starship/starship.git \
+    starship
 git clone --depth 1 --branch "${WALKER_TAG}" \
     https://github.com/abenz1267/walker.git "${BUILD_WORK}/walker"
 cargo build --release --manifest-path "${BUILD_WORK}/walker/Cargo.toml"
@@ -207,3 +273,5 @@ install -Dm644 "${BUILD_WORK}/xdg-terminal-exec/xdg-terminals.list" \
 
 rm -rf "${BUILD_WORK}"
 dnf5 -y remove --no-autoremove "${BUILD_TOOLCHAIN[@]}"
+
+echo "Source builds complete."

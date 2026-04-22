@@ -17,8 +17,8 @@ Walker is the launcher, but there's no quick way to jump to a recent VSCode proj
 - Directory scanning (e.g. globbing `~/Projects/`) — recent-only, per agreement.
 - VSCode Insiders / VSCodium support — only stable `code` is installed.
 - Remote workspaces (`vscode-remote://`, `vscode-vfs://`) — single-machine setup.
-- A keybinding — owned by the user's `hypr/` config (per CLAUDE.md: no patching `config/` that the user can do post-login).
-- A ujust recipe / auto-install for existing accounts — one-time manual copy is acceptable.
+- A **baked-in** keybinding in any hyprland config — the image deliberately ships zero `hypr/` config (omarchy owns that tree). A convenience recipe `ujust vscode-projects-keybind` is shipped instead; it appends a user-editable line to `~/.config/hypr/bindings.conf` on demand.
+- An auto-install of the Lua menu file into existing homes — one-time manual copy is acceptable.
 - Secondary actions (Shift+Enter to open dir in file manager) — one `activate` per elephant entry; a second menu provider would be needed.
 
 ## Data source
@@ -122,20 +122,21 @@ end
 
 Three entry points, in order of how the user will actually reach the menu:
 
-1. **Keybinding in `~/.config/hypr/bindings.conf`** (user-owned, not shipped):
-   `bindd = SUPER, V, VSCode projects, exec, walker --provider menus:vscodeprojects`
+1. **Keybinding** in `~/.config/hypr/bindings.conf`, installed via `ujust vscode-projects-keybind` (default: `SUPER SHIFT, V`; override with `ujust key="<combo>" vscode-projects-keybind`). The recipe appends `bindd = <combo>, VSCode projects, exec, omarchy-launch-walker --provider menus:vscodeprojects` and is idempotent.
 2. **Ad-hoc shell:** `walker --provider menus:vscodeprojects`.
 3. **Not from walker's default provider list** — `HideFromProviderlist = true` keeps it out of generic queries, matching omarchy convention.
 
 ## Build & delivery
 
 - **Containerfile/build scripts:** no changes. The static overlay `files/` is copied wholesale by the existing build step.
-- **Elephant service:** already runs as a systemd user unit ([files/usr/lib/systemd/user/elephant.service](../../../files/usr/lib/systemd/user/elephant.service)); auto-discovers the new menu at start.
-- **Skel caveat:** `/etc/skel/` contents only populate new user accounts. Existing `oameye` home won't pick it up automatically on rebase. One-time post-rebase step:
+- **Elephant service:** already runs as a systemd user unit ([files/usr/lib/systemd/user/elephant.service](../files/usr/lib/systemd/user/elephant.service)); auto-discovers the new menu at start.
+- **ujust recipe:** `ujust vscode-projects-keybind` is added to [files/usr/share/ublue-os/just/60-custom.just](../files/usr/share/ublue-os/just/60-custom.just). Idempotent; safe to re-run.
+- **Skel caveat:** `/etc/skel/` contents only populate new user accounts. Existing `oameye` home won't pick up the Lua automatically on rebase. One-time post-rebase steps:
   ```sh
   mkdir -p ~/.config/elephant/menus
   cp /etc/skel/.config/elephant/menus/atomic_hyprland_vscode_projects.lua ~/.config/elephant/menus/
   systemctl --user restart elephant.service
+  ujust vscode-projects-keybind   # optional, installs the default SUPER+SHIFT+V binding
   ```
 - **Testability without rebuild:** copy the Lua to `~/.config/elephant/menus/`, restart elephant user service, run `walker --provider menus:vscodeprojects`.
 

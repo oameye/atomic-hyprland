@@ -57,6 +57,16 @@ lint:
     fi
     /usr/bin/find . -iname "*.sh" -type f -exec shellcheck "{}" ';'
 
+# Re-run build_files/verify.sh inside an already-built image. Usage: just verify [tag]
+[group('Check')]
+verify $tag=default_tag:
+    #!/usr/bin/env bash
+    set -eou pipefail
+    podman run --rm \
+        -v ./build_files/verify.sh:/verify.sh:ro,Z \
+        "${image_name}:${tag}" \
+        bash /verify.sh
+
 # Run shfmt on all .sh scripts.
 [group('Check')]
 format:

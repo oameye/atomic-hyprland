@@ -196,4 +196,9 @@ rm -rf \
     /tmp/* \
     /var/tmp/*
 
+# ── Post-build assertions ─────────────────────────────────────────────
+# Runs after cleanup so we verify what actually ships. Exits non-zero on
+# any regression, which fails the podman build.
+bash "${DIR}/verify.sh"
+
 echo "Build complete."

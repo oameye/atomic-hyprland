@@ -16,7 +16,6 @@ env:
   IMAGE_NAME: atomic-hyprland
   IMAGE_REGISTRY: ghcr.io/${{ github.repository_owner }}
   IMAGE_CACHE_REGISTRY: ghcr.io/${{ github.repository_owner }}/atomic-hyprland-cache
-  FEDORA_VERSION: "43"
 
 jobs:
   build:
@@ -27,6 +26,12 @@ jobs:
       pull-requests: write
     steps:
       - uses: actions/checkout@v6
+
+      - name: Load build pins
+        id: pins
+        run: |
+          source build_files/pins.sh
+          echo "fedora_version=${FEDORA_VERSION}" >> "$GITHUB_OUTPUT"
 
       - name: Free disk space
         uses: jlumbroso/free-disk-space@main
@@ -41,6 +46,8 @@ jobs:
 
       - name: Compute tags
         id: tags
+        env:
+          FEDORA_VERSION: ${{ steps.pins.outputs.fedora_version }}
         run: |
           DATE=$(date +%Y%m%d)
           SHA=$(git rev-parse --short HEAD)
@@ -65,7 +72,7 @@ jobs:
           image: ${{ env.IMAGE_NAME }}
           tags: ${{ steps.tags.outputs.tags }}
           containerfiles: ./Containerfile
-          build-args: FEDORA_VERSION=${{ env.FEDORA_VERSION }}
+          build-args: FEDORA_VERSION=${{ steps.pins.outputs.fedora_version }}
           oci: true
           layers: true
           extra-args: |
@@ -78,9 +85,9 @@ jobs:
         uses: hhd-dev/rechunk@v1.2.4
         with:
           rechunk: ghcr.io/hhd-dev/rechunk:v1.2.4
-          ref: localhost/${{ env.IMAGE_NAME }}:${{ env.FEDORA_VERSION }}
+          ref: localhost/${{ env.IMAGE_NAME }}:${{ steps.pins.outputs.fedora_version }}
           prev-ref: ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:latest
-          version: ${{ env.FEDORA_VERSION }}
+          version: ${{ steps.pins.outputs.fedora_version }}
           labels: |
             org.opencontainers.image.title=${{ env.IMAGE_NAME }}
             org.opencontainers.image.source=https://github.com/${{ github.repository }}

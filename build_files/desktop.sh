@@ -5,21 +5,21 @@ WORK=$(mktemp -d)
 
 # ── Omarchy ──────────────────────────────────────────────────────────
 git clone --depth 1 --branch "${OMARCHY_REF}" --single-branch \
-    https://github.com/basecamp/omarchy.git \
-    "${WORK}/omarchy"
+	https://github.com/basecamp/omarchy.git \
+	"${WORK}/omarchy"
 OMARCHY_COMMIT="$(git -C "${WORK}/omarchy" rev-parse HEAD)"
 
 SKEL_OMARCHY=/etc/skel/.local/share/omarchy
 
 require_upstream_literal() {
-    local file="$1"
-    local needle="$2"
-    local description="$3"
+	local file="$1"
+	local needle="$2"
+	local description="$3"
 
-    if ! grep -Fq "$needle" "$file"; then
-        echo "Expected upstream ${description} in ${file} at ${OMARCHY_REF} (${OMARCHY_COMMIT}), but it was not found." >&2
-        exit 1
-    fi
+	if ! grep -Fq "$needle" "$file"; then
+		echo "Expected upstream ${description} in ${file} at ${OMARCHY_REF} (${OMARCHY_COMMIT}), but it was not found." >&2
+		exit 1
+	fi
 }
 
 # Layer 1: user dotfiles
@@ -30,7 +30,7 @@ cp -a "${WORK}/omarchy/config/." /etc/skel/.config/
 # service/timer via config/systemd/user/; drop them from skel so no user
 # ends up with a unit that polls a non-existent battery.
 rm -f /etc/skel/.config/systemd/user/omarchy-battery-monitor.service \
-      /etc/skel/.config/systemd/user/omarchy-battery-monitor.timer
+	/etc/skel/.config/systemd/user/omarchy-battery-monitor.timer
 
 # Omarchy's logo font ships inside config/ (upstream install.sh copies it
 # to ~/.local/share/fonts/ at install time). Ship it system-wide instead
@@ -44,9 +44,9 @@ rm -f /etc/skel/.config/omarchy.ttf
 # default/bash/envs). Matching this layout lets every `omarchy-*` script find siblings
 # and templates without patching.
 mkdir -p "${SKEL_OMARCHY}"
-cp -a "${WORK}/omarchy/default"      "${SKEL_OMARCHY}/default"
-cp -a "${WORK}/omarchy/themes"       "${SKEL_OMARCHY}/themes"
-cp -a "${WORK}/omarchy/bin"          "${SKEL_OMARCHY}/bin"
+cp -a "${WORK}/omarchy/default" "${SKEL_OMARCHY}/default"
+cp -a "${WORK}/omarchy/themes" "${SKEL_OMARCHY}/themes"
+cp -a "${WORK}/omarchy/bin" "${SKEL_OMARCHY}/bin"
 cp -a "${WORK}/omarchy/applications" "${SKEL_OMARCHY}/applications"
 chmod +x "${SKEL_OMARCHY}/bin/"*
 
@@ -57,16 +57,16 @@ chmod +x "${SKEL_OMARCHY}/bin/"*
 # them on first boot without a per-user refresh.
 install -d /usr/share/icons/hicolor/48x48/apps
 install -m644 -t /usr/share/icons/hicolor/48x48/apps \
-    "${WORK}/omarchy/applications/icons/"*.png
+	"${WORK}/omarchy/applications/icons/"*.png
 gtk-update-icon-cache /usr/share/icons/hicolor 2>/dev/null || true
 
 # Strip install-related scripts — Arch package names don't map to Fedora and
 # the image ships apps via Flatpak/COPR/brew instead.
 rm -f "${SKEL_OMARCHY}/bin/"omarchy-install-* \
-      "${SKEL_OMARCHY}/bin/"omarchy-pkg-* \
-      "${SKEL_OMARCHY}/bin/"omarchy-webapp-* \
-      "${SKEL_OMARCHY}/bin/"omarchy-tui-* \
-      "${SKEL_OMARCHY}/bin/"omarchy-windows-*
+	"${SKEL_OMARCHY}/bin/"omarchy-pkg-* \
+	"${SKEL_OMARCHY}/bin/"omarchy-webapp-* \
+	"${SKEL_OMARCHY}/bin/"omarchy-tui-* \
+	"${SKEL_OMARCHY}/bin/"omarchy-windows-*
 
 # Strip pacman-only lifecycle scripts. These are orphaned on our image —
 # the Update menu entry now bottoms out at `ujust update` (which handles
@@ -74,14 +74,14 @@ rm -f "${SKEL_OMARCHY}/bin/"omarchy-install-* \
 # Channel switching and version-channel display are meaningless when the
 # image ships a pinned Omarchy ref and upgrades deliberately via PR.
 rm -f "${SKEL_OMARCHY}/bin/"omarchy-refresh-pacman \
-      "${SKEL_OMARCHY}/bin/"omarchy-channel-set \
-      "${SKEL_OMARCHY}/bin/"omarchy-update-system-pkgs \
-      "${SKEL_OMARCHY}/bin/"omarchy-update-aur-pkgs \
-      "${SKEL_OMARCHY}/bin/"omarchy-update-keyring \
-      "${SKEL_OMARCHY}/bin/"omarchy-update-orphan-pkgs \
-      "${SKEL_OMARCHY}/bin/"omarchy-reinstall-pkgs \
-      "${SKEL_OMARCHY}/bin/"omarchy-version-channel \
-      "${SKEL_OMARCHY}/bin/"omarchy-version-pkgs
+	"${SKEL_OMARCHY}/bin/"omarchy-channel-set \
+	"${SKEL_OMARCHY}/bin/"omarchy-update-system-pkgs \
+	"${SKEL_OMARCHY}/bin/"omarchy-update-aur-pkgs \
+	"${SKEL_OMARCHY}/bin/"omarchy-update-keyring \
+	"${SKEL_OMARCHY}/bin/"omarchy-update-orphan-pkgs \
+	"${SKEL_OMARCHY}/bin/"omarchy-reinstall-pkgs \
+	"${SKEL_OMARCHY}/bin/"omarchy-version-channel \
+	"${SKEL_OMARCHY}/bin/"omarchy-version-pkgs
 
 # Make the remaining Setup/Remove scripts tolerate failed pacman removals
 # (their "clean up the old Arch package first" step is a no-op on Fedora;
@@ -90,9 +90,9 @@ rm -f "${SKEL_OMARCHY}/bin/"omarchy-refresh-pacman \
 # Match both `pacman -Rns ...` (as in omarchy-remove-dev-env) and
 # `sudo pacman -Rns ...` (as in omarchy-setup-fido2 and -fingerprint).
 sed -i 's/^\(\s*\(sudo[[:space:]]\+\)\?pacman -Rns\b.*\)$/\1 || true/' \
-    "${SKEL_OMARCHY}/bin/omarchy-remove-dev-env" \
-    "${SKEL_OMARCHY}/bin/omarchy-setup-fido2" \
-    "${SKEL_OMARCHY}/bin/omarchy-setup-fingerprint"
+	"${SKEL_OMARCHY}/bin/omarchy-remove-dev-env" \
+	"${SKEL_OMARCHY}/bin/omarchy-setup-fido2" \
+	"${SKEL_OMARCHY}/bin/omarchy-setup-fingerprint"
 
 # omarchy-debug and omarchy-upload-log list installed packages via
 # `expac` / `pacman -Q`. Replace both with `rpm -qa | sort` so the debug
@@ -105,16 +105,16 @@ sed -i 's/^\(\s*\(sudo[[:space:]]\+\)\?pacman -Rns\b.*\)$/\1 || true/' \
 # instead and replace wholesale with `$(rpm -qa | sort)`.
 # shellcheck disable=SC2016
 sed -i -E \
-    's#^\$\(\{ expac.*\| sort\)$#$(rpm -qa | sort)#' \
-    "${SKEL_OMARCHY}/bin/omarchy-debug"
+	's#^\$\(\{ expac.*\| sort\)$#$(rpm -qa | sort)#' \
+	"${SKEL_OMARCHY}/bin/omarchy-debug"
 # shellcheck disable=SC2016
 sed -i 's|pacman -Q 2>/dev/null \|\| echo "Failed to get package list"|rpm -qa \| sort|' \
-    "${SKEL_OMARCHY}/bin/omarchy-upload-log"
+	"${SKEL_OMARCHY}/bin/omarchy-upload-log"
 
 # omarchy-theme-set-browser still targets the supported Linux managed-policy
 # path under /etc/chromium/policies/managed, but we only keep the Chromium
 # branch because Brave is not shipped on this image.
-cat > "${SKEL_OMARCHY}/bin/omarchy-theme-set-browser" <<'EOF'
+cat >"${SKEL_OMARCHY}/bin/omarchy-theme-set-browser" <<'EOF'
 #!/usr/bin/env bash
 # Apply the current omarchy theme's accent color to Chromium via its
 # managed-policy file. Silently exits if chromium isn't on PATH.
@@ -146,7 +146,7 @@ chmod +x "${SKEL_OMARCHY}/bin/omarchy-theme-set-browser"
 # the exec line runs with no command. Go directly to the Flatpak instead;
 # the --user-data-dir + managed-policy bridges still apply via the Flatpak
 # override + /etc/chromium/policies/managed configured in build.sh.
-cat > "${SKEL_OMARCHY}/bin/omarchy-launch-webapp" <<'EOF'
+cat >"${SKEL_OMARCHY}/bin/omarchy-launch-webapp" <<'EOF'
 #!/usr/bin/env bash
 # Launch a URL as a standalone web app via Flatpak Chromium's --app mode.
 exec setsid uwsm-app -- flatpak run org.chromium.Chromium --app="$1" "${@:2}"
@@ -158,7 +158,7 @@ chmod +x "${SKEL_OMARCHY}/bin/omarchy-launch-webapp"
 # ~/.var/app/md.obsidian.Obsidian/config/obsidian/. Flathub's manifest grants
 # --filesystem=home, so the vault paths stored inside resolve on the host
 # unchanged — just the config location shifts.
-cat > "${SKEL_OMARCHY}/bin/omarchy-theme-set-obsidian" <<'EOF'
+cat >"${SKEL_OMARCHY}/bin/omarchy-theme-set-obsidian" <<'EOF'
 #!/usr/bin/env bash
 # Sync Omarchy theme to all Obsidian vaults registered with Flatpak Obsidian.
 
@@ -198,22 +198,22 @@ chmod +x "${SKEL_OMARCHY}/bin/omarchy-theme-set-obsidian"
 #     invokes the deleted omarchy-channel-set. show_update_menu does not
 #     lowercase its input, so the label stays *Channel*).
 require_upstream_literal \
-    "${SKEL_OMARCHY}/bin/omarchy-menu" \
-    '󰉉  Install\n' \
-    'omarchy-menu Install entry'
+	"${SKEL_OMARCHY}/bin/omarchy-menu" \
+	'󰉉  Install\n' \
+	'omarchy-menu Install entry'
 require_upstream_literal \
-    "${SKEL_OMARCHY}/bin/omarchy-menu" \
-    '󰔫  Channel\n' \
-    'omarchy-menu Update > Channel entry'
+	"${SKEL_OMARCHY}/bin/omarchy-menu" \
+	'󰔫  Channel\n' \
+	'omarchy-menu Update > Channel entry'
 sed -i \
-    -e 's|󰉉  Install\\n||' \
-    -e '/\*install\*)/d' \
-    -e 's|󰔫  Channel\\n||' \
-    -e '/\*Channel\*) show_update_channel_menu/d' \
-    "${SKEL_OMARCHY}/bin/omarchy-menu"
+	-e 's|󰉉  Install\\n||' \
+	-e '/\*install\*)/d' \
+	-e 's|󰔫  Channel\\n||' \
+	-e '/\*Channel\*) show_update_channel_menu/d' \
+	"${SKEL_OMARCHY}/bin/omarchy-menu"
 
 # Delegate system updates to ujust update (handles bootc + flatpak + brew).
-cat > "${SKEL_OMARCHY}/bin/omarchy-update" <<'EOF'
+cat >"${SKEL_OMARCHY}/bin/omarchy-update" <<'EOF'
 #!/usr/bin/env bash
 exec ujust update "$@"
 EOF
@@ -224,7 +224,7 @@ chmod +x "${SKEL_OMARCHY}/bin/omarchy-update"
 # we cp -a without .git/ so that path errors. Rewrite to check rpm-ostree
 # (staged bootc deployment) and Flatpak (pending app updates), which are
 # the two things `ujust update` actually acts on.
-cat > "${SKEL_OMARCHY}/bin/omarchy-update-available" <<'EOF'
+cat >"${SKEL_OMARCHY}/bin/omarchy-update-available" <<'EOF'
 #!/usr/bin/env bash
 # Exit 0 + echo the message → waybar shows the module.
 # Exit non-zero → waybar hides it.
@@ -248,17 +248,17 @@ chmod +x "${SKEL_OMARCHY}/bin/omarchy-update-available"
 #   - omarchy-brightness-display-apple: Apple-hardware-specific helper
 #   - voxtype: voice dictation, AUR-only with no Fedora port
 require_upstream_literal \
-    "${SKEL_OMARCHY}/default/hypr/bindings/utilities.conf" \
-    'omarchy-brightness-display-apple' \
-    'Apple brightness binding'
+	"${SKEL_OMARCHY}/default/hypr/bindings/utilities.conf" \
+	'omarchy-brightness-display-apple' \
+	'Apple brightness binding'
 require_upstream_literal \
-    "${SKEL_OMARCHY}/default/hypr/bindings/utilities.conf" \
-    'voxtype record toggle' \
-    'voxtype binding'
+	"${SKEL_OMARCHY}/default/hypr/bindings/utilities.conf" \
+	'voxtype record toggle' \
+	'voxtype binding'
 sed -i \
-    -e '/omarchy-brightness-display-apple/d' \
-    -e '/voxtype record toggle/d' \
-    "${SKEL_OMARCHY}/default/hypr/bindings/utilities.conf"
+	-e '/omarchy-brightness-display-apple/d' \
+	-e '/voxtype record toggle/d' \
+	"${SKEL_OMARCHY}/default/hypr/bindings/utilities.conf"
 
 # Delete hyprland window rules for apps we don't install. They're harmless
 # (rules only fire on matching window classes), but removing keeps the
@@ -269,8 +269,8 @@ sed -i \
 # source= pointing at a missing file as a config error and paints the red
 # error bar at the top of the screen on every reload.
 for app in 1password bitwarden davinci-resolve geforce localsend moonlight qemu retroarch steam telegram webcam-overlay; do
-    rm -f "${SKEL_OMARCHY}/default/hypr/apps/${app}.conf"
-    sed -i "\|apps/${app}\.conf\$|d" "${SKEL_OMARCHY}/default/hypr/apps.conf"
+	rm -f "${SKEL_OMARCHY}/default/hypr/apps/${app}.conf"
+	sed -i "\|apps/${app}\.conf\$|d" "${SKEL_OMARCHY}/default/hypr/apps.conf"
 done
 
 # Ship icon.txt + logo.txt (omarchy's ASCII branding) at the repo root;
@@ -288,47 +288,47 @@ cp "${WORK}/omarchy/logo.txt" /etc/skel/.config/omarchy/branding/screensaver.txt
 # Terminal: omarchy upstream picks Alacritty first in xdg-terminals.list.
 # We ship ghostty (fully themed by omarchy alongside alacritty and kitty).
 require_upstream_literal \
-    /etc/skel/.config/xdg-terminals.list \
-    'Alacritty.desktop' \
-    'default xdg-terminal-exec terminal order'
+	/etc/skel/.config/xdg-terminals.list \
+	'Alacritty.desktop' \
+	'default xdg-terminal-exec terminal order'
 sed -i 's/^Alacritty\.desktop$/com.mitchellh.ghostty.desktop/' \
-    /etc/skel/.config/xdg-terminals.list
+	/etc/skel/.config/xdg-terminals.list
 
 # Waybar's CPU module hardcodes `alacritty` on right-click (we don't ship it).
 # Re-route through xdg-terminal-exec so it resolves to ghostty via our patched
 # xdg-terminals.list — same UX as upstream without the alacritty dependency.
 require_upstream_literal \
-    /etc/skel/.config/waybar/config.jsonc \
-    '"on-click-right": "alacritty"' \
-    'waybar CPU right-click alacritty fallback'
+	/etc/skel/.config/waybar/config.jsonc \
+	'"on-click-right": "alacritty"' \
+	'waybar CPU right-click alacritty fallback'
 sed -i 's|"on-click-right": "alacritty"|"on-click-right": "xdg-terminal-exec"|' \
-    /etc/skel/.config/waybar/config.jsonc
+	/etc/skel/.config/waybar/config.jsonc
 
 # Re-target the bindings that have a direct Flatpak equivalent, and strip the
 # ones whose backing apps are intentionally not layered into this image.
 require_upstream_literal \
-    /etc/skel/.config/hypr/bindings.conf \
-    'bindd = SUPER SHIFT, G, Signal, exec, omarchy-launch-or-focus ^signal$ "uwsm-app -- signal-desktop"' \
-    'Signal binding'
+	/etc/skel/.config/hypr/bindings.conf \
+	'bindd = SUPER SHIFT, G, Signal, exec, omarchy-launch-or-focus ^signal$ "uwsm-app -- signal-desktop"' \
+	'Signal binding'
 require_upstream_literal \
-    /etc/skel/.config/hypr/bindings.conf \
-    'bindd = SUPER SHIFT, O, Obsidian, exec, omarchy-launch-or-focus ^obsidian$ "uwsm-app -- obsidian -disable-gpu --enable-wayland-ime"' \
-    'Obsidian binding'
+	/etc/skel/.config/hypr/bindings.conf \
+	'bindd = SUPER SHIFT, O, Obsidian, exec, omarchy-launch-or-focus ^obsidian$ "uwsm-app -- obsidian -disable-gpu --enable-wayland-ime"' \
+	'Obsidian binding'
 sed -i \
-    -e 's|bindd = SUPER SHIFT, G, Signal, exec, omarchy-launch-or-focus \^signal\$ "uwsm-app -- signal-desktop"|bindd = SUPER SHIFT, G, Signal, exec, omarchy-launch-or-focus signal "uwsm-app -- flatpak run org.signal.Signal"|' \
-    -e 's|bindd = SUPER SHIFT, O, Obsidian, exec, omarchy-launch-or-focus \^obsidian\$ "uwsm-app -- obsidian -disable-gpu --enable-wayland-ime"|bindd = SUPER SHIFT, O, Obsidian, exec, omarchy-launch-or-focus obsidian "uwsm-app -- flatpak run md.obsidian.Obsidian --disable-gpu --enable-wayland-ime"|' \
-    -e '/bindd = SUPER SHIFT, M, Music, exec, omarchy-launch-or-focus spotify/d' \
-    -e '/bindd = SUPER SHIFT, D, Docker, exec, omarchy-launch-tui lazydocker/d' \
-    -e '/bindd = SUPER SHIFT, W, Typora, exec, uwsm-app -- typora --enable-wayland-ime/d' \
-    -e '/bindd = SUPER SHIFT, SLASH, Passwords, exec, uwsm-app -- 1password/d' \
-    /etc/skel/.config/hypr/bindings.conf
+	-e 's|bindd = SUPER SHIFT, G, Signal, exec, omarchy-launch-or-focus \^signal\$ "uwsm-app -- signal-desktop"|bindd = SUPER SHIFT, G, Signal, exec, omarchy-launch-or-focus signal "uwsm-app -- flatpak run org.signal.Signal"|' \
+	-e 's|bindd = SUPER SHIFT, O, Obsidian, exec, omarchy-launch-or-focus \^obsidian\$ "uwsm-app -- obsidian -disable-gpu --enable-wayland-ime"|bindd = SUPER SHIFT, O, Obsidian, exec, omarchy-launch-or-focus obsidian "uwsm-app -- flatpak run md.obsidian.Obsidian --disable-gpu --enable-wayland-ime"|' \
+	-e '/bindd = SUPER SHIFT, M, Music, exec, omarchy-launch-or-focus spotify/d' \
+	-e '/bindd = SUPER SHIFT, D, Docker, exec, omarchy-launch-tui lazydocker/d' \
+	-e '/bindd = SUPER SHIFT, W, Typora, exec, uwsm-app -- typora --enable-wayland-ime/d' \
+	-e '/bindd = SUPER SHIFT, SLASH, Passwords, exec, uwsm-app -- 1password/d' \
+	/etc/skel/.config/hypr/bindings.conf
 
 # Monitor layout — hard-coded for this specific machine per the project's
 # single-machine scope (CLAUDE.md): LG FHD on DisplayPort (horizontal, left)
 # + Samsung S24R35x on HDMI (rotated 90° CCW, portrait, right of LG).
 # Users rebasing onto different hardware should run
 # `omarchy-refresh-config hypr/monitors.conf` after first login to reset.
-cat > /etc/skel/.config/hypr/monitors.conf <<'EOF'
+cat >/etc/skel/.config/hypr/monitors.conf <<'EOF'
 # See https://wiki.hyprland.org/Configuring/Monitors/
 # List current monitors and resolutions possible: hyprctl monitors
 # Format: monitor = [port], resolution, position, scale
@@ -355,7 +355,7 @@ EOF
 # xdg-settings, which doesn't search Flatpak export paths. Replace it with
 # a direct Zen Browser (Flatpak) wrapper — Zen is preinstalled via
 # /usr/share/flatpak/preinstall.d/zen-browser.preinstall.
-cat > "${SKEL_OMARCHY}/bin/omarchy-launch-browser" <<'EOF'
+cat >"${SKEL_OMARCHY}/bin/omarchy-launch-browser" <<'EOF'
 #!/usr/bin/env bash
 # Translate omarchy's generic --private flag to Zen's --private-window.
 args=("${@/--private/--private-window}")
@@ -367,7 +367,7 @@ chmod +x "${SKEL_OMARCHY}/bin/omarchy-launch-browser"
 # ~/.bashrc auto-sources everything under ~/.bashrc.d/ — drop a snippet there
 # rather than editing the distro-maintained .bashrc itself.
 mkdir -p /etc/skel/.bashrc.d
-cat > /etc/skel/.bashrc.d/omarchy.sh <<'EOF'
+cat >/etc/skel/.bashrc.d/omarchy.sh <<'EOF'
 # Starship prompt, aliases, env vars, history settings from omarchy.
 [[ -f "$HOME/.local/share/omarchy/default/bashrc" ]] && \
     source "$HOME/.local/share/omarchy/default/bashrc"
@@ -387,18 +387,18 @@ ln -s .local/share/omarchy/default/xcompose /etc/skel/.XCompose
 # menus are populated.
 mkdir -p /etc/skel/.config/autostart
 cp "${SKEL_OMARCHY}/default/walker/walker.desktop" \
-    /etc/skel/.config/autostart/walker.desktop
+	/etc/skel/.config/autostart/walker.desktop
 
 mkdir -p /etc/skel/.config/systemd/user/app-walker@autostart.service.d
 cp "${SKEL_OMARCHY}/default/walker/restart.conf" \
-    /etc/skel/.config/systemd/user/app-walker@autostart.service.d/restart.conf
+	/etc/skel/.config/systemd/user/app-walker@autostart.service.d/restart.conf
 
 mkdir -p /etc/skel/.config/elephant/menus
 # Relative symlinks so they resolve the same in /etc/skel and any $HOME.
 ln -s ../../../.local/share/omarchy/default/elephant/omarchy_themes.lua \
-    /etc/skel/.config/elephant/menus/omarchy_themes.lua
+	/etc/skel/.config/elephant/menus/omarchy_themes.lua
 ln -s ../../../.local/share/omarchy/default/elephant/omarchy_background_selector.lua \
-    /etc/skel/.config/elephant/menus/omarchy_background_selector.lua
+	/etc/skel/.config/elephant/menus/omarchy_background_selector.lua
 
 # ── nautilus-python extensions ──────────────────────────────────────
 # Upstream install/config/nautilus-python.sh copies localsend.py into the
@@ -406,7 +406,7 @@ ln -s ../../../.local/share/omarchy/default/elephant/omarchy_background_selector
 # OMARCHY_REF bump and resolves the same in skel and any $HOME.
 mkdir -p /etc/skel/.local/share/nautilus-python/extensions
 ln -sf ../../omarchy/default/nautilus-python/extensions/localsend.py \
-    /etc/skel/.local/share/nautilus-python/extensions/localsend.py
+	/etc/skel/.local/share/nautilus-python/extensions/localsend.py
 
 # ── Claude Code skill symlink ───────────────────────────────────────
 # Upstream install/config/omarchy-ai-skill.sh exposes the shipped omarchy
@@ -414,7 +414,7 @@ ln -sf ../../omarchy/default/nautilus-python/extensions/localsend.py \
 # resolves the same in skel and any $HOME.
 mkdir -p /etc/skel/.claude/skills
 ln -sf ../../.local/share/omarchy/default/omarchy-skill \
-    /etc/skel/.claude/skills/omarchy
+	/etc/skel/.claude/skills/omarchy
 
 # ── Bootstrap the initial theme ─────────────────────────────────────
 # Replays bin/omarchy-theme-set's logic against /etc/skel so first login
@@ -425,55 +425,55 @@ ln -sf ../../.local/share/omarchy/default/omarchy-skill \
 # templates. After this, `omarchy-theme-set <any-theme>` swaps atomically
 # and restart-* / theme-set-* scripts fire just as on upstream omarchy.
 (
-    # Subshell-scoped so the exports don't leak into later build steps.
-    export HOME=/etc/skel
-    export OMARCHY_PATH="${SKEL_OMARCHY}"
+	# Subshell-scoped so the exports don't leak into later build steps.
+	export HOME=/etc/skel
+	export OMARCHY_PATH="${SKEL_OMARCHY}"
 
-    NEXT="${HOME}/.config/omarchy/current/next-theme"
-    CURRENT="${HOME}/.config/omarchy/current/theme"
-    INITIAL_THEME=tokyo-night
+	NEXT="${HOME}/.config/omarchy/current/next-theme"
+	CURRENT="${HOME}/.config/omarchy/current/theme"
+	INITIAL_THEME=tokyo-night
 
-    [[ -d "${OMARCHY_PATH}/themes/${INITIAL_THEME}" ]] || {
-        echo "Pinned Omarchy ref ${OMARCHY_REF} is missing theme ${INITIAL_THEME}" >&2
-        exit 1
-    }
+	[[ -d "${OMARCHY_PATH}/themes/${INITIAL_THEME}" ]] || {
+		echo "Pinned Omarchy ref ${OMARCHY_REF} is missing theme ${INITIAL_THEME}" >&2
+		exit 1
+	}
 
-    mkdir -p "${NEXT}"
-    cp -a "${OMARCHY_PATH}/themes/${INITIAL_THEME}/." "${NEXT}/"
+	mkdir -p "${NEXT}"
+	cp -a "${OMARCHY_PATH}/themes/${INITIAL_THEME}/." "${NEXT}/"
 
-    # Runs `sed` against every *.tpl under default/themed/, substituting
-    # `{{ <key> }}` placeholders with values from next-theme/colors.toml.
-    bash "${OMARCHY_PATH}/bin/omarchy-theme-set-templates"
+	# Runs `sed` against every *.tpl under default/themed/, substituting
+	# `{{ <key> }}` placeholders with values from next-theme/colors.toml.
+	bash "${OMARCHY_PATH}/bin/omarchy-theme-set-templates"
 
-    rm -rf "${CURRENT}"
-    mv "${NEXT}" "${CURRENT}"
-    echo "${INITIAL_THEME}" > "${HOME}/.config/omarchy/current/theme.name"
+	rm -rf "${CURRENT}"
+	mv "${NEXT}" "${CURRENT}"
+	echo "${INITIAL_THEME}" >"${HOME}/.config/omarchy/current/theme.name"
 
-    # App-specific symlinks into the current theme. Upstream omarchy sets
-    # these up in install/config/theme.sh; replay them here so btop and mako
-    # pick up themed colors/style on first boot without waiting for the
-    # first `omarchy-theme-set` invocation.
-    mkdir -p "${HOME}/.config/btop/themes"
-    ln -sf ../../omarchy/current/theme/btop.theme \
-        "${HOME}/.config/btop/themes/current.theme"
+	# App-specific symlinks into the current theme. Upstream omarchy sets
+	# these up in install/config/theme.sh; replay them here so btop and mako
+	# pick up themed colors/style on first boot without waiting for the
+	# first `omarchy-theme-set` invocation.
+	mkdir -p "${HOME}/.config/btop/themes"
+	ln -sf ../../omarchy/current/theme/btop.theme \
+		"${HOME}/.config/btop/themes/current.theme"
 
-    mkdir -p "${HOME}/.config/mako"
-    ln -sf ../omarchy/current/theme/mako.ini \
-        "${HOME}/.config/mako/config"
+	mkdir -p "${HOME}/.config/mako"
+	ln -sf ../omarchy/current/theme/mako.ini \
+		"${HOME}/.config/mako/config"
 
-    # Seed ~/.config/omarchy/current/background with the first theme
-    # background. omarchy-theme-bg-next handles cycling at runtime, but
-    # without a symlink in place hyprlock + swaybg have nothing to render
-    # on first login. Relative path (from current/ down into theme/) so
-    # it resolves identically in /etc/skel and any $HOME.
-    first_bg=$(find "${CURRENT}/backgrounds" -maxdepth 1 -type f \
-        \( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' \) \
-        | sort | head -n1)
-    if [[ -n $first_bg ]]; then
-        ln -sf \
-            "theme/backgrounds/$(basename "$first_bg")" \
-            "${HOME}/.config/omarchy/current/background"
-    fi
+	# Seed ~/.config/omarchy/current/background with the first theme
+	# background. omarchy-theme-bg-next handles cycling at runtime, but
+	# without a symlink in place hyprlock + swaybg have nothing to render
+	# on first login. Relative path (from current/ down into theme/) so
+	# it resolves identically in /etc/skel and any $HOME.
+	first_bg=$(find "${CURRENT}/backgrounds" -maxdepth 1 -type f \
+		\( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' \) |
+		sort | head -n1)
+	if [[ -n $first_bg ]]; then
+		ln -sf \
+			"theme/backgrounds/$(basename "$first_bg")" \
+			"${HOME}/.config/omarchy/current/background"
+	fi
 )
 
 # ── SDDM ─────────────────────────────────────────────────────────────

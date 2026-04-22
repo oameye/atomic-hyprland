@@ -20,6 +20,8 @@ PACKAGES=(
     # ffmpeg-free + v4l-utils for omarchy-cmd-screenrecord (preview/trim + webcam).
     ffmpeg-free v4l-utils
     network-manager-applet iwd blueman bluez-tools python3-cairo
+    # eduVPN client (upstream RPM repo, configured in repos.sh).
+    eduvpn-client
     # pamixer for waybar audio-module right-click mute toggle (omarchy config).
     playerctl pulseaudio-utils pamixer
     pipewire-alsa pipewire-utils

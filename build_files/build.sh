@@ -5,12 +5,6 @@ set -euo pipefail
 
 DIR="$(dirname "$0")"
 
-# ── Pinned refs used in layer 2 ──────────────────────────────────────
-OMARCHY_REF="v3.5.1"
-HYPRLAND_TAG="v0.54.3"
-UWSM_TAG="v0.26.4"
-XDG_TERMINAL_EXEC_TAG="v0.12.0"
-
 # Enable a COPR, immediately disable it, then install packages from it via
 # --enablerepo so no .repo file survives in the final image.
 copr_install_isolated() {
@@ -26,18 +20,18 @@ copr_install_isolated() {
 }
 
 # ── Layer 2 steps ────────────────────────────────────────────────────
+source "${DIR}/pins.sh"
+source "${DIR}/manifest.sh"
 source "${DIR}/packages.sh"
 source "${DIR}/desktop.sh"
 
 # ── Version metadata ─────────────────────────────────────────────────
 install -d /usr/share/atomic-hyprland
-cat > /usr/share/atomic-hyprland/versions.env <<EOF
-OMARCHY_REF=${OMARCHY_REF}
-OMARCHY_COMMIT=${OMARCHY_COMMIT}
-HYPRLAND_TAG=${HYPRLAND_TAG}
-UWSM_TAG=${UWSM_TAG}
-XDG_TERMINAL_EXEC_TAG=${XDG_TERMINAL_EXEC_TAG}
-EOF
+: > /usr/share/atomic-hyprland/versions.env
+for var_name in "${VERSION_METADATA_VARS[@]}"; do
+    printf '%s=%s\n' "${var_name}" "${!var_name}" >> /usr/share/atomic-hyprland/versions.env
+done
+printf 'OMARCHY_COMMIT=%s\n' "${OMARCHY_COMMIT}" >> /usr/share/atomic-hyprland/versions.env
 
 # ── Flathub ──────────────────────────────────────────────────────────
 flatpak remote-add --if-not-exists --system flathub \
@@ -70,27 +64,12 @@ flatpak override --system \
     org.chromium.Chromium
 
 # ── Systemd units ────────────────────────────────────────────────────
-systemctl enable sddm.service
-systemctl enable docker.socket
-systemctl enable podman.socket
-systemctl enable flatpak-system-update.timer
-systemctl enable podman-auto-update.timer
-systemctl --global enable flatpak-user-update.timer
-systemctl --global enable podman-auto-update.timer
-systemctl --global enable atomic-hyprland-detect-kb-layout.service
-systemctl --global enable elephant.service
-systemctl enable atomic-hyprland-dx-groups.service
-systemctl enable atomic-hyprland-sddm-autologin.service
-systemctl enable flatpak-preinstall.service
-systemctl enable uupd.timer
-
-# Printing + mDNS discovery (omarchy install/config/hardware/printer.sh).
-systemctl enable cups.service
-systemctl enable cups-browsed.service
-systemctl enable avahi-daemon.service
-
-# Bluetooth on by default (omarchy install/config/hardware/bluetooth.sh).
-systemctl enable bluetooth.service
+for unit in "${SYSTEM_UNITS[@]}"; do
+    systemctl enable "$unit"
+done
+for unit in "${GLOBAL_UNITS[@]}"; do
+    systemctl --global enable "$unit"
+done
 
 # ── Ported omarchy install/config tweaks ─────────────────────────────
 # These edit distro-shipped files that we can't replace wholesale via an

@@ -6,44 +6,7 @@ set -euo pipefail
 
 DIR="$(dirname "$0")"
 
-# Build order: hyprwayland-scanner → hyprutils → hyprlang → hyprcursor
-#   → hyprgraphics → aquamarine → hyprwire → hyprland
-#   → hyprtoolkit → hyprland-guiutils
-#   → satellite tools → Qt6 components
-HYPRWAYLAND_SCANNER_TAG="v0.4.5"
-HYPRUTILS_TAG="v0.12.0"
-HYPRLANG_TAG="v0.6.8"
-HYPRCURSOR_TAG="v0.1.13"
-HYPRGRAPHICS_TAG="v0.5.1"
-AQUAMARINE_TAG="v0.10.0"
-HYPRWIRE_TAG="v0.3.0"
-HYPRLAND_PROTOCOLS_TAG="v0.7.0"
-GLAZE_TAG="v7.1.1"
-HYPRLAND_TAG="v0.54.3"
-HYPRTOOLKIT_TAG="v0.5.3"
-HYPR_GUIUTILS_TAG="v0.2.1"
-HYPRLOCK_TAG="v0.9.5"
-HYPRIDLE_TAG="v0.1.7"
-HYPRPICKER_TAG="v0.4.6"
-HYPRSUNSET_TAG="v0.3.3"
-XDP_HYPRLAND_TAG="v1.3.11"
-HYPR_QT_SUPPORT_TAG="v0.1.0"
-HYPR_POLKITAGENT_TAG="v0.1.3"
-
-SATTY_TAG="v0.20.1"
-HYPRSHOT_TAG="1.3.0"
-CLIPHIST_TAG="v0.7.0"
-UWSM_TAG="v0.26.4"
-XDG_TERMINAL_EXEC_TAG="v0.14.2"
-WALKER_TAG="v2.16.0"
-ELEPHANT_TAG="v2.21.0"
-WIREMIX_TAG="v0.10.0"
-BLUETUI_TAG="v0.8.1"
-IMPALA_TAG="v0.7.4"
-GUM_TAG="v0.17.0"
-STARSHIP_TAG="v1.25.0"
-HYPRLAND_PREVIEW_SHARE_PICKER_TAG="v0.2.1"
-NERD_FONTS_TAG="v3.4.0"
+source "${DIR}/pins.sh"
 
 # ── Repos ────────────────────────────────────────────────────────────
 source "${DIR}/repos.sh"

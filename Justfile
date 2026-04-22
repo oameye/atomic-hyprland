@@ -33,6 +33,7 @@ clean:
 build $target_image=image_name $tag=default_tag:
     #!/usr/bin/env bash
     set -eou pipefail
+    source build_files/pins.sh
 
     BUILD_ARGS=()
     if [[ -z "$(git status -s)" ]]; then
@@ -42,7 +43,7 @@ build $target_image=image_name $tag=default_tag:
     podman build \
         "${BUILD_ARGS[@]}" \
         --pull=newer \
-        --build-arg FEDORA_VERSION=43 \
+        --build-arg "FEDORA_VERSION=${FEDORA_VERSION}" \
         --tag "${target_image}:${tag}" \
         .
 
@@ -63,9 +64,9 @@ verify $tag=default_tag:
     #!/usr/bin/env bash
     set -eou pipefail
     podman run --rm \
-        -v ./build_files/verify.sh:/verify.sh:ro,Z \
+        -v ./build_files:/build_files:ro,Z \
         "${image_name}:${tag}" \
-        bash /verify.sh
+        bash /build_files/verify.sh
 
 # Run shfmt on all .sh scripts.
 [group('Check')]

@@ -10,6 +10,10 @@
 # actually start a compositor) is out of scope; that needs a VM boot.
 set -uo pipefail
 
+DIR="$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${DIR}/pins.sh"
+source "${DIR}/manifest.sh"
+
 fail_count=0
 
 fail() {
@@ -28,6 +32,17 @@ want_file() {
     local path="$1"
     if [[ ! -f $path ]]; then
         fail "$path missing"
+    fi
+}
+
+want_line() {
+    local line="$1" file="$2"
+    if [[ ! -f $file ]]; then
+        fail "$file missing (wanted line '$line')"
+        return
+    fi
+    if ! grep -Fxq "$line" "$file"; then
+        fail "$file missing exact line '$line'"
     fi
 }
 
@@ -68,25 +83,26 @@ want_nogrep() {
 }
 
 want_unit_enabled() {
-    local unit="$1"
+    local scope="$1" unit="$2"
+    if [[ $scope == global ]]; then
+        if ! systemctl --global is-enabled --quiet "$unit"; then
+            fail "global systemd unit $unit is not enabled"
+        fi
+        return
+    fi
     if ! systemctl is-enabled --quiet "$unit"; then
         fail "systemd unit $unit is not enabled"
     fi
 }
 
 echo "==> Source-built hyprwm binaries"
-for bin in Hyprland hyprctl hyprlock hypridle hyprpicker hyprsunset; do
-    want_exec "/usr/bin/$bin"
+for path in "${SOURCE_BUILT_HYPRWM_EXECUTABLES[@]}"; do
+    want_exec "$path"
 done
-# Portals and polkit agents install to libexec by FDO convention.
-want_exec /usr/libexec/xdg-desktop-portal-hyprland
-want_exec /usr/libexec/hyprpolkitagent
 
 echo "==> Source-built non-hyprwm binaries"
-for bin in satty walker wiremix bluetui impala starship \
-    hyprland-preview-share-picker cliphist elephant gum hyprshot \
-    uwsm xdg-terminal-exec; do
-    want_exec "/usr/bin/$bin"
+for path in "${SOURCE_BUILT_AUX_EXECUTABLES[@]}"; do
+    want_exec "$path"
 done
 
 echo "==> Elephant provider plugins"
@@ -105,10 +121,8 @@ fi
 want_file /etc/fonts/conf.d/80-atomic-hyprland-monospace.conf
 
 echo "==> Packaged desktop apps"
-# swayosd COPR ships swayosd-server + swayosd-client, no bare 'swayosd'.
-for bin in sddm waybar mako ghostty code bazaar uupd \
-    swayosd-server swayosd-client docker; do
-    want_exec "/usr/bin/$bin"
+for path in "${PACKAGED_DESKTOP_EXECUTABLES[@]}"; do
+    want_exec "$path"
 done
 
 echo "==> Firefox removed"
@@ -168,6 +182,10 @@ want_grep '^deny = 10' /etc/security/faillock.conf
 # chain; without this, faillock.conf is configured but never consulted.
 want_grep 'pam_faillock\.so preauth' /etc/pam.d/system-auth
 want_grep 'pam_faillock\.so authfail' /etc/pam.d/system-auth
+want_grep 'pam_faillock\.so preauth' /etc/pam.d/password-auth
+want_grep 'pam_faillock\.so authfail' /etc/pam.d/password-auth
+want_nogrep 'pam_faillock\.so preauth' /etc/pam.d/sddm-autologin
+want_grep 'pam_faillock\.so authsucc' /etc/pam.d/sddm-autologin
 
 echo "==> nsswitch mDNS shim applied"
 want_grep 'mdns_minimal \[NOTFOUND=return\]' /etc/nsswitch.conf
@@ -184,15 +202,19 @@ want_dir_real /usr/share/plymouth/themes/omarchy
 
 echo "==> Version metadata"
 want_file /usr/share/atomic-hyprland/versions.env
-want_grep '^HYPRLAND_TAG=' /usr/share/atomic-hyprland/versions.env
+for var_name in "${VERSION_METADATA_VARS[@]}"; do
+    want_line "${var_name}=${!var_name}" /usr/share/atomic-hyprland/versions.env
+done
 want_grep '^OMARCHY_COMMIT=[0-9a-f]{40}$' /usr/share/atomic-hyprland/versions.env
 
-echo "==> Critical systemd units enabled"
-for unit in sddm.service docker.socket podman.socket \
-    flatpak-preinstall.service atomic-hyprland-dx-groups.service \
-    atomic-hyprland-sddm-autologin.service uupd.timer \
-    cups.service avahi-daemon.service bluetooth.service; do
-    want_unit_enabled "$unit"
+echo "==> Systemd units enabled"
+for unit in "${SYSTEM_UNITS[@]}"; do
+    want_unit_enabled system "$unit"
+done
+
+echo "==> Global systemd units enabled"
+for unit in "${GLOBAL_UNITS[@]}"; do
+    want_unit_enabled global "$unit"
 done
 
 echo

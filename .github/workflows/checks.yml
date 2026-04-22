@@ -28,8 +28,8 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Install shellcheck
-        run: sudo apt-get update && sudo apt-get install -y shellcheck
+      - name: Install shellcheck and just
+        run: sudo apt-get update && sudo apt-get install -y shellcheck just
 
       - name: Lint shell scripts
         run: just lint
@@ -41,8 +41,8 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Install shfmt
-        run: sudo apt-get update && sudo apt-get install -y shfmt
+      - name: Install shfmt and just
+        run: sudo apt-get update && sudo apt-get install -y shfmt just
 
       - name: Check shell formatting
         run: just format-check

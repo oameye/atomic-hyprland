@@ -100,11 +100,13 @@ systemctl enable bluetooth.service
 # faillock: 10 retries before lockout (omarchy install/config/increase-sudo-tries.sh).
 sed -i 's/^# *deny = .*/deny = 10/' /etc/security/faillock.conf
 
-# PAM faillock tuning (omarchy install/config/increase-lockout-limit.sh).
-sed -i 's|^\(auth\s\+required\s\+pam_faillock.so\)\s\+preauth.*$|\1 preauth silent deny=10 unlock_time=120|' \
-    /etc/pam.d/system-auth
-sed -i 's|^\(auth\s\+\[default=die\]\s\+pam_faillock.so\)\s\+authfail.*$|\1 authfail deny=10 unlock_time=120|' \
-    /etc/pam.d/system-auth
+# Wire pam_faillock into /etc/pam.d/{system,password}-auth. Fedora manages
+# those files via authselect (they're symlinks into /etc/authselect/), so
+# direct sed edits get overwritten on every apply-changes. Enabling the
+# with-faillock feature injects the preauth/authfail/account lines in the
+# correct slots; the values come from /etc/security/faillock.conf above.
+authselect enable-feature with-faillock
+authselect apply-changes
 # sddm-autologin shouldn't trigger faillock on every boot (sees "no password"
 # as a failure). Drop the preauth line and inject an authsucc after the
 # pam_permit line so the lockout counter resets on successful boot.

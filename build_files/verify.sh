@@ -75,10 +75,12 @@ want_unit_enabled() {
 }
 
 echo "==> Source-built hyprwm binaries"
-for bin in Hyprland hyprctl hyprlock hypridle hyprpicker hyprsunset \
-    xdg-desktop-portal-hyprland hyprpolkitagent; do
+for bin in Hyprland hyprctl hyprlock hypridle hyprpicker hyprsunset; do
     want_exec "/usr/bin/$bin"
 done
+# Portals and polkit agents install to libexec by FDO convention.
+want_exec /usr/libexec/xdg-desktop-portal-hyprland
+want_exec /usr/libexec/hyprpolkitagent
 
 echo "==> Source-built non-hyprwm binaries"
 for bin in satty walker wiremix bluetui impala starship \
@@ -103,7 +105,9 @@ fi
 want_file /etc/fonts/conf.d/80-atomic-hyprland-monospace.conf
 
 echo "==> Packaged desktop apps"
-for bin in sddm waybar mako ghostty code bazaar uupd swayosd docker; do
+# swayosd COPR ships swayosd-server + swayosd-client, no bare 'swayosd'.
+for bin in sddm waybar mako ghostty code bazaar uupd \
+    swayosd-server swayosd-client docker; do
     want_exec "/usr/bin/$bin"
 done
 
@@ -160,7 +164,10 @@ want_nogrep '"on-click-right": "alacritty"' /etc/skel/.config/waybar/config.json
 
 echo "==> PAM / faillock tweaks applied"
 want_grep '^deny = 10' /etc/security/faillock.conf
-want_grep 'deny=10 unlock_time=120' /etc/pam.d/system-auth
+# authselect with-faillock must have injected pam_faillock into the auth
+# chain; without this, faillock.conf is configured but never consulted.
+want_grep 'pam_faillock\.so preauth' /etc/pam.d/system-auth
+want_grep 'pam_faillock\.so authfail' /etc/pam.d/system-auth
 
 echo "==> nsswitch mDNS shim applied"
 want_grep 'mdns_minimal \[NOTFOUND=return\]' /etc/nsswitch.conf

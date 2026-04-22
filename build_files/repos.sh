@@ -36,3 +36,17 @@ EOF
 dnf5 config-manager addrepo \
 	--from-repofile=https://download.docker.com/linux/fedora/docker-ce.repo
 sed -i 's/^enabled=.*/enabled=0/g' /etc/yum.repos.d/docker-ce.repo
+
+# eduVPN — upstream Fedora RPMs. Repo left enabled so bootc upgrade keeps the
+# client current (same pattern as VS Code above). Source:
+# https://docs.eduvpn.org/client/linux/installation.html
+curl -fsSL https://app.eduvpn.org/linux/v4/rpm/app+linux@eduvpn.org.asc \
+	-o /etc/pki/rpm-gpg/RPM-GPG-KEY-python-eduvpn-client_v4
+cat >/etc/yum.repos.d/python-eduvpn-client_v4.repo <<'EOF'
+[python-eduvpn-client_v4]
+name=eduVPN for Linux 4.x (Fedora $releasever)
+baseurl=https://app.eduvpn.org/linux/v4/rpm/fedora-$releasever-$basearch
+gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-python-eduvpn-client_v4
+gpgcheck=1
+enabled=1
+EOF

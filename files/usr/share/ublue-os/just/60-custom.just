@@ -11,6 +11,10 @@
 #   ujust overwrite=1 sync-skel-config    # replace managed files from skel
 overwrite := "0"
 
+# Default key combo for `vscode-projects-keybind`. Override with:
+#   ujust key="SUPER, V" vscode-projects-keybind
+key := "SUPER SHIFT, V"
+
 sync-skel-config:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -53,3 +57,25 @@ sync-skel-config:
     fi
     echo
     echo "Done. Run 'hyprctl reload' or log out/in to apply."
+
+# Append a Hyprland keybinding that opens the "VSCode projects" walker menu.
+# Idempotent: if the binding is already present in ~/.config/hypr/bindings.conf
+# (detected via the menus:vscodeprojects marker), the recipe is a no-op.
+# Default combo is SUPER + SHIFT + V; override via `ujust key="<combo>" vscode-projects-keybind`.
+vscode-projects-keybind:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    target="$HOME/.config/hypr/bindings.conf"
+    if [ ! -f "$target" ]; then
+        echo "error: $target not found (is this an atomic-hyprland install?)" >&2
+        exit 1
+    fi
+    if grep -qF "menus:vscodeprojects" "$target"; then
+        echo "Binding already present in $target -- nothing to do."
+        exit 0
+    fi
+    line='bindd = {{ key }}, VSCode projects, exec, omarchy-launch-walker --provider menus:vscodeprojects'
+    printf '\n%s\n' "$line" >> "$target"
+    echo "Added to $target:"
+    echo "  $line"
+    hyprctl reload >/dev/null 2>&1 || true

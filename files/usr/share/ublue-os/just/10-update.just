@@ -1,17 +1,72 @@
 # vim: set ft=make :
 
-# Overrides ublue-os-just's shipped 10-update.just. Upstream still gates
-# `ujust update` on `ublue-update.timer`, but this image uses uupd (the Go
-# successor) whose unit is `uupd.timer`. Without this override `ujust update`
-# reverts to the inline rpm-ostree+flatpak+distrobox fallback -- missing brew
-# and uupd's update-inhibitor checks. Invoke the uupd CLI directly (not
-# `uupd-manual.service`) so progress streams to the terminal.
+# Overrides ublue-os-just's shipped 10-update.just so manual `ujust update`
+# keeps the old command-by-command terminal output while also updating brew.
+# Automatic updates still run through `uupd.timer`; this only changes the
+# interactive/manual path.
 
 alias upgrade := update
 
-# Update rpm-ostree, flatpaks, distroboxes, and brew via uupd.
-update:
-    sudo /usr/bin/uupd --hw-check=false
+# Update rpm-ostree, flatpaks, distroboxes, and brew with visible command output.
+update VERB_LEVEL="full":
+    #!/usr/bin/bash
+    if [ {{ VERB_LEVEL }} = "help" ]; then
+      echo "Usage: just update <level>"
+      echo "  <level>: Specify the verbosity level - 'full', 'minimal', or 'prompt'"
+      echo "  Use 'full' to show full output of each command."
+      echo "  Use 'minimal' to show minimal output and indicate success or failure."
+      echo "  Use 'prompt' to prompt the user before running each command."
+      exit 0
+    fi
+
+    update_command() {
+      command=$1
+      case "{{ VERB_LEVEL }}" in
+        full)
+          echo "Running $command..."
+          $command
+          echo "Completed $command"
+          ;;
+        minimal)
+          echo "Running $command..."
+          $command > /dev/null 2>&1
+          if [ $? -eq 0 ]; then
+            echo "Completed $command"
+          else
+            echo "Failed to complete $command"
+            exit 1
+          fi
+          ;;
+        prompt)
+          printf "Do you want to run %s? [Y/n]: " "$command"
+          read user_input
+          user_input=${user_input:-Y}
+          if [ "$user_input" = "Y" ] || [ "$user_input" = "y" ]; then
+            echo "Running $command..."
+            $command
+            echo "Completed $command"
+          else
+            echo "Skipped $command"
+          fi
+          ;;
+        *)
+          echo "Invalid level: {{ VERB_LEVEL }}. Please use 'full', 'minimal', 'prompt' or 'help' for usage."
+          exit 1
+          ;;
+      esac
+    }
+
+    update_command "rpm-ostree update"
+    update_command "flatpak update -y"
+    update_command "distrobox upgrade -a"
+
+    BREW_BIN="/home/linuxbrew/.linuxbrew/bin/brew"
+    if [ -x "$BREW_BIN" ]; then
+      update_command "$BREW_BIN update"
+      update_command "$BREW_BIN upgrade"
+    else
+      echo "Skipping brew update; $BREW_BIN not found"
+    fi
 
 alias changelog := changelogs
 

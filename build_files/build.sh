@@ -8,15 +8,15 @@ DIR="$(dirname "$0")"
 # Enable a COPR, immediately disable it, then install packages from it via
 # --enablerepo so no .repo file survives in the final image.
 copr_install_isolated() {
-    local copr_name="$1"
-    shift
-    local packages=("$@")
-    local repo_id="copr:copr.fedorainfracloud.org:${copr_name//\//:}"
+	local copr_name="$1"
+	shift
+	local packages=("$@")
+	local repo_id="copr:copr.fedorainfracloud.org:${copr_name//\//:}"
 
-    dnf5 -y copr enable "$copr_name"
-    dnf5 -y copr disable "$copr_name"
-    dnf5 -y install --setopt=install_weak_deps=False \
-        --enablerepo="$repo_id" "${packages[@]}"
+	dnf5 -y copr enable "$copr_name"
+	dnf5 -y copr disable "$copr_name"
+	dnf5 -y install --setopt=install_weak_deps=False \
+		--enablerepo="$repo_id" "${packages[@]}"
 }
 
 # ── Layer 2 steps ────────────────────────────────────────────────────
@@ -27,15 +27,15 @@ source "${DIR}/desktop.sh"
 
 # ── Version metadata ─────────────────────────────────────────────────
 install -d /usr/share/atomic-hyprland
-: > /usr/share/atomic-hyprland/versions.env
+: >/usr/share/atomic-hyprland/versions.env
 for var_name in "${VERSION_METADATA_VARS[@]}"; do
-    printf '%s=%s\n' "${var_name}" "${!var_name}" >> /usr/share/atomic-hyprland/versions.env
+	printf '%s=%s\n' "${var_name}" "${!var_name}" >>/usr/share/atomic-hyprland/versions.env
 done
-printf 'OMARCHY_COMMIT=%s\n' "${OMARCHY_COMMIT}" >> /usr/share/atomic-hyprland/versions.env
+printf 'OMARCHY_COMMIT=%s\n' "${OMARCHY_COMMIT}" >>/usr/share/atomic-hyprland/versions.env
 
 # ── Flathub ──────────────────────────────────────────────────────────
 flatpak remote-add --if-not-exists --system flathub \
-    https://dl.flathub.org/repo/flathub.flatpakrepo
+	https://dl.flathub.org/repo/flathub.flatpakrepo
 
 # Chromium theming uses the supported Linux managed-policy path under
 # /etc/chromium/policies/managed. Make it user-writable like upstream
@@ -46,7 +46,7 @@ install -d -m 0777 /etc/chromium/policies/managed
 # invocation) already renders with the tokyo-night accent + follows the
 # system colour scheme. Background RGB #1a1b26 → "#1a1b26"; later theme
 # switches rewrite this file via omarchy-theme-set-browser.
-cat > /etc/chromium/policies/managed/color.json <<'EOF'
+cat >/etc/chromium/policies/managed/color.json <<'EOF'
 {"BrowserThemeColor": "#1a1b26", "BrowserColorScheme": "device"}
 EOF
 chmod 0666 /etc/chromium/policies/managed/color.json
@@ -58,17 +58,17 @@ chmod 0666 /etc/chromium/policies/managed/color.json
 # Override files land under /var/lib/flatpak/overrides/ and are in place
 # before the preinstall service ever installs the Flatpak on first boot.
 flatpak override --system \
-    --filesystem=/etc/chromium:ro \
-    --filesystem=xdg-config/chromium \
-    --filesystem=xdg-config/chromium-flags.conf \
-    org.chromium.Chromium
+	--filesystem=/etc/chromium:ro \
+	--filesystem=xdg-config/chromium \
+	--filesystem=xdg-config/chromium-flags.conf \
+	org.chromium.Chromium
 
 # ── Systemd units ────────────────────────────────────────────────────
 for unit in "${SYSTEM_UNITS[@]}"; do
-    systemctl enable "$unit"
+	systemctl enable "$unit"
 done
 for unit in "${GLOBAL_UNITS[@]}"; do
-    systemctl --global enable "$unit"
+	systemctl --global enable "$unit"
 done
 
 # ── Ported omarchy install/config tweaks ─────────────────────────────
@@ -90,48 +90,48 @@ authselect apply-changes
 # as a failure). Drop the preauth line and inject an authsucc after the
 # pam_permit line so the lockout counter resets on successful boot.
 if [[ -f /etc/pam.d/sddm-autologin ]]; then
-    sed -i '/pam_faillock\.so preauth/d' /etc/pam.d/sddm-autologin
-    sed -i '/auth.*pam_permit\.so/a auth        required    pam_faillock.so authsucc' \
-        /etc/pam.d/sddm-autologin
+	sed -i '/pam_faillock\.so preauth/d' /etc/pam.d/sddm-autologin
+	sed -i '/auth.*pam_permit\.so/a auth        required    pam_faillock.so authsucc' \
+		/etc/pam.d/sddm-autologin
 fi
 
 # Prevent password-based SDDM logins from creating an encrypted login keyring
 # that conflicts with the passwordless Default_keyring shipped under
 # /etc/skel/.local/share/keyrings (omarchy install/login/sddm.sh).
 if [[ -f /etc/pam.d/sddm ]]; then
-    sed -i '/-auth.*pam_gnome_keyring\.so/d' /etc/pam.d/sddm
-    sed -i '/-password.*pam_gnome_keyring\.so/d' /etc/pam.d/sddm
+	sed -i '/-auth.*pam_gnome_keyring\.so/d' /etc/pam.d/sddm
+	sed -i '/-password.*pam_gnome_keyring\.so/d' /etc/pam.d/sddm
 fi
 
 # Physical power button → ignore (omarchy binds Super+Escape to the power
 # menu; ignore-power-button.sh). Prevents accidental host shutdowns.
 install -d /usr/lib/systemd/logind.conf.d
-cat > /usr/lib/systemd/logind.conf.d/atomic-hyprland-power.conf <<'EOF'
+cat >/usr/lib/systemd/logind.conf.d/atomic-hyprland-power.conf <<'EOF'
 [Login]
 HandlePowerKey=ignore
 EOF
 
 # nsswitch: mDNS resolution for .local via nss-mdns (omarchy printer.sh).
 sed -i 's/^hosts:.*/hosts: mymachines mdns_minimal [NOTFOUND=return] resolve files myhostname dns/' \
-    /etc/nsswitch.conf
+	/etc/nsswitch.conf
 
 # cups-browsed: auto-add remote network printers (omarchy printer.sh).
 if ! grep -q '^CreateRemotePrinters Yes' /etc/cups/cups-browsed.conf; then
-    echo 'CreateRemotePrinters Yes' >> /etc/cups/cups-browsed.conf
+	echo 'CreateRemotePrinters Yes' >>/etc/cups/cups-browsed.conf
 fi
 
 # powerprofilesctl: force system python over mise's user python
 # (omarchy install/config/fix-powerprofilesctl-shebang.sh).
 if [[ -f /usr/bin/powerprofilesctl ]]; then
-    sed -i '/env python3/ c\#!/bin/python3' /usr/bin/powerprofilesctl
+	sed -i '/env python3/ c\#!/bin/python3' /usr/bin/powerprofilesctl
 fi
 
 # Plymouth: ship omarchy's theme and set as default. initramfs rebuild is
 # handled by rpm-ostree's dracut integration at deploy time.
 if [[ -d /etc/skel/.local/share/omarchy/default/plymouth ]]; then
-    cp -r /etc/skel/.local/share/omarchy/default/plymouth \
-        /usr/share/plymouth/themes/omarchy
-    plymouth-set-default-theme omarchy
+	cp -r /etc/skel/.local/share/omarchy/default/plymouth \
+		/usr/share/plymouth/themes/omarchy
+	plymouth-set-default-theme omarchy
 fi
 
 # system-sleep/unmount-fuse: lazy-unmount gvfsd-fuse mounts before suspend
@@ -140,25 +140,25 @@ fi
 # gvfsd-fuse blocks in uninterruptible sleep during the kernel's process
 # freeze.
 if [[ -f /etc/skel/.local/share/omarchy/default/systemd/system-sleep/unmount-fuse ]]; then
-    install -Dm0755 \
-        /etc/skel/.local/share/omarchy/default/systemd/system-sleep/unmount-fuse \
-        /usr/lib/systemd/system-sleep/unmount-fuse
+	install -Dm0755 \
+		/etc/skel/.local/share/omarchy/default/systemd/system-sleep/unmount-fuse \
+		/usr/lib/systemd/system-sleep/unmount-fuse
 fi
 
 # Keyring file perms get flattened to 0644/0755 by `COPY files/ /` because
 # git only tracks +x bits, not owner-only modes. Restore what GNOME Keyring
 # expects. Runs every build; idempotent.
 if [[ -d /etc/skel/.local/share/keyrings ]]; then
-    chmod 0700 /etc/skel/.local/share/keyrings
-    chmod 0600 /etc/skel/.local/share/keyrings/Default_keyring.keyring
-    chmod 0644 /etc/skel/.local/share/keyrings/default
+	chmod 0700 /etc/skel/.local/share/keyrings
+	chmod 0600 /etc/skel/.local/share/keyrings/Default_keyring.keyring
+	chmod 0644 /etc/skel/.local/share/keyrings/default
 fi
 
 # sudo refuses to read sudoers.d entries that are group/world writable, and
 # modern versions want 0440. `COPY files/ /` flattens them to 0644 — restore
 # the strict mode so the rules actually take effect.
 for f in /etc/sudoers.d/passwd-tries /etc/sudoers.d/omarchy-tzupdate; do
-    [[ -f $f ]] && chmod 0440 "$f"
+	[[ -f $f ]] && chmod 0440 "$f"
 done
 
 # ── dconf system db ──────────────────────────────────────────────────
@@ -170,12 +170,12 @@ dconf update
 # ── Cleanup ───────────────────────────────────────────────────────────
 dnf5 clean all
 rm -rf \
-    /var/cache/dnf \
-    /var/cache/libdnf5 \
-    /var/lib/dnf \
-    /var/lib/blueman \
-    /tmp/* \
-    /var/tmp/*
+	/var/cache/dnf \
+	/var/cache/libdnf5 \
+	/var/lib/dnf \
+	/var/lib/blueman \
+	/tmp/* \
+	/var/tmp/*
 
 # ── Post-build assertions ─────────────────────────────────────────────
 # Runs after cleanup so we verify what actually ships. Exits non-zero on

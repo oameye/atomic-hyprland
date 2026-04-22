@@ -17,97 +17,97 @@ source "${DIR}/manifest.sh"
 fail_count=0
 
 fail() {
-    echo "  FAIL: $*" >&2
-    fail_count=$((fail_count + 1))
+	echo "  FAIL: $*" >&2
+	fail_count=$((fail_count + 1))
 }
 
 want_exec() {
-    local path="$1"
-    if [[ ! -x $path ]]; then
-        fail "$path missing or not executable"
-    fi
+	local path="$1"
+	if [[ ! -x $path ]]; then
+		fail "$path missing or not executable"
+	fi
 }
 
 want_file() {
-    local path="$1"
-    if [[ ! -f $path ]]; then
-        fail "$path missing"
-    fi
+	local path="$1"
+	if [[ ! -f $path ]]; then
+		fail "$path missing"
+	fi
 }
 
 want_line() {
-    local line="$1" file="$2"
-    if [[ ! -f $file ]]; then
-        fail "$file missing (wanted line '$line')"
-        return
-    fi
-    if ! grep -Fxq "$line" "$file"; then
-        fail "$file missing exact line '$line'"
-    fi
+	local line="$1" file="$2"
+	if [[ ! -f $file ]]; then
+		fail "$file missing (wanted line '$line')"
+		return
+	fi
+	if ! grep -Fxq "$line" "$file"; then
+		fail "$file missing exact line '$line'"
+	fi
 }
 
 want_dir_real() {
-    local path="$1"
-    if [[ -L $path ]]; then
-        fail "$path is a symlink (expected real directory)"
-    elif [[ ! -d $path ]]; then
-        fail "$path missing or not a directory"
-    fi
+	local path="$1"
+	if [[ -L $path ]]; then
+		fail "$path is a symlink (expected real directory)"
+	elif [[ ! -d $path ]]; then
+		fail "$path missing or not a directory"
+	fi
 }
 
 want_absent() {
-    local pattern="$1"
-    local matches
-    matches=$(compgen -G "$pattern" || true)
-    if [[ -n $matches ]]; then
-        fail "expected no matches for '$pattern', found: $matches"
-    fi
+	local pattern="$1"
+	local matches
+	matches=$(compgen -G "$pattern" || true)
+	if [[ -n $matches ]]; then
+		fail "expected no matches for '$pattern', found: $matches"
+	fi
 }
 
 want_grep() {
-    local pattern="$1" file="$2"
-    if [[ ! -f $file ]]; then
-        fail "$file missing (wanted to grep '$pattern')"
-        return
-    fi
-    if ! grep -qE "$pattern" "$file"; then
-        fail "$file does not match /$pattern/"
-    fi
+	local pattern="$1" file="$2"
+	if [[ ! -f $file ]]; then
+		fail "$file missing (wanted to grep '$pattern')"
+		return
+	fi
+	if ! grep -qE "$pattern" "$file"; then
+		fail "$file does not match /$pattern/"
+	fi
 }
 
 want_nogrep() {
-    local pattern="$1" file="$2"
-    if [[ -f $file ]] && grep -qE "$pattern" "$file"; then
-        fail "$file still matches /$pattern/"
-    fi
+	local pattern="$1" file="$2"
+	if [[ -f $file ]] && grep -qE "$pattern" "$file"; then
+		fail "$file still matches /$pattern/"
+	fi
 }
 
 want_unit_enabled() {
-    local scope="$1" unit="$2"
-    if [[ $scope == global ]]; then
-        if ! systemctl --global is-enabled --quiet "$unit"; then
-            fail "global systemd unit $unit is not enabled"
-        fi
-        return
-    fi
-    if ! systemctl is-enabled --quiet "$unit"; then
-        fail "systemd unit $unit is not enabled"
-    fi
+	local scope="$1" unit="$2"
+	if [[ $scope == global ]]; then
+		if ! systemctl --global is-enabled --quiet "$unit"; then
+			fail "global systemd unit $unit is not enabled"
+		fi
+		return
+	fi
+	if ! systemctl is-enabled --quiet "$unit"; then
+		fail "systemd unit $unit is not enabled"
+	fi
 }
 
 echo "==> Source-built hyprwm binaries"
 for path in "${SOURCE_BUILT_HYPRWM_EXECUTABLES[@]}"; do
-    want_exec "$path"
+	want_exec "$path"
 done
 
 echo "==> Source-built non-hyprwm binaries"
 for path in "${SOURCE_BUILT_AUX_EXECUTABLES[@]}"; do
-    want_exec "$path"
+	want_exec "$path"
 done
 
 echo "==> Elephant provider plugins"
 if ! compgen -G '/etc/xdg/elephant/providers/*.so' >/dev/null; then
-    fail "/etc/xdg/elephant/providers/ has no .so plugins"
+	fail "/etc/xdg/elephant/providers/ has no .so plugins"
 fi
 
 echo "==> Walker system config"
@@ -116,13 +116,13 @@ want_dir_real /etc/xdg/walker/themes/default
 
 echo "==> JetBrainsMono Nerd Font"
 if ! compgen -G '/usr/share/fonts/jetbrains-mono-nerd/*.ttf' >/dev/null; then
-    fail "/usr/share/fonts/jetbrains-mono-nerd/ has no .ttf files"
+	fail "/usr/share/fonts/jetbrains-mono-nerd/ has no .ttf files"
 fi
 want_file /etc/fonts/conf.d/80-atomic-hyprland-monospace.conf
 
 echo "==> Packaged desktop apps"
 for path in "${PACKAGED_DESKTOP_EXECUTABLES[@]}"; do
-    want_exec "$path"
+	want_exec "$path"
 done
 
 echo "==> Firefox removed"
@@ -138,15 +138,15 @@ want_file "$SKEL/logo.txt"
 
 echo "==> Stripped omarchy install/pkg scripts"
 for glob in "$SKEL/bin/omarchy-install-*" "$SKEL/bin/omarchy-pkg-*" \
-    "$SKEL/bin/omarchy-webapp-*" "$SKEL/bin/omarchy-tui-*" \
-    "$SKEL/bin/omarchy-windows-*" \
-    "$SKEL/bin/omarchy-refresh-pacman" \
-    "$SKEL/bin/omarchy-channel-set" \
-    "$SKEL/bin/omarchy-update-system-pkgs" \
-    "$SKEL/bin/omarchy-update-aur-pkgs" \
-    "$SKEL/bin/omarchy-update-keyring" \
-    "$SKEL/bin/omarchy-version-channel"; do
-    want_absent "$glob"
+	"$SKEL/bin/omarchy-webapp-*" "$SKEL/bin/omarchy-tui-*" \
+	"$SKEL/bin/omarchy-windows-*" \
+	"$SKEL/bin/omarchy-refresh-pacman" \
+	"$SKEL/bin/omarchy-channel-set" \
+	"$SKEL/bin/omarchy-update-system-pkgs" \
+	"$SKEL/bin/omarchy-update-aur-pkgs" \
+	"$SKEL/bin/omarchy-update-keyring" \
+	"$SKEL/bin/omarchy-version-channel"; do
+	want_absent "$glob"
 done
 
 echo "==> Omarchy-menu Install entry sed-stripped"
@@ -163,9 +163,9 @@ want_file /etc/skel/.config/omarchy/current/theme.name
 want_grep '^tokyo-night$' /etc/skel/.config/omarchy/current/theme.name
 # current/background is a relative symlink into theme/backgrounds/; resolve it.
 if [[ ! -L /etc/skel/.config/omarchy/current/background ]]; then
-    fail "/etc/skel/.config/omarchy/current/background is not a symlink"
+	fail "/etc/skel/.config/omarchy/current/background is not a symlink"
 elif [[ ! -e /etc/skel/.config/omarchy/current/background ]]; then
-    fail "/etc/skel/.config/omarchy/current/background symlink is broken"
+	fail "/etc/skel/.config/omarchy/current/background symlink is broken"
 fi
 
 echo "==> Ghostty is the xdg-terminal-exec default"
@@ -203,23 +203,23 @@ want_dir_real /usr/share/plymouth/themes/omarchy
 echo "==> Version metadata"
 want_file /usr/share/atomic-hyprland/versions.env
 for var_name in "${VERSION_METADATA_VARS[@]}"; do
-    want_line "${var_name}=${!var_name}" /usr/share/atomic-hyprland/versions.env
+	want_line "${var_name}=${!var_name}" /usr/share/atomic-hyprland/versions.env
 done
 want_grep '^OMARCHY_COMMIT=[0-9a-f]{40}$' /usr/share/atomic-hyprland/versions.env
 
 echo "==> Systemd units enabled"
 for unit in "${SYSTEM_UNITS[@]}"; do
-    want_unit_enabled system "$unit"
+	want_unit_enabled system "$unit"
 done
 
 echo "==> Global systemd units enabled"
 for unit in "${GLOBAL_UNITS[@]}"; do
-    want_unit_enabled global "$unit"
+	want_unit_enabled global "$unit"
 done
 
 echo
-if (( fail_count > 0 )); then
-    echo "verify.sh: $fail_count assertion(s) failed" >&2
-    exit 1
+if ((fail_count > 0)); then
+	echo "verify.sh: $fail_count assertion(s) failed" >&2
+	exit 1
 fi
 echo "verify.sh: all assertions passed"

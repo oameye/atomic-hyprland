@@ -1,5 +1,5 @@
 export image_name := env("IMAGE_NAME", "atomic-hyprland")
-export default_tag := env("DEFAULT_TAG", "43")
+export default_tag := env("DEFAULT_TAG", `bash -lc 'source build_files/pins.sh && printf %s "$FEDORA_VERSION"'`)
 
 [private]
 default:
@@ -58,6 +58,13 @@ lint:
     fi
     /usr/bin/find . -iname "*.sh" -type f -exec shellcheck "{}" ';'
 
+# Check that build inputs stay centralized and sync fallbacks with pins.
+[group('Check')]
+check-config:
+    #!/usr/bin/env bash
+    set -eou pipefail
+    bash build_files/check-config.sh
+
 # Re-run build_files/verify.sh inside an already-built image. Usage: just verify [tag]
 [group('Check')]
 verify $tag=default_tag:
@@ -78,3 +85,14 @@ format:
         exit 1
     fi
     /usr/bin/find . -iname "*.sh" -type f -exec shfmt --write "{}" ';'
+
+# Check shfmt formatting without modifying files.
+[group('Check')]
+format-check:
+    #!/usr/bin/env bash
+    set -eou pipefail
+    if ! command -v shfmt &> /dev/null; then
+        echo "shfmt not found. Install it (e.g. brew install shfmt)."
+        exit 1
+    fi
+    /usr/bin/find . -iname "*.sh" -type f -exec shfmt -d "{}" ';'

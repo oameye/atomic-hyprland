@@ -129,6 +129,37 @@ curl -fsSL "https://github.com/Satty-org/Satty/releases/download/${SATTY_TAG}/${
 tar -xzf /tmp/satty.tar.gz -C /tmp/satty-release
 install -Dm0755 /tmp/satty-release/satty /usr/bin/satty
 
+# gum — upstream publishes RPM release artifacts plus checksums.txt. Fedora 43
+# currently lags our pin, so use the pinned upstream GitHub release instead of
+# the Fedora package.
+case "$(uname -m)" in
+	x86_64) GUM_RPM_ARCH="x86_64" ;;
+	aarch64) GUM_RPM_ARCH="aarch64" ;;
+	*) echo "Unsupported gum architecture: $(uname -m)" >&2; exit 1 ;;
+esac
+GUM_VERSION="${GUM_TAG#v}"
+GUM_RPM="gum-${GUM_VERSION}-1.${GUM_RPM_ARCH}.rpm"
+curl -fsSL "https://github.com/charmbracelet/gum/releases/download/${GUM_TAG}/checksums.txt" \
+	-o /tmp/gum-checksums.txt
+curl -fsSL "https://github.com/charmbracelet/gum/releases/download/${GUM_TAG}/${GUM_RPM}" \
+	-o "/tmp/${GUM_RPM}"
+(
+	cd /tmp
+	grep " ${GUM_RPM}$" gum-checksums.txt | sha256sum --check
+)
+dnf5 -y install --setopt=install_weak_deps=False "/tmp/${GUM_RPM}"
+
+# cliphist — upstream documents static binaries on the release page. The
+# discoverable v0.7.0 asset is x86_64-only, so this intentionally fails on
+# other architectures instead of silently falling back to a source build.
+case "$(uname -m)" in
+	x86_64) CLIPHIST_ASSET="${CLIPHIST_TAG}-linux-amd64" ;;
+	*) echo "Unsupported cliphist architecture: $(uname -m); upstream static asset is x86_64-only" >&2; exit 1 ;;
+esac
+curl -fsSL "https://github.com/sentriz/cliphist/releases/download/${CLIPHIST_TAG}/${CLIPHIST_ASSET}" \
+	-o /tmp/cliphist
+install -Dm0755 /tmp/cliphist /usr/bin/cliphist
+
 # tte (terminaltexteffects) — Python 3 CLI used by omarchy-launch-screensaver.
 # Not packaged for Fedora; install from PyPI system-wide into /usr. Because we
 # own the distribution we can safely use --break-system-packages here.

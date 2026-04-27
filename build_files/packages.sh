@@ -88,6 +88,20 @@ echo "$(cat /tmp/starship.tar.gz.sha256) /tmp/starship.tar.gz" | sha256sum --che
 tar -xzf /tmp/starship.tar.gz -C /tmp
 install -Dm0755 /tmp/starship /usr/bin/starship
 
+# Impala Wi-Fi TUI — upstream publishes pinned musl release binaries for x86_64
+# and aarch64. The release currently does not publish adjacent .sha256 files,
+# so this draft PR validates asset naming/runtime first before deciding whether
+# to add explicit per-version SHA256 pins.
+case "$(uname -m)" in
+	x86_64) IMPALA_ARCH="x86_64" ;;
+	aarch64) IMPALA_ARCH="aarch64" ;;
+	*) echo "Unsupported Impala architecture: $(uname -m)" >&2; exit 1 ;;
+esac
+IMPALA_ASSET="impala-${IMPALA_ARCH}-unknown-linux-musl"
+curl -fsSL "https://github.com/pythops/impala/releases/download/${IMPALA_TAG}/${IMPALA_ASSET}" \
+	-o /tmp/impala
+install -Dm0755 /tmp/impala /usr/bin/impala
+
 # tte (terminaltexteffects) — Python 3 CLI used by omarchy-launch-screensaver.
 # Not packaged for Fedora; install from PyPI system-wide into /usr. Because we
 # own the distribution we can safely use --break-system-packages here.

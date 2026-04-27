@@ -2,51 +2,54 @@
 # usable in a downstream FROM. Re-declare in stages that reference it.
 ARG FEDORA_VERSION=43
 
-# Keep build scripts out of the final image by referencing them via bind
-# mounts from scratch context stages (pattern from ublue-os/image-template).
-# The expensive source-build layer gets a narrow context so unrelated changes
-# in build_files/ do not invalidate its cache.
 FROM scratch AS source_ctx
-COPY build_files/source-builds.sh /
+COPY build_files/source-build*.sh /
 COPY build_files/pins.sh /
 COPY build_files/repos.sh /
 
-# Keep the full build_files/ context for the later package/system layer.
 FROM scratch AS build_ctx
 COPY build_files /
 
-# Base image
 FROM ghcr.io/ublue-os/base-main:${FEDORA_VERSION}
 
-# Layer 1 - repos + source builds.
-# Keep this ahead of filesystem overlays and floating upstream COPY sources so
-# unrelated changes do not invalidate the expensive compile layer.
+# Source build layers (cacheable, split)
 RUN --mount=type=bind,from=source_ctx,source=/,target=/ctx \
     --mount=type=cache,dst=/var/cache \
     --mount=type=cache,dst=/var/log \
     --mount=type=tmpfs,dst=/tmp \
-    /ctx/source-builds.sh
+    /ctx/source-build-setup.sh
 
-# System-file overlay (systemd units, dx-groups helper, SDDM confs, etc.)
+RUN --mount=type=bind,from=source_ctx,source=/,target=/ctx \
+    --mount=type=cache,dst=/var/cache \
+    --mount=type=cache,dst=/var/log \
+    --mount=type=tmpfs,dst=/tmp \
+    /ctx/source-build-core.sh
+
+RUN --mount=type=bind,from=source_ctx,source=/,target=/ctx \
+    --mount=type=cache,dst=/var/cache \
+    --mount=type=cache,dst=/var/log \
+    --mount=type=tmpfs,dst=/tmp \
+    /ctx/source-build-hyprland.sh
+
+RUN --mount=type=bind,from=source_ctx,source=/,target=/ctx \
+    --mount=type=cache,dst=/var/cache \
+    --mount=type=cache,dst=/var/log \
+    --mount=type=tmpfs,dst=/tmp \
+    /ctx/source-build-tools.sh
+
+RUN --mount=type=bind,from=source_ctx,source=/,target=/ctx \
+    --mount=type=cache,dst=/var/cache \
+    --mount=type=cache,dst=/var/log \
+    --mount=type=tmpfs,dst=/tmp \
+    /ctx/source-build-cleanup.sh
+
+# System overlay + brew + bling
 COPY files/ /
-
-# Homebrew: base-main does NOT ship brew. Pull the tarball + systemd units
-# from ublue-os/brew (the canonical pattern, used by Bluefin/Aurora). The
-# brew-setup oneshot extracts the tarball into /var/home/linuxbrew on first
-# boot; /etc/profile.d/brew.sh adds brew to PATH for interactive shells.
 COPY --from=ghcr.io/ublue-os/brew:latest /system_files /
-
-# Bling: opt-in shell init that auto-aliases brew-installed CLI tools
-# (eza->ls/ll, bat->cat, ug->grep, starship/zoxide/mise/direnv hooks).
-# User sources /usr/share/ublue-os/bling/bling.sh from ~/.bashrc / ~/.zshrc
-# (or bling.fish for fish). Does nothing if the underlying tools are
-# absent. Copied straight from the bluefin image since there is no
-# separate OCI image or RPM for it.
 COPY --from=ghcr.io/ublue-os/bluefin:stable \
     /usr/share/ublue-os/bling /usr/share/ublue-os/bling
 
-# Layer 2 - packages, desktop, systemd, cleanup.
-# Inherits repos from Layer 1; rebuilds on every package-list or rice change.
+# Layer 2 - system config
 RUN --mount=type=bind,from=build_ctx,source=/,target=/ctx \
     --mount=type=cache,dst=/var/cache \
     --mount=type=cache,dst=/var/log \
@@ -57,5 +60,4 @@ RUN --mount=type=bind,from=build_ctx,source=/,target=/ctx \
  && /usr/bin/systemctl preset brew-upgrade.timer \
  && ostree container commit
 
-# Validate the final image against bootc expectations.
 RUN bootc container lint

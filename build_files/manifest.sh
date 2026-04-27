@@ -20,10 +20,8 @@ SOURCE_BUILT_HYPRWM_EXECUTABLES=(
 )
 
 SOURCE_BUILT_AUX_EXECUTABLES=(
-	/usr/bin/satty
 	/usr/bin/walker
 	/usr/bin/wiremix
-	/usr/bin/bluetui
 	/usr/bin/hyprland-preview-share-picker
 	/usr/bin/cliphist
 	/usr/bin/elephant
@@ -43,6 +41,8 @@ PACKAGED_DESKTOP_EXECUTABLES=(
 	/usr/bin/uupd
 	/usr/bin/starship
 	/usr/bin/impala
+	/usr/bin/bluetui
+	/usr/bin/satty
 	# swayosd COPR ships swayosd-server + swayosd-client, no bare 'swayosd'.
 	/usr/bin/swayosd-server
 	/usr/bin/swayosd-client

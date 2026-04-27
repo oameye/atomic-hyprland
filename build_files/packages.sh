@@ -42,7 +42,7 @@ PACKAGES=(
 	xdg-user-dirs xdg-utils libnotify inxi
 	dbus-tools bc jq nano rsync unzip wget2
 	python3-requests python3-pyquery python3-pip
-	btop fastfetch starship
+	btop fastfetch
 	gnome-keyring libsecret
 
 	# Developer tooling
@@ -70,6 +70,11 @@ dnf5 -y install --setopt=install_weak_deps=False "${PACKAGES[@]}"
 
 dnf5 -y install --setopt=install_weak_deps=False --enablerepo=docker-ce-stable \
 	docker-ce docker-ce-cli docker-compose-plugin docker-buildx-plugin containerd.io
+
+# starship: upstream recommends the atim/starship COPR for Fedora 40+.
+# Install it through the same isolated COPR helper used for other third-party
+# RPMs so the repo file does not survive in the final image.
+copr_install_isolated "atim/starship" "starship"
 
 # tte (terminaltexteffects) — Python 3 CLI used by omarchy-launch-screensaver.
 # Not packaged for Fedora; install from PyPI system-wide into /usr. Because we

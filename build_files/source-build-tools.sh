@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Build satellite tools (cargo, go, misc utilities, fonts).
+# Build satellite tools (cargo, go, meson, scripts, fonts).
 set -euo pipefail
 
 DIR="$(dirname "$0")"
@@ -29,9 +29,50 @@ install -Dm755 \
 	"${BUILD_WORK}/hyprland-preview-share-picker/target/release/hyprland-preview-share-picker" \
 	/usr/bin/hyprland-preview-share-picker
 
+git clone --depth 1 --branch "${WALKER_TAG}" \
+	https://github.com/abenz1267/walker.git "${BUILD_WORK}/walker"
+cargo build --release --manifest-path "${BUILD_WORK}/walker/Cargo.toml"
+install -Dm755 "${BUILD_WORK}/walker/target/release/walker" /usr/bin/walker
+install -Dm644 "${BUILD_WORK}/walker/LICENSE" /usr/share/licenses/walker/LICENSE
+install -Dm644 "${BUILD_WORK}/walker/resources/config.toml" /etc/xdg/walker/config.toml
+install -d /etc/xdg/walker/themes/default
+cp -r "${BUILD_WORK}/walker/resources/themes/default/." /etc/xdg/walker/themes/default/
+
+# Shell/script tools
+git clone --depth 1 --branch "${HYPRSHOT_TAG}" \
+	https://github.com/Gustash/Hyprshot.git "${BUILD_WORK}/hyprshot"
+install -Dm755 "${BUILD_WORK}/hyprshot/hyprshot" /usr/bin/hyprshot
+
 # Go tools
 git clone --depth 1 --branch "${ELEPHANT_TAG}" https://github.com/abenz1267/elephant.git "${BUILD_WORK}/elephant"
 go build -C "${BUILD_WORK}/elephant/cmd/elephant" -buildvcs=false -trimpath -o /usr/bin/elephant .
+install -Dm644 "${BUILD_WORK}/elephant/LICENSE" /usr/share/licenses/elephant/LICENSE
+
+for provider_dir in "${BUILD_WORK}/elephant/internal/providers/"*/; do
+	[[ -f "${provider_dir}makefile" ]] || continue
+	name="$(basename "${provider_dir}")"
+	(
+		cd "${provider_dir}"
+		go build -buildvcs=false -buildmode=plugin -trimpath -o "${name}.so" .
+	)
+	install -Dm755 "${provider_dir}${name}.so" "/etc/xdg/elephant/providers/${name}.so"
+done
+
+# Meson tools
+git clone --depth 1 --branch "${UWSM_TAG}" \
+	https://github.com/Vladimir-csp/uwsm.git "${BUILD_WORK}/uwsm"
+meson setup "${BUILD_WORK}/uwsm/build" "${BUILD_WORK}/uwsm" \
+	--prefix=/usr \
+	-Duwsm-app=enabled
+meson install -C "${BUILD_WORK}/uwsm/build"
+
+# xdg-terminal-exec is Omarchy's default terminal selector.
+git clone --depth 1 --branch "${XDG_TERMINAL_EXEC_TAG}" \
+	https://github.com/Vladimir-csp/xdg-terminal-exec.git "${BUILD_WORK}/xdg-terminal-exec"
+install -Dm755 "${BUILD_WORK}/xdg-terminal-exec/xdg-terminal-exec" \
+	/usr/bin/xdg-terminal-exec
+install -Dm644 "${BUILD_WORK}/xdg-terminal-exec/xdg-terminals.list" \
+	/usr/share/xdg-terminal-exec/xdg-terminals.list
 
 # Fonts
 install -d /usr/share/fonts/jetbrains-mono-nerd

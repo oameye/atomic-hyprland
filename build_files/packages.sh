@@ -42,7 +42,7 @@ PACKAGES=(
 	xdg-user-dirs xdg-utils libnotify inxi
 	dbus-tools bc jq nano rsync unzip wget2
 	python3-requests python3-pyquery python3-pip
-	btop fastfetch
+	btop fastfetch starship
 	gnome-keyring libsecret
 
 	# Developer tooling

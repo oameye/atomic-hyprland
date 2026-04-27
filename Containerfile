@@ -12,31 +12,36 @@ COPY build_files /
 
 FROM ghcr.io/ublue-os/base-main:${FEDORA_VERSION}
 
-# Source build layers (cacheable, split)
+# Source build layers are intentionally split for remote layer-cache reuse.
+# hadolint ignore=DL3059
 RUN --mount=type=bind,from=source_ctx,source=/,target=/ctx \
     --mount=type=cache,dst=/var/cache \
     --mount=type=cache,dst=/var/log \
     --mount=type=tmpfs,dst=/tmp \
     /ctx/source-build-setup.sh
 
+# hadolint ignore=DL3059
 RUN --mount=type=bind,from=source_ctx,source=/,target=/ctx \
     --mount=type=cache,dst=/var/cache \
     --mount=type=cache,dst=/var/log \
     --mount=type=tmpfs,dst=/tmp \
     /ctx/source-build-core.sh
 
+# hadolint ignore=DL3059
 RUN --mount=type=bind,from=source_ctx,source=/,target=/ctx \
     --mount=type=cache,dst=/var/cache \
     --mount=type=cache,dst=/var/log \
     --mount=type=tmpfs,dst=/tmp \
     /ctx/source-build-hyprland.sh
 
+# hadolint ignore=DL3059
 RUN --mount=type=bind,from=source_ctx,source=/,target=/ctx \
     --mount=type=cache,dst=/var/cache \
     --mount=type=cache,dst=/var/log \
     --mount=type=tmpfs,dst=/tmp \
     /ctx/source-build-tools.sh
 
+# hadolint ignore=DL3059
 RUN --mount=type=bind,from=source_ctx,source=/,target=/ctx \
     --mount=type=cache,dst=/var/cache \
     --mount=type=cache,dst=/var/log \

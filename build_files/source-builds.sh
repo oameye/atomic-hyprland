@@ -30,7 +30,7 @@ BUILD_DEPS=(
 	libxcb-devel xcb-util-wm-devel xcb-util-errors-devel libXcursor-devel
 	protobuf-compiler
 	sdbus-cpp-devel pam-devel pipewire-devel
-	# Rust/Cargo (satty, walker, wiremix, bluetui, impala, starship) — removed
+	# Rust/Cargo (satty, walker, wiremix, bluetui, impala, hyprland-preview-share-picker) — removed
 	# after builds
 	rust cargo lz4-devel
 	# satty requires GTK4 + libadwaita + epoxy; walker requires gtk4-layer-shell + poppler-glib
@@ -181,8 +181,6 @@ cargo_install bluetui "${BLUETUI_TAG}" https://github.com/pythops/bluetui.git \
 	bluetui
 cargo_install impala "${IMPALA_TAG}" https://github.com/pythops/impala.git \
 	impala
-cargo_install starship "${STARSHIP_TAG}" https://github.com/starship/starship.git \
-	starship
 git clone --depth 1 --branch "${HYPRLAND_PREVIEW_SHARE_PICKER_TAG}" \
 	--recurse-submodules \
 	https://github.com/WhySoBad/hyprland-preview-share-picker.git \

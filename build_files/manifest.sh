@@ -23,9 +23,7 @@ SOURCE_BUILT_AUX_EXECUTABLES=(
 	/usr/bin/walker
 	/usr/bin/wiremix
 	/usr/bin/hyprland-preview-share-picker
-	/usr/bin/cliphist
 	/usr/bin/elephant
-	/usr/bin/gum
 	/usr/bin/hyprshot
 	/usr/bin/uwsm
 	/usr/bin/xdg-terminal-exec
@@ -43,6 +41,8 @@ PACKAGED_DESKTOP_EXECUTABLES=(
 	/usr/bin/impala
 	/usr/bin/bluetui
 	/usr/bin/satty
+	/usr/bin/gum
+	/usr/bin/cliphist
 	# swayosd COPR ships swayosd-server + swayosd-client, no bare 'swayosd'.
 	/usr/bin/swayosd-server
 	/usr/bin/swayosd-client

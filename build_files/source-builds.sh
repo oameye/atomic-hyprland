@@ -4,7 +4,6 @@ set -euo pipefail
 
 DIR="$(dirname "$0")"
 source "${DIR}/pins.sh"
-source "${DIR}/repos.sh"
 
 BUILD_DEPS=(
 	# Toolchain - removed after builds
@@ -44,6 +43,7 @@ BUILD_DEPS=(
 BUILD_TOOLCHAIN=(cmake meson rust cargo golang scdoc clang-devel qt6-qtbase-devel qt6-qtdeclarative-devel)
 
 source_build_setup() {
+	source "${DIR}/repos.sh"
 	dnf5 -y install --setopt=install_weak_deps=False "${BUILD_DEPS[@]}"
 }
 

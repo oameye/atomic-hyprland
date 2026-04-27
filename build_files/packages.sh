@@ -71,10 +71,22 @@ dnf5 -y install --setopt=install_weak_deps=False "${PACKAGES[@]}"
 dnf5 -y install --setopt=install_weak_deps=False --enablerepo=docker-ce-stable \
 	docker-ce docker-ce-cli docker-compose-plugin docker-buildx-plugin containerd.io
 
-# starship: upstream recommends the atim/starship COPR for Fedora 40+.
-# Install it through the same isolated COPR helper used for other third-party
-# RPMs so the repo file does not survive in the final image.
-copr_install_isolated "atim/starship" "starship"
+# Starship shell prompt — avoid a costly Cargo build by installing the pinned
+# upstream release binary, following the Universal Blue/Aurora pattern but using
+# our STARSHIP_TAG instead of releases/latest for reproducibility.
+case "$(uname -m)" in
+	x86_64) STARSHIP_ARCH="x86_64" ;;
+	aarch64) STARSHIP_ARCH="aarch64" ;;
+	*) echo "Unsupported Starship architecture: $(uname -m)" >&2; exit 1 ;;
+esac
+STARSHIP_ASSET="starship-${STARSHIP_ARCH}-unknown-linux-gnu.tar.gz"
+curl -fsSL "https://github.com/starship/starship/releases/download/${STARSHIP_TAG}/${STARSHIP_ASSET}" \
+	-o /tmp/starship.tar.gz
+curl -fsSL "https://github.com/starship/starship/releases/download/${STARSHIP_TAG}/${STARSHIP_ASSET}.sha256" \
+	-o /tmp/starship.tar.gz.sha256
+echo "$(cat /tmp/starship.tar.gz.sha256) /tmp/starship.tar.gz" | sha256sum --check
+tar -xzf /tmp/starship.tar.gz -C /tmp
+install -Dm0755 /tmp/starship /usr/bin/starship
 
 # tte (terminaltexteffects) — Python 3 CLI used by omarchy-launch-screensaver.
 # Not packaged for Fedora; install from PyPI system-wide into /usr. Because we

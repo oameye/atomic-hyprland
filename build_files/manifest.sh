@@ -25,7 +25,6 @@ SOURCE_BUILT_AUX_EXECUTABLES=(
 	/usr/bin/wiremix
 	/usr/bin/bluetui
 	/usr/bin/impala
-	/usr/bin/starship
 	/usr/bin/hyprland-preview-share-picker
 	/usr/bin/cliphist
 	/usr/bin/elephant
@@ -43,6 +42,7 @@ PACKAGED_DESKTOP_EXECUTABLES=(
 	/usr/bin/code
 	/usr/bin/bazaar
 	/usr/bin/uupd
+	/usr/bin/starship
 	# swayosd COPR ships swayosd-server + swayosd-client, no bare 'swayosd'.
 	/usr/bin/swayosd-server
 	/usr/bin/swayosd-client

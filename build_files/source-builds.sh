@@ -1,18 +1,13 @@
 #!/usr/bin/env bash
-# Layer 1 of 2 — repos + source builds.
-# Runs before the package install layer so its output is cached independently.
-# Changes here (tag bumps, new source-built tools) invalidate only this layer.
+# Source-build helpers shared by the cached source-build layers.
 set -euo pipefail
 
 DIR="$(dirname "$0")"
-
 source "${DIR}/pins.sh"
-
-# ── Repos ────────────────────────────────────────────────────────────
 source "${DIR}/repos.sh"
 
 BUILD_DEPS=(
-	# Toolchain — removed after builds
+	# Toolchain - removed after builds
 	cmake meson
 	# Wayland / graphics stack
 	wayland-devel wayland-protocols-devel libxkbcommon-devel
@@ -30,16 +25,16 @@ BUILD_DEPS=(
 	libxcb-devel xcb-util-wm-devel xcb-util-errors-devel libXcursor-devel
 	protobuf-compiler
 	sdbus-cpp-devel pam-devel pipewire-devel
-	# Rust/Cargo (walker, wiremix, hyprland-preview-share-picker) — removed
+	# Rust/Cargo (walker, wiremix, hyprland-preview-share-picker) - removed
 	# after builds
 	rust cargo lz4-devel
 	# walker requires gtk4-layer-shell + poppler-glib
 	gtk4-devel gtk4-layer-shell-devel poppler-glib-devel
-	# Go (elephant + providers) — removed after builds
+	# Go (elephant + providers) - removed after builds
 	golang
 	# uwsm man pages
 	scdoc
-	# Qt6 (hyprland-qt-support, hyprpolkitagent) — removed after builds
+	# Qt6 (hyprland-qt-support, hyprpolkitagent) - removed after builds
 	qt6-qtbase-devel qt6-qtdeclarative-devel
 	polkit-devel polkit-qt6-1-devel
 )
@@ -48,16 +43,29 @@ BUILD_DEPS=(
 # strip the pure toolchain executables.
 BUILD_TOOLCHAIN=(cmake meson rust cargo golang scdoc clang-devel qt6-qtbase-devel qt6-qtdeclarative-devel)
 
-dnf5 -y install --setopt=install_weak_deps=False "${BUILD_DEPS[@]}"
+source_build_setup() {
+	dnf5 -y install --setopt=install_weak_deps=False "${BUILD_DEPS[@]}"
+}
 
-BUILD_WORK="$(mktemp -d)"
+source_build_cleanup() {
+	dnf5 -y remove --no-autoremove "${BUILD_TOOLCHAIN[@]}"
+}
 
-# Redirect cargo/go caches into the ephemeral build dir.
-# /root is a dangling symlink in bootc/ostree images, so the default $HOME/.cargo fails.
-export CARGO_HOME="${BUILD_WORK}/.cargo"
-export RUSTUP_HOME="${BUILD_WORK}/.rustup"
-export GOPATH="${BUILD_WORK}/go"
-export GOCACHE="${BUILD_WORK}/.gocache"
+source_build_init_workdir() {
+	BUILD_WORK="$(mktemp -d)"
+	export BUILD_WORK
+
+	# Redirect cargo/go caches into the ephemeral build dir.
+	# /root is a dangling symlink in bootc/ostree images, so the default $HOME/.cargo fails.
+	export CARGO_HOME="${BUILD_WORK}/.cargo"
+	export RUSTUP_HOME="${BUILD_WORK}/.rustup"
+	export GOPATH="${BUILD_WORK}/go"
+	export GOCACHE="${BUILD_WORK}/.gocache"
+}
+
+source_build_free_workdir() {
+	rm -rf "${BUILD_WORK}"
+}
 
 cmake_build_install() {
 	local name="$1" tag="$2"
@@ -88,165 +96,3 @@ cargo_install() {
 		install -Dm755 "${BUILD_WORK}/${name}/target/release/${bin}" "/usr/bin/${bin}"
 	done
 }
-
-# ── hyprwm core libs ────────────────────────────────────────────────
-cmake_build_install hyprwayland-scanner "${HYPRWAYLAND_SCANNER_TAG}" \
-	https://github.com/hyprwm/hyprwayland-scanner.git
-
-cmake_build_install hyprutils "${HYPRUTILS_TAG}" \
-	https://github.com/hyprwm/hyprutils.git \
-	-DBUILD_TESTING=OFF
-
-cmake_build_install hyprlang "${HYPRLANG_TAG}" \
-	https://github.com/hyprwm/hyprlang.git \
-	-DBUILD_TESTING=OFF
-
-cmake_build_install hyprcursor "${HYPRCURSOR_TAG}" \
-	https://github.com/hyprwm/hyprcursor.git
-
-cmake_build_install hyprgraphics "${HYPRGRAPHICS_TAG}" \
-	https://github.com/hyprwm/hyprgraphics.git \
-	-DBUILD_TESTING=OFF
-
-# Fedora's hwdata package omits the pkg-config file that aquamarine looks up.
-cat >/usr/lib64/pkgconfig/hwdata.pc <<'HWDATA_PC'
-prefix=/usr
-datarootdir=${prefix}/share
-pkgdatadir=${datarootdir}/hwdata
-
-Name: hwdata
-Description: hwdata
-Version: 0
-HWDATA_PC
-cmake_build_install aquamarine "${AQUAMARINE_TAG}" \
-	https://github.com/hyprwm/aquamarine.git \
-	-DBUILD_TESTING=OFF
-
-# hyprland-protocols uses meson, not cmake.
-git clone --depth 1 --branch "${HYPRLAND_PROTOCOLS_TAG}" \
-	https://github.com/hyprwm/hyprland-protocols.git "${BUILD_WORK}/hyprland-protocols"
-meson setup "${BUILD_WORK}/hyprland-protocols/build" "${BUILD_WORK}/hyprland-protocols" \
-	--prefix=/usr
-meson install -C "${BUILD_WORK}/hyprland-protocols/build"
-
-cmake_build_install hyprwire "${HYPRWIRE_TAG}" \
-	https://github.com/hyprwm/hyprwire.git \
-	-DBUILD_TESTING=OFF
-
-cmake_build_install glaze "${GLAZE_TAG}" \
-	https://github.com/stephenberry/glaze.git \
-	-Dglaze_DEVELOPER_MODE=OFF
-
-# ── compositor ──────────────────────────────────────────────────────
-# --recurse-submodules pulls bundled udis86 and hyprland-protocols fallbacks.
-cmake_build_install hyprland "${HYPRLAND_TAG}" \
-	--recurse-submodules \
-	https://github.com/hyprwm/Hyprland.git \
-	-DBUILD_TESTING=OFF
-
-# ── toolkit ─────────────────────────────────────────────────────────
-cmake_build_install hyprtoolkit "${HYPRTOOLKIT_TAG}" \
-	https://github.com/hyprwm/hyprtoolkit.git
-
-cmake_build_install hyprland-guiutils "${HYPR_GUIUTILS_TAG}" \
-	https://github.com/hyprwm/hyprland-guiutils.git
-
-# ── satellite tools ─────────────────────────────────────────────────
-cmake_build_install hyprlock "${HYPRLOCK_TAG}" \
-	https://github.com/hyprwm/hyprlock.git
-cmake_build_install hypridle "${HYPRIDLE_TAG}" \
-	https://github.com/hyprwm/hypridle.git
-cmake_build_install hyprpicker "${HYPRPICKER_TAG}" \
-	https://github.com/hyprwm/hyprpicker.git
-cmake_build_install hyprsunset "${HYPRSUNSET_TAG}" \
-	https://github.com/hyprwm/hyprsunset.git
-cmake_build_install xdg-desktop-portal-hyprland "${XDP_HYPRLAND_TAG}" \
-	https://github.com/hyprwm/xdg-desktop-portal-hyprland.git
-
-# ── Qt6 components ──────────────────────────────────────────────────
-# INSTALL_QML_PREFIX matches Fedora's Qt6 QML path.
-cmake_build_install hyprland-qt-support "${HYPR_QT_SUPPORT_TAG}" \
-	https://github.com/hyprwm/hyprland-qt-support.git \
-	-DINSTALL_QML_PREFIX=/lib64/qt6/qml
-
-cmake_build_install hyprpolkitagent "${HYPR_POLKITAGENT_TAG}" \
-	https://github.com/hyprwm/hyprpolkitagent.git
-
-# ── non-hyprwm tools (Cargo) ────────────────────────────────────────
-cargo_install wiremix "${WIREMIX_TAG}" https://github.com/tsowell/wiremix.git \
-	wiremix
-git clone --depth 1 --branch "${HYPRLAND_PREVIEW_SHARE_PICKER_TAG}" \
-	--recurse-submodules \
-	https://github.com/WhySoBad/hyprland-preview-share-picker.git \
-	"${BUILD_WORK}/hyprland-preview-share-picker"
-cargo build --release \
-	--manifest-path "${BUILD_WORK}/hyprland-preview-share-picker/Cargo.toml"
-install -Dm755 \
-	"${BUILD_WORK}/hyprland-preview-share-picker/target/release/hyprland-preview-share-picker" \
-	/usr/bin/hyprland-preview-share-picker
-git clone --depth 1 --branch "${WALKER_TAG}" \
-	https://github.com/abenz1267/walker.git "${BUILD_WORK}/walker"
-cargo build --release --manifest-path "${BUILD_WORK}/walker/Cargo.toml"
-install -Dm755 "${BUILD_WORK}/walker/target/release/walker" /usr/bin/walker
-install -Dm644 "${BUILD_WORK}/walker/LICENSE" /usr/share/licenses/walker/LICENSE
-install -Dm644 "${BUILD_WORK}/walker/resources/config.toml" /etc/xdg/walker/config.toml
-install -d /etc/xdg/walker/themes/default
-cp -r "${BUILD_WORK}/walker/resources/themes/default/." /etc/xdg/walker/themes/default/
-
-# hyprshot is a single shell script — clone the pinned tag so git verifies integrity.
-git clone --depth 1 --branch "${HYPRSHOT_TAG}" \
-	https://github.com/Gustash/Hyprshot.git "${BUILD_WORK}/hyprshot"
-install -Dm755 "${BUILD_WORK}/hyprshot/hyprshot" /usr/bin/hyprshot
-
-# ── non-hyprwm tools (Go) ───────────────────────────────────────────
-git clone --depth 1 --branch "${ELEPHANT_TAG}" \
-	https://github.com/abenz1267/elephant.git "${BUILD_WORK}/elephant"
-go build -C "${BUILD_WORK}/elephant/cmd/elephant" -buildvcs=false -trimpath -o /usr/bin/elephant .
-install -Dm644 "${BUILD_WORK}/elephant/LICENSE" /usr/share/licenses/elephant/LICENSE
-# Providers are loaded as Go plugins (.so) from /etc/xdg/elephant/providers/.
-# Upstream's top-level makefile only builds the main binary; each provider
-# directory has its own makefile using -buildmode=plugin. Build them here
-# with the same toolchain so the Go plugin ABI matches /usr/bin/elephant —
-# any mismatch triggers "no plugin module data" at load time.
-for provider_dir in "${BUILD_WORK}/elephant/internal/providers/"*/; do
-	[[ -f "${provider_dir}makefile" ]] || continue
-	name="$(basename "${provider_dir}")"
-	(
-		cd "${provider_dir}"
-		go build -buildvcs=false -buildmode=plugin -trimpath -o "${name}.so" .
-	)
-	install -Dm755 "${provider_dir}${name}.so" \
-		"/etc/xdg/elephant/providers/${name}.so"
-done
-
-# ── non-hyprwm tools (meson) ────────────────────────────────────────
-git clone --depth 1 --branch "${UWSM_TAG}" \
-	https://github.com/Vladimir-csp/uwsm.git "${BUILD_WORK}/uwsm"
-meson setup "${BUILD_WORK}/uwsm/build" "${BUILD_WORK}/uwsm" \
-	--prefix=/usr \
-	-Duwsm-app=enabled
-meson install -C "${BUILD_WORK}/uwsm/build"
-
-# xdg-terminal-exec is Omarchy's default terminal selector.
-git clone --depth 1 --branch "${XDG_TERMINAL_EXEC_TAG}" \
-	https://github.com/Vladimir-csp/xdg-terminal-exec.git "${BUILD_WORK}/xdg-terminal-exec"
-install -Dm755 "${BUILD_WORK}/xdg-terminal-exec/xdg-terminal-exec" \
-	/usr/bin/xdg-terminal-exec
-install -Dm644 "${BUILD_WORK}/xdg-terminal-exec/xdg-terminals.list" \
-	/usr/share/xdg-terminal-exec/xdg-terminals.list
-
-# ── Fonts (upstream Nerd Fonts release) ─────────────────────────────
-# Omarchy's configs reference "JetBrainsMono Nerd Font". Fedora main
-# ships jetbrains-mono-fonts (non-nerd) and che/nerd-fonts only ships
-# symbols-only — neither provides the patched JetBrains Mono Nerd variant.
-# Pull the pre-patched release tarball from upstream, equivalent to
-# Arch's ttf-jetbrains-mono-nerd package.
-install -d /usr/share/fonts/jetbrains-mono-nerd
-curl -fsSL "https://github.com/ryanoasis/nerd-fonts/releases/download/${NERD_FONTS_TAG}/JetBrainsMono.tar.xz" |
-	tar -xJ -C /usr/share/fonts/jetbrains-mono-nerd
-fc-cache -f /usr/share/fonts/jetbrains-mono-nerd
-
-rm -rf "${BUILD_WORK}"
-dnf5 -y remove --no-autoremove "${BUILD_TOOLCHAIN[@]}"
-
-echo "Source builds complete."

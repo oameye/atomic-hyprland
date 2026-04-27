@@ -88,6 +88,47 @@ echo "$(cat /tmp/starship.tar.gz.sha256) /tmp/starship.tar.gz" | sha256sum --che
 tar -xzf /tmp/starship.tar.gz -C /tmp
 install -Dm0755 /tmp/starship /usr/bin/starship
 
+# Impala Wi-Fi TUI — upstream publishes pinned musl release binaries for x86_64
+# and aarch64. The release currently does not publish adjacent .sha256 files,
+# so this draft PR validates asset naming/runtime first before deciding whether
+# to add explicit per-version SHA256 pins.
+case "$(uname -m)" in
+	x86_64) IMPALA_ARCH="x86_64" ;;
+	aarch64) IMPALA_ARCH="aarch64" ;;
+	*) echo "Unsupported Impala architecture: $(uname -m)" >&2; exit 1 ;;
+esac
+IMPALA_ASSET="impala-${IMPALA_ARCH}-unknown-linux-musl"
+curl -fsSL "https://github.com/pythops/impala/releases/download/${IMPALA_TAG}/${IMPALA_ASSET}" \
+	-o /tmp/impala
+install -Dm0755 /tmp/impala /usr/bin/impala
+
+# Bluetui Bluetooth TUI — upstream publishes pinned musl release binaries for
+# x86_64 and aarch64. Like Impala, no adjacent .sha256 files are obvious in the
+# release workflow, so checksum pinning remains a follow-up before merge-ready.
+case "$(uname -m)" in
+	x86_64) BLUETUI_ARCH="x86_64" ;;
+	aarch64) BLUETUI_ARCH="aarch64" ;;
+	*) echo "Unsupported Bluetui architecture: $(uname -m)" >&2; exit 1 ;;
+esac
+BLUETUI_ASSET="bluetui-${BLUETUI_ARCH}-linux-musl"
+curl -fsSL "https://github.com/pythops/bluetui/releases/download/${BLUETUI_TAG}/${BLUETUI_ASSET}" \
+	-o /tmp/bluetui
+install -Dm0755 /tmp/bluetui /usr/bin/bluetui
+
+# Satty screenshot annotation — upstream publishes an x86_64 GNU tarball for
+# releases. This keeps the pinned version but currently only supports x86_64.
+case "$(uname -m)" in
+	x86_64) SATTY_TARGET="x86_64-unknown-linux-gnu" ;;
+	*) echo "Unsupported Satty architecture: $(uname -m); upstream release asset is x86_64-only" >&2; exit 1 ;;
+esac
+SATTY_ASSET="satty-${SATTY_TARGET}.tar.gz"
+rm -rf /tmp/satty-release
+mkdir -p /tmp/satty-release
+curl -fsSL "https://github.com/Satty-org/Satty/releases/download/${SATTY_TAG}/${SATTY_ASSET}" \
+	-o /tmp/satty.tar.gz
+tar -xzf /tmp/satty.tar.gz -C /tmp/satty-release
+install -Dm0755 /tmp/satty-release/satty /usr/bin/satty
+
 # tte (terminaltexteffects) — Python 3 CLI used by omarchy-launch-screensaver.
 # Not packaged for Fedora; install from PyPI system-wide into /usr. Because we
 # own the distribution we can safely use --break-system-packages here.

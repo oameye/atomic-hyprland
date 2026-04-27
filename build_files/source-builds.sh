@@ -30,11 +30,11 @@ BUILD_DEPS=(
 	libxcb-devel xcb-util-wm-devel xcb-util-errors-devel libXcursor-devel
 	protobuf-compiler
 	sdbus-cpp-devel pam-devel pipewire-devel
-	# Rust/Cargo (satty, walker, wiremix, bluetui, impala, hyprland-preview-share-picker) — removed
+	# Rust/Cargo (walker, wiremix, hyprland-preview-share-picker) — removed
 	# after builds
 	rust cargo lz4-devel
-	# satty requires GTK4 + libadwaita + epoxy; walker requires gtk4-layer-shell + poppler-glib
-	gtk4-devel libadwaita-devel gtk4-layer-shell-devel poppler-glib-devel libepoxy-devel
+	# walker requires gtk4-layer-shell + poppler-glib
+	gtk4-devel gtk4-layer-shell-devel poppler-glib-devel
 	# Go (cliphist, elephant, gum) — removed after builds
 	golang
 	# uwsm man pages
@@ -173,14 +173,8 @@ cmake_build_install hyprpolkitagent "${HYPR_POLKITAGENT_TAG}" \
 	https://github.com/hyprwm/hyprpolkitagent.git
 
 # ── non-hyprwm tools (Cargo) ────────────────────────────────────────
-cargo_install satty "${SATTY_TAG}" https://github.com/gabm/Satty.git \
-	satty
 cargo_install wiremix "${WIREMIX_TAG}" https://github.com/tsowell/wiremix.git \
 	wiremix
-cargo_install bluetui "${BLUETUI_TAG}" https://github.com/pythops/bluetui.git \
-	bluetui
-cargo_install impala "${IMPALA_TAG}" https://github.com/pythops/impala.git \
-	impala
 git clone --depth 1 --branch "${HYPRLAND_PREVIEW_SHARE_PICKER_TAG}" \
 	--recurse-submodules \
 	https://github.com/WhySoBad/hyprland-preview-share-picker.git \

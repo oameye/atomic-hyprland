@@ -35,7 +35,7 @@ BUILD_DEPS=(
 	rust cargo lz4-devel
 	# walker requires gtk4-layer-shell + poppler-glib
 	gtk4-devel gtk4-layer-shell-devel poppler-glib-devel
-	# Go (cliphist, elephant, gum) — removed after builds
+	# Go (elephant + providers) — removed after builds
 	golang
 	# uwsm man pages
 	scdoc
@@ -199,10 +199,6 @@ git clone --depth 1 --branch "${HYPRSHOT_TAG}" \
 install -Dm755 "${BUILD_WORK}/hyprshot/hyprshot" /usr/bin/hyprshot
 
 # ── non-hyprwm tools (Go) ───────────────────────────────────────────
-git clone --depth 1 --branch "${CLIPHIST_TAG}" \
-	https://github.com/sentriz/cliphist.git "${BUILD_WORK}/cliphist"
-go build -C "${BUILD_WORK}/cliphist" -o /usr/bin/cliphist .
-
 git clone --depth 1 --branch "${ELEPHANT_TAG}" \
 	https://github.com/abenz1267/elephant.git "${BUILD_WORK}/elephant"
 go build -C "${BUILD_WORK}/elephant/cmd/elephant" -buildvcs=false -trimpath -o /usr/bin/elephant .
@@ -222,13 +218,6 @@ for provider_dir in "${BUILD_WORK}/elephant/internal/providers/"*/; do
 	install -Dm755 "${provider_dir}${name}.so" \
 		"/etc/xdg/elephant/providers/${name}.so"
 done
-
-# gum — interactive prompts + confirmations used by omarchy-menu and several
-# helper scripts (omarchy-migrate, omarchy-debug upload prompts, …). Not in
-# Fedora default repos; source-built in the same Go pattern as cliphist.
-git clone --depth 1 --branch "${GUM_TAG}" \
-	https://github.com/charmbracelet/gum.git "${BUILD_WORK}/gum"
-go build -C "${BUILD_WORK}/gum" -o /usr/bin/gum .
 
 # ── non-hyprwm tools (meson) ────────────────────────────────────────
 git clone --depth 1 --branch "${UWSM_TAG}" \

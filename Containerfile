@@ -18,35 +18,35 @@ RUN --mount=type=bind,from=source_ctx,source=/,target=/ctx \
     --mount=type=cache,dst=/var/cache \
     --mount=type=cache,dst=/var/log \
     --mount=type=tmpfs,dst=/tmp \
-    /ctx/source-build-setup.sh
+    bash /ctx/source-build-setup.sh
 
 # hadolint ignore=DL3059
 RUN --mount=type=bind,from=source_ctx,source=/,target=/ctx \
     --mount=type=cache,dst=/var/cache \
     --mount=type=cache,dst=/var/log \
     --mount=type=tmpfs,dst=/tmp \
-    /ctx/source-build-core.sh
+    bash /ctx/source-build-core.sh
 
 # hadolint ignore=DL3059
 RUN --mount=type=bind,from=source_ctx,source=/,target=/ctx \
     --mount=type=cache,dst=/var/cache \
     --mount=type=cache,dst=/var/log \
     --mount=type=tmpfs,dst=/tmp \
-    /ctx/source-build-hyprland.sh
+    bash /ctx/source-build-hyprland.sh
 
 # hadolint ignore=DL3059
 RUN --mount=type=bind,from=source_ctx,source=/,target=/ctx \
     --mount=type=cache,dst=/var/cache \
     --mount=type=cache,dst=/var/log \
     --mount=type=tmpfs,dst=/tmp \
-    /ctx/source-build-tools.sh
+    bash /ctx/source-build-tools.sh
 
 # hadolint ignore=DL3059
 RUN --mount=type=bind,from=source_ctx,source=/,target=/ctx \
     --mount=type=cache,dst=/var/cache \
     --mount=type=cache,dst=/var/log \
     --mount=type=tmpfs,dst=/tmp \
-    /ctx/source-build-cleanup.sh
+    bash /ctx/source-build-cleanup.sh
 
 # System overlay + brew + bling
 COPY files/ /
@@ -59,7 +59,7 @@ RUN --mount=type=bind,from=build_ctx,source=/,target=/ctx \
     --mount=type=cache,dst=/var/cache \
     --mount=type=cache,dst=/var/log \
     --mount=type=tmpfs,dst=/tmp \
-    /ctx/build.sh \
+    bash /ctx/build.sh \
  && /usr/bin/systemctl preset brew-setup.service \
  && /usr/bin/systemctl preset brew-update.timer \
  && /usr/bin/systemctl preset brew-upgrade.timer \

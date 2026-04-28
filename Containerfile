@@ -2,10 +2,34 @@
 # usable in a downstream FROM. Re-declare in stages that reference it.
 ARG FEDORA_VERSION=43
 
-FROM scratch AS source_ctx
-COPY build_files/source-build*.sh /
+# Keep cache contexts as small as possible. A source-build layer should only
+# depend on the shared helpers plus the script it actually executes; otherwise
+# changing one source-build script invalidates every expensive source-build
+# layer that mounts the shared context.
+FROM scratch AS source_common
+COPY build_files/source-builds.sh /
 COPY build_files/pins.sh /
+
+FROM scratch AS source_setup_ctx
+COPY --from=source_common / /
 COPY build_files/repos.sh /
+COPY build_files/source-build-setup.sh /
+
+FROM scratch AS source_core_ctx
+COPY --from=source_common / /
+COPY build_files/source-build-core.sh /
+
+FROM scratch AS source_hyprland_ctx
+COPY --from=source_common / /
+COPY build_files/source-build-hyprland.sh /
+
+FROM scratch AS source_tools_ctx
+COPY --from=source_common / /
+COPY build_files/source-build-tools.sh /
+
+FROM scratch AS source_cleanup_ctx
+COPY --from=source_common / /
+COPY build_files/source-build-cleanup.sh /
 
 FROM scratch AS build_ctx
 COPY build_files /
@@ -14,35 +38,35 @@ FROM ghcr.io/ublue-os/base-main:${FEDORA_VERSION}
 
 # Source build layers are intentionally split for remote layer-cache reuse.
 # hadolint ignore=DL3059
-RUN --mount=type=bind,from=source_ctx,source=/,target=/ctx \
+RUN --mount=type=bind,from=source_setup_ctx,source=/,target=/ctx \
     --mount=type=cache,dst=/var/cache \
     --mount=type=cache,dst=/var/log \
     --mount=type=tmpfs,dst=/tmp \
     bash /ctx/source-build-setup.sh
 
 # hadolint ignore=DL3059
-RUN --mount=type=bind,from=source_ctx,source=/,target=/ctx \
+RUN --mount=type=bind,from=source_core_ctx,source=/,target=/ctx \
     --mount=type=cache,dst=/var/cache \
     --mount=type=cache,dst=/var/log \
     --mount=type=tmpfs,dst=/tmp \
     bash /ctx/source-build-core.sh
 
 # hadolint ignore=DL3059
-RUN --mount=type=bind,from=source_ctx,source=/,target=/ctx \
+RUN --mount=type=bind,from=source_hyprland_ctx,source=/,target=/ctx \
     --mount=type=cache,dst=/var/cache \
     --mount=type=cache,dst=/var/log \
     --mount=type=tmpfs,dst=/tmp \
     bash /ctx/source-build-hyprland.sh
 
 # hadolint ignore=DL3059
-RUN --mount=type=bind,from=source_ctx,source=/,target=/ctx \
+RUN --mount=type=bind,from=source_tools_ctx,source=/,target=/ctx \
     --mount=type=cache,dst=/var/cache \
     --mount=type=cache,dst=/var/log \
     --mount=type=tmpfs,dst=/tmp \
     bash /ctx/source-build-tools.sh
 
 # hadolint ignore=DL3059
-RUN --mount=type=bind,from=source_ctx,source=/,target=/ctx \
+RUN --mount=type=bind,from=source_cleanup_ctx,source=/,target=/ctx \
     --mount=type=cache,dst=/var/cache \
     --mount=type=cache,dst=/var/log \
     --mount=type=tmpfs,dst=/tmp \

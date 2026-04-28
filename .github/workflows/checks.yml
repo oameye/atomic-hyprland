@@ -31,7 +31,7 @@ jobs:
       - name: Install shellcheck
         run: sudo apt-get update && sudo apt-get install -y shellcheck
 
-      - uses: extractions/setup-just@v3
+      - uses: extractions/setup-just@v4
 
       - name: Lint shell scripts
         run: just lint
@@ -46,7 +46,7 @@ jobs:
       - name: Install shfmt
         run: sudo apt-get update && sudo apt-get install -y shfmt
 
-      - uses: extractions/setup-just@v3
+      - uses: extractions/setup-just@v4
 
       - name: Check shell formatting
         run: just format-check

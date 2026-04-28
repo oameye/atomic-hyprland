@@ -65,6 +65,18 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Install registry inspection tooling
+        if: github.event_name == 'pull_request'
+        run: sudo apt-get update && sudo apt-get install -y skopeo jq
+
+      - name: Inspect Buildah cache before build
+        if: github.event_name == 'pull_request'
+        run: |
+          set -euo pipefail
+          buildah --version
+          echo "Cache repository: ${IMAGE_CACHE_REGISTRY}"
+          skopeo list-tags "docker://${IMAGE_CACHE_REGISTRY}" || true
+
       - name: Build image
         id: build
         uses: redhat-actions/buildah-build@v2
@@ -78,6 +90,13 @@ jobs:
           extra-args: |
             --cache-from ${{ env.IMAGE_CACHE_REGISTRY }}
             --cache-to ${{ env.IMAGE_CACHE_REGISTRY }}
+
+      - name: Inspect Buildah cache after build
+        if: always() && github.event_name == 'pull_request'
+        run: |
+          set -euo pipefail
+          echo "Cache repository: ${IMAGE_CACHE_REGISTRY}"
+          skopeo list-tags "docker://${IMAGE_CACHE_REGISTRY}" || true
 
       - name: Rechunk image
         if: github.event_name == 'schedule'
@@ -109,10 +128,6 @@ jobs:
           image: ${{ steps.build.outputs.image }}
           tags: ${{ steps.build.outputs.tags }}
           registry: ${{ env.IMAGE_REGISTRY }}
-
-      - name: Install skopeo
-        if: github.event_name == 'pull_request'
-        run: sudo apt-get update && sudo apt-get install -y skopeo jq
 
       - name: Image size report
         if: github.event_name == 'pull_request'

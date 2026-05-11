@@ -79,13 +79,36 @@ jobs:
             --cache-from ${{ env.IMAGE_CACHE_REGISTRY }}
             --cache-to ${{ env.IMAGE_CACHE_REGISTRY }}
 
+      - name: Push to GHCR
+        if: github.event_name != 'schedule'
+        uses: redhat-actions/push-to-registry@v2
+        with:
+          image: ${{ steps.build.outputs.image }}
+          tags: ${{ steps.build.outputs.tags }}
+          registry: ${{ env.IMAGE_REGISTRY }}
+
+      - name: Push staging image for rechunk
+        if: github.event_name == 'schedule'
+        uses: redhat-actions/push-to-registry@v2
+        with:
+          image: ${{ steps.build.outputs.image }}
+          tags: staging
+          registry: ${{ env.IMAGE_REGISTRY }}
+
+      - name: Log in to GHCR (rootful)
+        if: github.event_name == 'schedule'
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | sudo podman login ghcr.io \
+            --username "${{ github.actor }}" \
+            --password-stdin
+
       - name: Rechunk image
         if: github.event_name == 'schedule'
         id: rechunk
         uses: hhd-dev/rechunk@v1.2.4
         with:
           rechunk: ghcr.io/hhd-dev/rechunk:v1.2.4
-          ref: localhost/${{ env.IMAGE_NAME }}:${{ steps.pins.outputs.fedora_version }}
+          ref: ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:staging
           prev-ref: ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:latest
           version: ${{ steps.pins.outputs.fedora_version }}
           labels: |
@@ -101,14 +124,6 @@ jobs:
               "${{ steps.rechunk.outputs.ref }}" \
               "docker://${IMAGE_REGISTRY}/${IMAGE_NAME}:${tag}"
           done
-
-      - name: Push to GHCR
-        if: github.event_name != 'schedule'
-        uses: redhat-actions/push-to-registry@v2
-        with:
-          image: ${{ steps.build.outputs.image }}
-          tags: ${{ steps.build.outputs.tags }}
-          registry: ${{ env.IMAGE_REGISTRY }}
 
       - name: Install skopeo
         if: github.event_name == 'pull_request'

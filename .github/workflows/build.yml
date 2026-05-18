@@ -15,7 +15,6 @@ on:
 env:
   IMAGE_NAME: atomic-hyprland
   IMAGE_REGISTRY: ghcr.io/${{ github.repository_owner }}
-  IMAGE_CACHE_REGISTRY: ghcr.io/${{ github.repository_owner }}/atomic-hyprland-cache
 
 jobs:
   build:
@@ -75,55 +74,13 @@ jobs:
           build-args: FEDORA_VERSION=${{ steps.pins.outputs.fedora_version }}
           oci: true
           layers: true
-          extra-args: |
-            --cache-from ${{ env.IMAGE_CACHE_REGISTRY }}
-            --cache-to ${{ env.IMAGE_CACHE_REGISTRY }}
 
       - name: Push to GHCR
-        if: github.event_name != 'schedule'
         uses: redhat-actions/push-to-registry@v2
         with:
           image: ${{ steps.build.outputs.image }}
           tags: ${{ steps.build.outputs.tags }}
           registry: ${{ env.IMAGE_REGISTRY }}
-
-      - name: Push staging image for rechunk
-        if: github.event_name == 'schedule'
-        uses: redhat-actions/push-to-registry@v2
-        with:
-          image: ${{ steps.build.outputs.image }}
-          tags: staging
-          registry: ${{ env.IMAGE_REGISTRY }}
-
-      - name: Log in to GHCR (rootful)
-        if: github.event_name == 'schedule'
-        run: |
-          echo "${{ secrets.GITHUB_TOKEN }}" | sudo podman login ghcr.io \
-            --username "${{ github.actor }}" \
-            --password-stdin
-
-      - name: Rechunk image
-        if: github.event_name == 'schedule'
-        id: rechunk
-        uses: hhd-dev/rechunk@v1.2.4
-        with:
-          rechunk: ghcr.io/hhd-dev/rechunk:v1.2.4
-          ref: ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:staging
-          prev-ref: ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:latest
-          version: ${{ steps.pins.outputs.fedora_version }}
-          labels: |
-            org.opencontainers.image.title=${{ env.IMAGE_NAME }}
-            org.opencontainers.image.source=https://github.com/${{ github.repository }}
-
-      - name: Push rechunked image
-        if: github.event_name == 'schedule'
-        run: |
-          for tag in ${{ steps.tags.outputs.tags }}; do
-            sudo skopeo copy --retry-times 3 \
-              --dest-creds "${{ github.actor }}:${{ secrets.GITHUB_TOKEN }}" \
-              "${{ steps.rechunk.outputs.ref }}" \
-              "docker://${IMAGE_REGISTRY}/${IMAGE_NAME}:${tag}"
-          done
 
       - name: Install skopeo
         if: github.event_name == 'pull_request'

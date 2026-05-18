@@ -323,6 +323,16 @@ sed -i \
 	-e '/bindd = SUPER SHIFT, SLASH, Passwords, exec, uwsm-app -- 1password/d' \
 	/etc/skel/.config/hypr/bindings.conf
 
+# Keyboard volume control on a tenkeyless layout: Super+= raises, Super+- lowers.
+# Reuses the $osdclient helper defined in omarchy's default media.conf, which is
+# sourced before ~/.config/hypr/bindings.conf in hyprland.conf.
+cat >>/etc/skel/.config/hypr/bindings.conf <<'EOF'
+
+# Volume control via Super + =/-
+bindeld = SUPER, equal, Volume up, exec, $osdclient --output-volume raise
+bindeld = SUPER, minus, Volume down, exec, $osdclient --output-volume lower
+EOF
+
 # Monitor layout — hard-coded for this specific machine per the project's
 # single-machine scope (CLAUDE.md): LG FHD on DisplayPort (horizontal, left)
 # + Samsung S24R35x on HDMI (rotated 90° CCW, portrait, right of LG).

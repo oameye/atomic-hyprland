@@ -39,6 +39,19 @@ rm -f /etc/skel/.config/systemd/user/omarchy-battery-monitor.service \
 install -Dm644 /etc/skel/.config/omarchy.ttf /usr/share/fonts/omarchy/omarchy.ttf
 rm -f /etc/skel/.config/omarchy.ttf
 
+# Atomic-hyprland glyph font: a single PUA glyph at U+E901 plus a GSUB
+# ligature so `<span font='atomic-hyprland'>atomic</span>` renders the
+# logo. Built from assets/atomic-hyprland-logo_uniform.svg via
+# scripts/build-font.py at repo dev time and shipped as a binary asset.
+install -Dm644 /assets/atomic-hyprland.ttf \
+	/usr/share/fonts/atomic-hyprland/atomic-hyprland.ttf
+
+# Redirect the leftmost waybar button (omarchy-menu launcher) to render
+# our atomic-hyprland glyph instead of upstream's omarchy "O". The
+# on-click handler is unchanged — the menu itself remains omarchy's.
+sed -i "s|font='omarchy'>\\\\ue900|font='atomic-hyprland'>\\\\ue901|" \
+	/etc/skel/.config/waybar/config.jsonc
+
 # Layer 2: omarchy system layer. Upstream layout is `$OMARCHY_PATH/{default,themes,bin}`
 # where $OMARCHY_PATH resolves to ~/.local/share/omarchy (set by config/uwsm/env and
 # default/bash/envs). Matching this layout lets every `omarchy-*` script find siblings
@@ -273,17 +286,18 @@ for app in 1password bitwarden davinci-resolve geforce localsend moonlight qemu 
 	sed -i "\|apps/${app}\.conf\$|d" "${SKEL_OMARCHY}/default/hypr/apps.conf"
 done
 
-# Ship icon.txt + logo.txt (omarchy's ASCII branding) at the repo root;
-# omarchy-font-set and friends reference $OMARCHY_PATH/icon.txt directly.
-cp "${WORK}/omarchy/icon.txt" "${WORK}/omarchy/logo.txt" "${SKEL_OMARCHY}/"
+# Ship icon.txt + logo.txt (atomic-hyprland ASCII branding) at the repo
+# root; omarchy-font-set and friends reference $OMARCHY_PATH/icon.txt
+# directly.
+cp /assets/icon.txt /assets/logo.txt "${SKEL_OMARCHY}/"
 
 # Branding overrides used by fastfetch + the screensaver (omarchy
 # install/config/branding.sh). Users can edit ~/.config/omarchy/branding/
 # to personalise the About page and screensaver ASCII without touching
-# the upstream files.
+# the system files.
 mkdir -p /etc/skel/.config/omarchy/branding
-cp "${WORK}/omarchy/icon.txt" /etc/skel/.config/omarchy/branding/about.txt
-cp "${WORK}/omarchy/logo.txt" /etc/skel/.config/omarchy/branding/screensaver.txt
+cp /assets/icon.txt /etc/skel/.config/omarchy/branding/about.txt
+cp /assets/logo.txt /etc/skel/.config/omarchy/branding/screensaver.txt
 
 # Terminal: omarchy upstream picks Alacritty first in xdg-terminals.list.
 # We ship ghostty (fully themed by omarchy alongside alacritty and kitty).
@@ -478,7 +492,10 @@ ln -sf ../../.local/share/omarchy/default/omarchy-skill \
 
 # ── SDDM ─────────────────────────────────────────────────────────────
 # Omarchy ships its own Qt Quick SDDM theme. Deploy it system-wide;
-# /etc/sddm.conf.d/theme.conf points at this theme name.
+# /etc/sddm.conf.d/theme.conf points at this theme name. Main.qml loads
+# logo.svg by name, so swapping the file is enough.
 cp -a "${WORK}/omarchy/default/sddm/omarchy" /usr/share/sddm/themes/omarchy
+install -Dm0644 /assets/atomic-hyprland-logo_white.svg \
+	/usr/share/sddm/themes/omarchy/logo.svg
 
 rm -rf "${WORK}"

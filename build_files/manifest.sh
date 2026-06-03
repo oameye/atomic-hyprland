@@ -47,6 +47,7 @@ PACKAGED_DESKTOP_EXECUTABLES=(
 	/usr/bin/swayosd-server
 	/usr/bin/swayosd-client
 	/usr/bin/docker
+	/usr/bin/earlyoom
 )
 
 SYSTEM_UNITS=(
@@ -63,6 +64,7 @@ SYSTEM_UNITS=(
 	cups-browsed.service
 	avahi-daemon.service
 	bluetooth.service
+	earlyoom.service
 )
 
 GLOBAL_UNITS=(

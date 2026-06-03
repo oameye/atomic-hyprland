@@ -1,0 +1,9 @@
+# Command-line arguments for earlyoom (see earlyoom(1)).
+#
+# -r 60         Log a memory snapshot every 60s (set to 3600 for quieter).
+# -n            Emit D-Bus notifications when killing.
+# -m 10,5       SIGTERM when MemAvailable <= 10% of total, SIGKILL at <= 5%.
+# -s 10,5       SIGTERM when free swap <= 10% of total, SIGKILL at <= 5%.
+# --prefer      Bias toward typical RAM hogs (matches /proc/PID/comm, 15-char max).
+# --avoid       Protect WM/session-critical processes from being picked.
+EARLYOOM_ARGS="-r 60 -n -m 10,5 -s 10,5 --prefer '^(julia|python|python3|node|chrome|zen|slack|electron|java|rustc)$' --avoid '^(systemd|systemd-.*|Hyprland|hyprctl|Xwayland|pipewire|pipewire-pulse|wireplumber|dbus-broker|dbus-daemon|NetworkManager|gnome-shell|sshd|init)$'"

@@ -43,6 +43,11 @@ PACKAGES=(
 	dbus-tools bc jq nano rsync unzip wget2
 	python3-requests python3-pyquery python3-pip
 	btop fastfetch
+	# earlyoom: kernel-OOM lottery and systemd-oomd's PSI averaging window are
+	# both too slow when a single process (e.g. Julia, Python ML) balloons RAM
+	# in seconds. earlyoom samples free memory ~10x/sec and SIGTERMs the worst
+	# offender before the box freezes. Config in files/etc/default/earlyoom.
+	earlyoom
 	gnome-keyring libsecret
 
 	# Developer tooling

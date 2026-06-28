@@ -22,8 +22,9 @@ BUILD_DEPS=(
 	# pipewire headers for the libspa bindings.
 	clang-devel pipewire-devel
 	# Rust/Cargo (walker, wiremix, hyprland-preview-share-picker); removed
-	# after builds
-	rust cargo lz4-devel
+	# after builds. walker's build.rs invokes protoc, so protobuf-compiler
+	# is required even though no hyprwm component needs it anymore.
+	rust cargo lz4-devel protobuf-compiler
 	# walker + the share picker need gtk4-layer-shell; walker also needs
 	# poppler-glib. gtk4-layer-shell-devel pulls gtk4/wayland transitively.
 	gtk4-devel gtk4-layer-shell-devel poppler-glib-devel

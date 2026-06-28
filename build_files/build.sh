@@ -127,10 +127,14 @@ if [[ -f /usr/bin/powerprofilesctl ]]; then
 fi
 
 # Plymouth: ship omarchy's theme and set as default. initramfs rebuild is
-# handled by rpm-ostree's dracut integration at deploy time.
+# handled by rpm-ostree's dracut integration at deploy time. The script
+# loads logo.png by name and centers it using the image's natural size,
+# so swapping the file is enough — no script edits needed.
 if [[ -d /etc/skel/.local/share/omarchy/default/plymouth ]]; then
 	cp -r /etc/skel/.local/share/omarchy/default/plymouth \
 		/usr/share/plymouth/themes/omarchy
+	install -Dm0644 /assets/atomic-hyprland-logo_white-512.png \
+		/usr/share/plymouth/themes/omarchy/logo.png
 	plymouth-set-default-theme omarchy
 fi
 

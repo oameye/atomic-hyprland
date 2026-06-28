@@ -7,6 +7,11 @@ ARG FEDORA_VERSION=43
 FROM scratch AS ctx
 COPY build_files /
 
+# Branding assets (logos, ASCII art) — separate stage so logo edits don't
+# invalidate the layer-1 source-build cache.
+FROM scratch AS assets
+COPY assets /
+
 # Base image
 FROM ghcr.io/ublue-os/base-main:${FEDORA_VERSION}
 
@@ -40,6 +45,7 @@ COPY --from=ghcr.io/ublue-os/bluefin:stable \
 # Layer 2 — packages, desktop, systemd, cleanup.
 # Inherits repos from Layer 1; rebuilds on every package-list or rice change.
 RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
+    --mount=type=bind,from=assets,source=/,target=/assets \
     --mount=type=cache,dst=/var/cache \
     --mount=type=cache,dst=/var/log \
     --mount=type=tmpfs,dst=/tmp \

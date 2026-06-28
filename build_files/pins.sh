@@ -6,7 +6,7 @@
 # Reason: this file is a sourced data module; the variables are consumed by
 # other scripts, not within this file itself.
 
-FEDORA_VERSION="43"
+FEDORA_VERSION="44"
 OMARCHY_REF="v3.5.1"
 
 # Build order: hyprwayland-scanner → hyprutils → hyprlang → hyprcursor

@@ -176,4 +176,18 @@ copr_install_isolated "erikreider/swayosd" "swayosd"
 # ghostty: recommended by upstream ghostty.org install docs.
 copr_install_isolated "scottames/ghostty" "ghostty"
 
+# Hyprland ecosystem. Previously source-built; now pulled from the wayblueorg
+# COPR so CI no longer compiles the whole hyprwm chain. The COPR only ships the
+# compositor as a rolling git build (hyprland-git), with no stable hyprland RPM
+# anywhere for Fedora, so Hyprland tracks git master. Installing the satellites
+# and toolkit pulls the hypr* libraries (hyprutils, hyprlang, hyprcursor,
+# hyprgraphics, aquamarine, hyprwire, hyprland-protocols, glaze) as dependencies
+# in the same transaction. Isolated so no .repo survives (HYPRLAND_COPR in pins.sh).
+copr_install_isolated "$HYPRLAND_COPR" \
+	hyprland-git \
+	hyprlock hypridle hyprpicker hyprsunset \
+	xdg-desktop-portal-hyprland \
+	hyprtoolkit hyprland-guiutils \
+	hyprland-qt-support hyprpolkitagent
+
 rpm-ostree override remove firefox firefox-langpacks || true

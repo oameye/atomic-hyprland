@@ -3,8 +3,8 @@
 # image's final rootfs). Each failing assertion prints to stderr and
 # increments fail_count; exit 1 at the end if any failed.
 #
-# Scope: catch regressions that are invisible to `bootc container lint`
-# — missing source-built binaries, unstripped omarchy install scripts,
+# Scope: catch regressions that are invisible to `bootc container lint`:
+# missing packaged or source-built binaries, unstripped omarchy install scripts,
 # broken sed patches, theme bootstrap not producing a real directory,
 # systemd units not enabled. Runtime behaviour (e.g. does Hyprland
 # actually start a compositor) is out of scope; that needs a VM boot.
@@ -95,8 +95,8 @@ want_unit_enabled() {
 	fi
 }
 
-echo "==> Source-built hyprwm binaries"
-for path in "${SOURCE_BUILT_HYPRWM_EXECUTABLES[@]}"; do
+echo "==> Packaged hyprwm binaries (wayblueorg COPR)"
+for path in "${PACKAGED_HYPRWM_EXECUTABLES[@]}"; do
 	want_exec "$path"
 done
 

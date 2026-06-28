@@ -1,6 +1,6 @@
 # Global build arg -- must be declared before the first FROM to be
 # usable in a downstream FROM. Re-declare in stages that reference it.
-ARG FEDORA_VERSION=43
+ARG FEDORA_VERSION=44
 
 # Keep build scripts out of the final image by referencing them via a bind
 # mount from a scratch context stage (pattern from ublue-os/image-template).

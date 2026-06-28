@@ -7,7 +7,10 @@
 # Reason: this file is a sourced data module; the arrays are consumed by other
 # scripts, not within this file itself.
 
-SOURCE_BUILT_HYPRWM_EXECUTABLES=(
+# Installed from the wayblueorg COPR (see packages.sh), not source-built. These
+# paths are the contract: the RPMs must keep landing the compositor + satellites
+# here for the image to be usable.
+PACKAGED_HYPRWM_EXECUTABLES=(
 	/usr/bin/Hyprland
 	/usr/bin/hyprctl
 	/usr/bin/hyprlock

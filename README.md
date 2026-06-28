@@ -8,7 +8,9 @@ See [`DESIGN.md`](./DESIGN.md) for the full design.
 
 ### Why not [wayblue](https://github.com/wayblueorg/wayblue) or [cjuniorfox/hyprland-atomic](https://github.com/cjuniorfox/hyprland-atomic)?
 
-Both are the obvious-looking prior art (Fedora Atomic + Hyprland). Wayblue installs the hyprwm stack from the `solopasha/hyprland` COPR; cjuniorfox defaults to Fedora's `hyprland` package and optionally falls back to the same `solopasha/hyprland` COPR. Both sources consistently lag behind upstream Hyprland releases. This image source-builds the whole hyprwm ecosystem from pinned git tags ([`source-builds.sh`](./build_files/source-builds.sh)) so it can track current upstream.
+Both are the obvious-looking prior art (Fedora Atomic + Hyprland), but both are minimally-opinionated, general-purpose base images: wayblue ships generic defaults across six compositors, cjuniorfox ships a stock Hyprland. This image is the opposite: a single-machine, single-user desktop with the full [basecamp/omarchy](https://github.com/basecamp/omarchy) rice (configs, theming, menu, tools) baked into `/etc/skel`, plus AMD/ROCm and dev tooling chosen for one specific workflow.
+
+The hyprwm stack itself comes from the [`craftidore/wayblueorg-hyprland`](https://copr.fedorainfracloud.org/coprs/craftidore/wayblueorg-hyprland/) COPR (the one wayblue maintains), installed in [`packages.sh`](./build_files/packages.sh). That COPR ships Hyprland as a rolling git build, so the compositor tracks upstream master rather than lagging behind like Fedora's package or the older `solopasha/hyprland` COPR. The trade-off is that Hyprland follows git master on the COPR maintainer's cadence instead of a pinned stable tag; everything not packaged for Fedora (walker, elephant, wiremix, uwsm, the share picker) is still source-built in [`source-builds.sh`](./build_files/source-builds.sh).
 
 ## Rebase
 
@@ -59,7 +61,7 @@ ujust overwrite=1 sync-skel-config
 ## Updates
 
 - `rpm-ostree upgrade` (or `ujust update`) pulls new images nightly via the inherited uBlue auto-update timers.
-- Omarchy is pinned in `build_files/build.sh`; upgrades happen when this repo intentionally bumps `OMARCHY_REF`.
+- Omarchy is pinned via `OMARCHY_REF` in `build_files/pins.sh`; upgrades happen when this repo intentionally bumps it.
 - The shipped image records the resolved Omarchy commit in `/usr/share/atomic-hyprland/versions.env`.
 - After reboot, `ujust overwrite=1 sync-skel-config` if you want the new upstream configs to replace yours.
 

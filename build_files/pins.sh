@@ -6,32 +6,15 @@
 # Reason: this file is a sourced data module; the variables are consumed by
 # other scripts, not within this file itself.
 
-FEDORA_VERSION="43"
+FEDORA_VERSION="44"
 OMARCHY_REF="v3.5.1"
 
-# Build order: hyprwayland-scanner → hyprutils → hyprlang → hyprcursor
-#   → hyprgraphics → aquamarine → hyprwire → hyprland
-#   → hyprtoolkit → hyprland-guiutils
-#   → satellite tools → Qt6 components
-HYPRWAYLAND_SCANNER_TAG="v0.4.5"
-HYPRUTILS_TAG="v0.12.0"
-HYPRLANG_TAG="v0.6.8"
-HYPRCURSOR_TAG="v0.1.13"
-HYPRGRAPHICS_TAG="v0.5.1"
-AQUAMARINE_TAG="v0.10.0"
-HYPRWIRE_TAG="v0.3.0"
-HYPRLAND_PROTOCOLS_TAG="v0.7.0"
-GLAZE_TAG="v7.1.1"
-HYPRLAND_TAG="v0.54.3"
-HYPRTOOLKIT_TAG="v0.5.3"
-HYPR_GUIUTILS_TAG="v0.2.1"
-HYPRLOCK_TAG="v0.9.5"
-HYPRIDLE_TAG="v0.1.7"
-HYPRPICKER_TAG="v0.4.6"
-HYPRSUNSET_TAG="v0.3.3"
-XDP_HYPRLAND_TAG="v1.3.11"
-HYPR_QT_SUPPORT_TAG="v0.1.0"
-HYPR_POLKITAGENT_TAG="v0.1.3"
+# The entire hyprwm ecosystem (compositor, libs, satellites, Qt6 components) is
+# installed from this COPR (see packages.sh) instead of being source-built. The
+# COPR only ships Hyprland as a rolling git build (hyprland-git); there is no
+# stable hyprland RPM for Fedora, so there is no upstream tag to pin here. The
+# COPR is rebuilt every other Saturday and we take whatever it publishes.
+HYPRLAND_COPR="craftidore/wayblueorg-hyprland"
 
 SATTY_TAG="v0.20.1"
 HYPRSHOT_TAG="1.3.0"
@@ -52,25 +35,7 @@ NERD_FONTS_TAG="v3.4.0"
 VERSION_METADATA_VARS=(
 	FEDORA_VERSION
 	OMARCHY_REF
-	HYPRWAYLAND_SCANNER_TAG
-	HYPRUTILS_TAG
-	HYPRLANG_TAG
-	HYPRCURSOR_TAG
-	HYPRGRAPHICS_TAG
-	AQUAMARINE_TAG
-	HYPRWIRE_TAG
-	HYPRLAND_PROTOCOLS_TAG
-	GLAZE_TAG
-	HYPRLAND_TAG
-	HYPRTOOLKIT_TAG
-	HYPR_GUIUTILS_TAG
-	HYPRLOCK_TAG
-	HYPRIDLE_TAG
-	HYPRPICKER_TAG
-	HYPRSUNSET_TAG
-	XDP_HYPRLAND_TAG
-	HYPR_QT_SUPPORT_TAG
-	HYPR_POLKITAGENT_TAG
+	HYPRLAND_COPR
 	SATTY_TAG
 	HYPRSHOT_TAG
 	CLIPHIST_TAG

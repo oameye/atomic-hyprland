@@ -177,14 +177,18 @@ copr_install_isolated "erikreider/swayosd" "swayosd"
 copr_install_isolated "scottames/ghostty" "ghostty"
 
 # Hyprland ecosystem. Previously source-built; now pulled from the wayblueorg
-# COPR so CI no longer compiles the whole hyprwm chain. The COPR only ships the
-# compositor as a rolling git build (hyprland-git), with no stable hyprland RPM
-# anywhere for Fedora, so Hyprland tracks git master. Installing the satellites
-# and toolkit pulls the hypr* libraries (hyprutils, hyprlang, hyprcursor,
-# hyprgraphics, aquamarine, hyprwire, hyprland-protocols, glaze) as dependencies
-# in the same transaction. Isolated so no .repo survives (HYPRLAND_COPR in pins.sh).
+# COPR so CI no longer compiles the whole hyprwm chain. The compositor is a
+# rolling git build (hyprland-git) tracking master; we pin it to a known-good
+# snapshot via HYPRLAND_GIT_VERSION (pins.sh) instead of the COPR tip, because a
+# bad master snapshot once shipped a compositor that crash-looped on startup.
+# Installing the satellites and toolkit pulls the hypr* libraries (hyprutils,
+# hyprlang, hyprcursor, hyprgraphics, aquamarine, hyprwire, hyprland-protocols,
+# glaze) as dependencies in the same transaction; if the pinned compositor and
+# the current satellites ever need conflicting library versions, this transaction
+# fails the build (loud, safe) rather than shipping a broken image. Isolated so
+# no .repo survives (HYPRLAND_COPR in pins.sh).
 copr_install_isolated "$HYPRLAND_COPR" \
-	hyprland-git \
+	"hyprland-git-${HYPRLAND_GIT_VERSION}" \
 	hyprlock hypridle hyprpicker hyprsunset \
 	xdg-desktop-portal-hyprland \
 	hyprtoolkit hyprland-guiutils \

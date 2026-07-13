@@ -95,7 +95,7 @@ want_unit_enabled() {
 	fi
 }
 
-echo "==> Packaged hyprwm binaries (wayblueorg COPR)"
+echo "==> Packaged hyprwm binaries (lionheartp COPR)"
 for path in "${PACKAGED_HYPRWM_EXECUTABLES[@]}"; do
 	want_exec "$path"
 done

@@ -83,16 +83,18 @@ rm -f "${SKEL_OMARCHY}/bin/"omarchy-refresh-pacman \
 	"${SKEL_OMARCHY}/bin/"omarchy-version-channel \
 	"${SKEL_OMARCHY}/bin/"omarchy-version-pkgs
 
-# Make the remaining Setup/Remove scripts tolerate failed pacman removals
-# (their "clean up the old Arch package first" step is a no-op on Fedora;
-# the rest of the script — udev rules, pam config, systemd enables — still
-# does useful work).
-# Match both `pacman -Rns ...` (as in omarchy-remove-dev-env) and
-# `sudo pacman -Rns ...` (as in omarchy-setup-fido2 and -fingerprint).
-sed -i 's/^\(\s*\(sudo[[:space:]]\+\)\?pacman -Rns\b.*\)$/\1 || true/' \
-	"${SKEL_OMARCHY}/bin/omarchy-remove-dev-env" \
-	"${SKEL_OMARCHY}/bin/omarchy-setup-fido2" \
-	"${SKEL_OMARCHY}/bin/omarchy-setup-fingerprint"
+# Make omarchy's Setup/Remove scripts tolerate failed pacman removals (their
+# "clean up the old Arch package first" step is a no-op on Fedora; the rest —
+# udev rules, pam config, systemd enables — still does useful work).
+# Match by content, not by name: upstream renames these scripts across releases
+# (e.g. omarchy-setup-fido2 → omarchy-setup-security-fido2), and hard-coding a
+# vanished filename makes `sed` exit non-zero and abort the build. Patch every
+# bin/ script that actually invokes `pacman -Rns` — matches both bare and
+# `sudo` forms, and appending `|| true` to a line that already has it is a
+# harmless no-op.
+while IFS= read -r -d '' script; do
+	sed -i 's/^\(\s*\(sudo[[:space:]]\+\)\?pacman -Rns\b.*\)$/\1 || true/' "$script"
+done < <(grep -lZ 'pacman -Rns' "${SKEL_OMARCHY}/bin/"omarchy-* 2>/dev/null)
 
 # omarchy-debug and omarchy-upload-log list installed packages via
 # `expac` / `pacman -Q`. Replace both with `rpm -qa | sort` so the debug
@@ -244,20 +246,15 @@ exit 1
 EOF
 chmod +x "${SKEL_OMARCHY}/bin/omarchy-update-available"
 
-# Strip bindings whose targets don't exist on this image:
-#   - omarchy-brightness-display-apple: Apple-hardware-specific helper
-#   - voxtype: voice dictation, AUR-only with no Fedora port
-require_upstream_literal \
-	"${SKEL_OMARCHY}/default/hypr/bindings/utilities.conf" \
-	'omarchy-brightness-display-apple' \
-	'Apple brightness binding'
+# Strip the voxtype (voice dictation) bindings — AUR-only, no Fedora port.
+# Upstream ships a toggle plus F9 push-to-talk start/stop; `voxtype record`
+# matches all three.
 require_upstream_literal \
 	"${SKEL_OMARCHY}/default/hypr/bindings/utilities.conf" \
 	'voxtype record toggle' \
 	'voxtype binding'
 sed -i \
-	-e '/omarchy-brightness-display-apple/d' \
-	-e '/voxtype record toggle/d' \
+	-e '/voxtype record/d' \
 	"${SKEL_OMARCHY}/default/hypr/bindings/utilities.conf"
 
 # Delete hyprland window rules for apps we don't install. They're harmless
@@ -312,11 +309,11 @@ require_upstream_literal \
 	'Signal binding'
 require_upstream_literal \
 	/etc/skel/.config/hypr/bindings.conf \
-	'bindd = SUPER SHIFT, O, Obsidian, exec, omarchy-launch-or-focus ^obsidian$ "uwsm-app -- obsidian -disable-gpu --enable-wayland-ime"' \
+	'bindd = SUPER SHIFT, O, Obsidian, exec, omarchy-launch-or-focus ^obsidian$ "uwsm-app -- obsidian"' \
 	'Obsidian binding'
 sed -i \
 	-e 's|bindd = SUPER SHIFT, G, Signal, exec, omarchy-launch-or-focus \^signal\$ "uwsm-app -- signal-desktop"|bindd = SUPER SHIFT, G, Signal, exec, omarchy-launch-or-focus signal "uwsm-app -- flatpak run org.signal.Signal"|' \
-	-e 's|bindd = SUPER SHIFT, O, Obsidian, exec, omarchy-launch-or-focus \^obsidian\$ "uwsm-app -- obsidian -disable-gpu --enable-wayland-ime"|bindd = SUPER SHIFT, O, Obsidian, exec, omarchy-launch-or-focus obsidian "uwsm-app -- flatpak run md.obsidian.Obsidian --disable-gpu --enable-wayland-ime"|' \
+	-e 's|bindd = SUPER SHIFT, O, Obsidian, exec, omarchy-launch-or-focus \^obsidian\$ "uwsm-app -- obsidian"|bindd = SUPER SHIFT, O, Obsidian, exec, omarchy-launch-or-focus obsidian "uwsm-app -- flatpak run md.obsidian.Obsidian --disable-gpu --enable-wayland-ime"|' \
 	-e '/bindd = SUPER SHIFT, M, Music, exec, omarchy-launch-or-focus spotify/d' \
 	-e '/bindd = SUPER SHIFT, D, Docker, exec, omarchy-launch-tui lazydocker/d' \
 	-e '/bindd = SUPER SHIFT, W, Typora, exec, uwsm-app -- typora --enable-wayland-ime/d' \

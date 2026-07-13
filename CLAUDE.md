@@ -74,13 +74,14 @@ Do not patch config/ files unless the change cannot be done by the user after fi
 
 ## Hyprland ecosystem (COPR)
 
-The entire hyprwm ecosystem is installed from the `craftidore/wayblueorg-hyprland` COPR (the same COPR the wayblue project uses), not source-built. The COPR name is pinned as `HYPRLAND_COPR` in `pins.sh` and installed via `copr_install_isolated` in `packages.sh`. Installing the compositor + satellites pulls the hypr* libraries (hyprutils, hyprlang, hyprcursor, hyprgraphics, aquamarine, hyprwire, hyprland-protocols, glaze) as dependencies in the same transaction.
+The entire hyprwm ecosystem is installed from the `lionheartp/Hyprland` COPR, not source-built. The COPR name is pinned as `HYPRLAND_COPR` in `pins.sh` and installed via `copr_install_isolated` in `packages.sh`. Installing the compositor + satellites pulls the hypr* libraries (hyprutils, hyprlang, hyprcursor, hyprgraphics, aquamarine, hyprwire, hyprland-protocols, glaze) as dependencies in the same transaction.
 
-Installed set: **hyprland-git** (compositor), **hyprlock**, **hypridle**, **hyprpicker**, **hyprsunset**, **xdg-desktop-portal-hyprland**, **hyprtoolkit**, **hyprland-guiutils**, **hyprland-qt-support**, **hyprpolkitagent**.
+Installed set: **hyprland** (compositor), **hyprland-uwsm** (uwsm session + `hyprland-uwsm.desktop`), **uwsm** (session manager), **hyprlock**, **hypridle**, **hyprpicker**, **hyprsunset**, **xdg-desktop-portal-hyprland**, **hyprtoolkit**, **hyprland-guiutils**, **hyprland-qt-support**, **hyprpolkitagent**.
 
 Caveats to know:
-- The COPR ships Hyprland **only** as a rolling git build (`hyprland-git`). There is no stable `hyprland` RPM for Fedora anywhere, and Fedora's own repos lack most of the stack (and ship the few libs they do have far too old). So Hyprland tracks git master, rebuilt by the COPR maintainer every other Saturday. Omarchy's hyprland config may need fixes when upstream renames/deprecates options.
-- The expected binary paths are asserted in `verify.sh` via `PACKAGED_HYPRWM_EXECUTABLES` in `manifest.sh`. If the COPR changes a binary's install path, that check catches it.
+- Unlike the `craftidore/wayblueorg-hyprland` COPR (wayblue's, which ships *only* a rolling `hyprland-git` tracking master), lionheartp packages tagged **stable** Hyprland releases. So the compositor is pinned to a released version (`HYPRLAND_VERSION`) rather than a git snapshot, and the whole session stack (including `uwsm` and the `hyprland-uwsm.desktop` session file) comes from one coherent source. Omarchy's hyprland config may still need fixes when upstream renames/deprecates options across releases.
+- `hyprland-uwsm` `Requires: uwsm`, satisfied by the `uwsm` RPM from the same COPR in the same transaction. This is why we no longer source-build uwsm.
+- The expected binary paths are asserted in `verify.sh` via `PACKAGED_HYPRWM_EXECUTABLES` in `manifest.sh` (now including `/usr/bin/uwsm`). If the COPR changes a binary's install path, that check catches it.
 
 ## Source builds
 
@@ -89,7 +90,6 @@ Only the non-hyprwm tools that have no usable Fedora/COPR package are source-bui
 - **walker** (Cargo + GTK4) + **hyprland-preview-share-picker** (Cargo + GTK4/gtk4-layer-shell) screen-share picker
 - **wiremix** (Cargo + PipeWire, bindgen needs `clang-devel`) audio mixer TUI
 - **elephant** (Go, + provider `.so` plugins built with the matching toolchain) walker data provider
-- **uwsm** (meson) Wayland session manager
 - **xdg-terminal-exec** + **hyprshot** (shell scripts)
 - **JetBrainsMono Nerd Font** (upstream release tarball)
 

@@ -11,13 +11,11 @@ source "${DIR}/pins.sh"
 # ── Repos ────────────────────────────────────────────────────────────
 source "${DIR}/repos.sh"
 
-# With the hyprwm ecosystem now installed from a COPR (see packages.sh), the
-# only source builds left are the non-hyprwm desktop tools: walker + the
-# hyprland share picker (Rust/GTK4), wiremix (Rust/PipeWire), elephant (Go),
-# and uwsm (meson). This dependency set is scoped to exactly those.
+# With the hyprwm ecosystem and uwsm now installed from a COPR (see packages.sh),
+# the only source builds left are the non-hyprwm desktop tools: walker + the
+# hyprland share picker (Rust/GTK4), wiremix (Rust/PipeWire), and elephant (Go).
+# This dependency set is scoped to exactly those.
 BUILD_DEPS=(
-	# meson (uwsm); removed after builds
-	meson
 	# wiremix's bindgen step needs the unversioned libclang.so symlink, plus
 	# pipewire headers for the libspa bindings.
 	clang-devel pipewire-devel
@@ -30,13 +28,11 @@ BUILD_DEPS=(
 	gtk4-devel gtk4-layer-shell-devel poppler-glib-devel
 	# Go (elephant + providers); removed after builds
 	golang
-	# uwsm man pages
-	scdoc
 )
 
 # Removing -devel libs triggers a cascade into flatpak/gtk, so only
 # strip the pure toolchain executables.
-BUILD_TOOLCHAIN=(meson rust cargo golang scdoc clang-devel)
+BUILD_TOOLCHAIN=(rust cargo golang clang-devel)
 
 dnf5 -y install --setopt=install_weak_deps=False "${BUILD_DEPS[@]}"
 
@@ -59,8 +55,9 @@ cargo_install() {
 	done
 }
 
-# The hyprwm ecosystem (compositor, libs, satellites, Qt6 components) is no
-# longer built here; it is installed from the wayblueorg COPR in packages.sh.
+# The hyprwm ecosystem (compositor, libs, satellites, Qt6 components) and uwsm
+# are no longer built here; they are installed from the lionheartp COPR in
+# packages.sh.
 
 # ── non-hyprwm tools (Cargo) ────────────────────────────────────────
 cargo_install wiremix "${WIREMIX_TAG}" https://github.com/tsowell/wiremix.git \
@@ -108,14 +105,6 @@ for provider_dir in "${BUILD_WORK}/elephant/internal/providers/"*/; do
 	install -Dm755 "${provider_dir}${name}.so" \
 		"/etc/xdg/elephant/providers/${name}.so"
 done
-
-# ── non-hyprwm tools (meson) ────────────────────────────────────────
-git clone --depth 1 --branch "${UWSM_TAG}" \
-	https://github.com/Vladimir-csp/uwsm.git "${BUILD_WORK}/uwsm"
-meson setup "${BUILD_WORK}/uwsm/build" "${BUILD_WORK}/uwsm" \
-	--prefix=/usr \
-	-Duwsm-app=enabled
-meson install -C "${BUILD_WORK}/uwsm/build"
 
 # xdg-terminal-exec is Omarchy's default terminal selector.
 git clone --depth 1 --branch "${XDG_TERMINAL_EXEC_TAG}" \

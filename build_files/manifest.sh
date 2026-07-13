@@ -7,7 +7,7 @@
 # Reason: this file is a sourced data module; the arrays are consumed by other
 # scripts, not within this file itself.
 
-# Installed from the wayblueorg COPR (see packages.sh), not source-built. These
+# Installed from the lionheartp COPR (see packages.sh), not source-built. These
 # paths are the contract: the RPMs must keep landing the compositor + satellites
 # here for the image to be usable.
 PACKAGED_HYPRWM_EXECUTABLES=(
@@ -20,6 +20,8 @@ PACKAGED_HYPRWM_EXECUTABLES=(
 	# Portals and polkit agents install to libexec by FDO convention.
 	/usr/libexec/xdg-desktop-portal-hyprland
 	/usr/libexec/hyprpolkitagent
+	# uwsm ships from the same COPR as the compositor (see packages.sh).
+	/usr/bin/uwsm
 )
 
 SOURCE_BUILT_AUX_EXECUTABLES=(
@@ -28,7 +30,6 @@ SOURCE_BUILT_AUX_EXECUTABLES=(
 	/usr/bin/hyprland-preview-share-picker
 	/usr/bin/elephant
 	/usr/bin/hyprshot
-	/usr/bin/uwsm
 	/usr/bin/xdg-terminal-exec
 )
 

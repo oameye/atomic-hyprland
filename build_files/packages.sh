@@ -176,19 +176,23 @@ copr_install_isolated "erikreider/swayosd" "swayosd"
 # ghostty: recommended by upstream ghostty.org install docs.
 copr_install_isolated "scottames/ghostty" "ghostty"
 
-# Hyprland ecosystem. Previously source-built; now pulled from the wayblueorg
-# COPR so CI no longer compiles the whole hyprwm chain. The compositor is a
-# rolling git build (hyprland-git) tracking master; we pin it to a known-good
-# snapshot via HYPRLAND_GIT_VERSION (pins.sh) instead of the COPR tip, because a
-# bad master snapshot once shipped a compositor that crash-looped on startup.
-# Installing the satellites and toolkit pulls the hypr* libraries (hyprutils,
-# hyprlang, hyprcursor, hyprgraphics, aquamarine, hyprwire, hyprland-protocols,
-# glaze) as dependencies in the same transaction; if the pinned compositor and
-# the current satellites ever need conflicting library versions, this transaction
-# fails the build (loud, safe) rather than shipping a broken image. Isolated so
+# Hyprland ecosystem, pinned stable releases from the lionheartp COPR (see
+# pins.sh). This COPR packages tagged Hyprland releases plus uwsm and the uwsm
+# session file, so the whole desktop session comes from one coherent source and
+# nothing here is source-built. Installing the satellites pulls the hypr*
+# libraries (hyprutils, hyprlang, hyprcursor, hyprgraphics, aquamarine, hyprwire,
+# hyprland-protocols, glaze) as dependencies in the same transaction; a version
+# mismatch fails the build (loud, safe) rather than shipping a broken image.
+#
+# hyprland-uwsm ships /usr/share/wayland-sessions/hyprland-uwsm.desktop — the
+# uwsm-managed session SDDM autologs into (files/usr/bin/atomic-hyprland-sddm-
+# autologin sets Session=hyprland-uwsm). It Requires: uwsm, which we install from
+# the same COPR in this transaction (replacing the old source build). Isolated so
 # no .repo survives (HYPRLAND_COPR in pins.sh).
 copr_install_isolated "$HYPRLAND_COPR" \
-	"hyprland-git-${HYPRLAND_GIT_VERSION}" \
+	"hyprland-${HYPRLAND_VERSION}" \
+	"hyprland-uwsm-${HYPRLAND_VERSION}" \
+	uwsm \
 	hyprlock hypridle hyprpicker hyprsunset \
 	xdg-desktop-portal-hyprland \
 	hyprtoolkit hyprland-guiutils \

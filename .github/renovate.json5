@@ -16,10 +16,10 @@
       groupName: "omarchy",
     },
     {
-      // The compositor rides a rolling COPR git build. A bump can regress the
+      // The compositor comes from a stable COPR release. A bump can regress the
       // whole session, so surface it on its own and never auto-merge it -- it
       // must be boot-tested by hand before merge.
-      matchDepNames: ["hyprland-git"],
+      matchDepNames: ["hyprland"],
       groupName: "hyprland compositor",
       automerge: false,
     },
@@ -28,7 +28,6 @@
         "gabm/Satty",
         "Gustash/Hyprshot",
         "sentriz/cliphist",
-        "Vladimir-csp/uwsm",
         "Vladimir-csp/xdg-terminal-exec",
         "abenz1267/walker",
         "abenz1267/elephant",
@@ -53,20 +52,17 @@
       depNameTemplate: "basecamp/omarchy",
       datasourceTemplate: "github-releases",
     },
-    // hyprland-git is a rolling COPR build, not a GitHub tag, so it is tracked
-    // via the custom COPR datasource below instead of github-releases. The
-    // version format is RPM-snapshot (0.55.4^3.git9556660): the X.Y.Z prefix is
-    // the last upstream stable tag, the ^N.gitHASH suffix is per-commit churn.
-    // The regex versioning intentionally captures ONLY X.Y.Z (no end anchor), so
-    // renovate ignores the ^N.gitHASH churn and proposes a bump only when a new
-    // stable release is tagged. It then writes that release's current COPR build,
-    // which must be boot-tested before merge.
+    // hyprland is packaged in the lionheartp COPR (tagged stable releases, not
+    // GitHub tags), so it is tracked via the custom COPR datasource below instead
+    // of github-releases. The COPR reports the version as X.Y.Z (e.g. 0.55.4);
+    // renovate proposes a bump when a new stable release is packaged, which must
+    // be boot-tested before merge.
     {
       customType: "regex",
       managerFilePatterns: ["/^build_files/pins\\.sh$/"],
-      matchStrings: ["HYPRLAND_GIT_VERSION=\"(?<currentValue>[^\"]+)\""],
-      depNameTemplate: "hyprland-git",
-      packageNameTemplate: "hyprland-git",
+      matchStrings: ["HYPRLAND_VERSION=\"(?<currentValue>[^\"]+)\""],
+      depNameTemplate: "hyprland",
+      packageNameTemplate: "hyprland",
       datasourceTemplate: "custom.copr",
       versioningTemplate: "regex:^(?<major>\\d+)\\.(?<minor>\\d+)\\.(?<patch>\\d+)",
     },
@@ -89,13 +85,6 @@
       managerFilePatterns: ["/^build_files/(build|source-builds|pins)\\.sh$/"],
       matchStrings: ["CLIPHIST_TAG=\"(?<currentValue>v\\d+\\.\\d+\\.\\d+)\""],
       depNameTemplate: "sentriz/cliphist",
-      datasourceTemplate: "github-releases",
-    },
-    {
-      customType: "regex",
-      managerFilePatterns: ["/^build_files/(build|source-builds|pins)\\.sh$/"],
-      matchStrings: ["UWSM_TAG=\"(?<currentValue>v\\d+\\.\\d+\\.\\d+)\""],
-      depNameTemplate: "Vladimir-csp/uwsm",
       datasourceTemplate: "github-releases",
     },
     {
@@ -170,12 +159,12 @@
     },
   ],
   customDatasources: {
-    // Reads the latest hyprland-git build from the Copr API v3 and reshapes it
-    // into renovate's { releases: [{ version }] } form. The API reports the
-    // NEVRA as "0.55.4^43.git14fa1fd-1"; substringBefore drops the "-1" release
-    // so the tracked value matches HYPRLAND_GIT_VERSION (version only) in pins.sh.
+    // Reads the latest hyprland build from the Copr API v3 and reshapes it into
+    // renovate's { releases: [{ version }] } form. The API reports the NEVRA as
+    // "0.55.4-1.fc44"; substringBefore drops the "-1.fcNN" release so the tracked
+    // value matches HYPRLAND_VERSION (version only) in pins.sh.
     copr: {
-      defaultRegistryUrlTemplate: "https://copr.fedorainfracloud.org/api_3/package?ownername=craftidore&projectname=wayblueorg-hyprland&packagename={{packageName}}&with_latest_build=true",
+      defaultRegistryUrlTemplate: "https://copr.fedorainfracloud.org/api_3/package?ownername=lionheartp&projectname=Hyprland&packagename={{packageName}}&with_latest_build=true",
       format: "json",
       transformTemplates: [
         '{ "releases": [ { "version": $substringBefore(builds.latest.source_package.version, "-") } ] }',

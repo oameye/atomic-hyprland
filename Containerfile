@@ -28,14 +28,15 @@ COPY files/ /
 # boot; /etc/profile.d/brew.sh adds brew to PATH for interactive shells.
 COPY --from=ghcr.io/ublue-os/brew:latest /system_files /
 
-# Bling: opt-in shell init that auto-aliases brew-installed CLI tools
-# (eza->ls/ll, bat->cat, ug->grep, starship/zoxide/mise/direnv hooks).
-# User sources /usr/share/ublue-os/bling/bling.sh from ~/.bashrc / ~/.zshrc
-# (or bling.fish for fish). Does nothing if the underlying tools are
-# absent. Copied straight from the bluefin image since there is no
-# separate OCI image or RPM for it.
-COPY --from=ghcr.io/ublue-os/bluefin:stable \
-    /usr/share/ublue-os/bling /usr/share/ublue-os/bling
+# Bling is delivered via the files/ overlay above (files/usr/share/ublue-os/
+# bling): opt-in shell init that auto-aliases brew-installed CLI tools
+# (eza->ls/ll, bat->cat, ug->grep, starship/zoxide/mise/direnv hooks). User
+# sources /usr/share/ublue-os/bling/bling.sh from ~/.bashrc / ~/.zshrc (or
+# bling.fish for fish). Does nothing if the underlying tools are absent.
+# Vendored rather than COPY --from the bluefin image: there is no separate OCI
+# image or RPM for it, and pulling all of bluefin:stable just to extract three
+# small POSIX shell scripts is not worth the build-time pull. Refresh from
+# https://github.com/ublue-os/bluefin (/usr/share/ublue-os/bling) if it drifts.
 
 # Layer 2 — packages, desktop, systemd, cleanup.
 # Inherits repos from Layer 1; rebuilds on every package-list or rice change.

@@ -56,7 +56,10 @@ lint:
         echo "shellcheck not found. Install it (e.g. brew install shellcheck)."
         exit 1
     fi
-    /usr/bin/find . -iname "*.sh" -type f -exec shellcheck "{}" ';'
+    # Skip vendored third-party shell kept verbatim (files/usr/share/ublue-os/bling).
+    /usr/bin/find . -iname "*.sh" -type f \
+        -not -path './files/usr/share/ublue-os/bling/*' \
+        -exec shellcheck "{}" ';'
 
 # Check that build inputs stay centralized and sync fallbacks with pins.
 [group('Check')]
@@ -84,7 +87,10 @@ format:
         echo "shfmt not found. Install it (e.g. brew install shfmt)."
         exit 1
     fi
-    /usr/bin/find . -iname "*.sh" -type f -exec shfmt --write "{}" ';'
+    # Skip vendored third-party shell kept verbatim (files/usr/share/ublue-os/bling).
+    /usr/bin/find . -iname "*.sh" -type f \
+        -not -path './files/usr/share/ublue-os/bling/*' \
+        -exec shfmt --write "{}" ';'
 
 # Check shfmt formatting without modifying files.
 [group('Check')]
@@ -95,4 +101,7 @@ format-check:
         echo "shfmt not found. Install it (e.g. brew install shfmt)."
         exit 1
     fi
-    /usr/bin/find . -iname "*.sh" -type f -exec shfmt -d "{}" ';'
+    # Skip vendored third-party shell kept verbatim (files/usr/share/ublue-os/bling).
+    /usr/bin/find . -iname "*.sh" -type f \
+        -not -path './files/usr/share/ublue-os/bling/*' \
+        -exec shfmt -d "{}" ';'

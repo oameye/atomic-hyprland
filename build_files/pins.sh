@@ -7,7 +7,7 @@
 # other scripts, not within this file itself.
 
 FEDORA_VERSION="44"
-OMARCHY_REF="v3.8.2"
+OMARCHY_REF="v3.8.3"
 
 # The entire hyprwm ecosystem (compositor, libs, satellites, Qt6 components),
 # plus uwsm and the uwsm session file, are installed from this COPR (see
@@ -20,19 +20,19 @@ OMARCHY_REF="v3.8.2"
 # (see .github/renovate.json5); every bump MUST be boot-tested before merge.
 HYPRLAND_COPR="lionheartp/Hyprland"
 # Exact stable hyprland release to install (NEVRA version only; dnf appends -N.fcNN).
-HYPRLAND_VERSION="0.55.4"
+HYPRLAND_VERSION="0.56.0"
 
 SATTY_TAG="v0.21.1"
 HYPRSHOT_TAG="1.3.0"
 CLIPHIST_TAG="v0.7.0"
 XDG_TERMINAL_EXEC_TAG="v0.14.2"
-WALKER_TAG="v2.16.2"
-ELEPHANT_TAG="v2.21.0"
-WIREMIX_TAG="v0.10.0"
+WALKER_TAG="v2.17.0"
+ELEPHANT_TAG="v2.22.0"
+WIREMIX_TAG="v0.11.0"
 BLUETUI_TAG="v0.8.1"
 IMPALA_TAG="v0.7.4"
 GUM_TAG="v0.17.0"
-STARSHIP_TAG="v1.25.1"
+STARSHIP_TAG="v1.26.0"
 HYPRLAND_PREVIEW_SHARE_PICKER_TAG="v0.2.1"
 NERD_FONTS_TAG="v3.4.0"
 

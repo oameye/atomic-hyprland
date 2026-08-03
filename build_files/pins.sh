@@ -15,9 +15,11 @@ OMARCHY_REF="v3.8.3"
 # rolling hyprland-git tracking master (a liability: a bad master snapshot once
 # SIGABRTed on the first surface map and crash-looped the session). lionheartp
 # instead packages tagged *stable* Hyprland releases, so we pin a released
-# version rather than chasing master snapshots. The COPR retains old builds, so
-# the pin stays installable. Renovate proposes bumps via a custom COPR datasource
-# (see .github/renovate.json5); every bump MUST be boot-tested before merge.
+# version rather than chasing master snapshots. Old hyprland builds stay in the
+# COPR but do not stay installable: only the newest aquamarine is kept, so a
+# soname roll there makes the previous pin unresolvable. Renovate proposes bumps
+# via a custom COPR datasource (see .github/renovate.json5); patch bumps
+# auto-merge on a green build, minor/major MUST be boot-tested before merge.
 HYPRLAND_COPR="lionheartp/Hyprland"
 # Exact stable hyprland release to install (NEVRA version only; dnf appends -N.fcNN).
 HYPRLAND_VERSION="0.56.1"

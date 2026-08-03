@@ -16,11 +16,27 @@
       groupName: "omarchy",
     },
     {
-      // The compositor comes from a stable COPR release. A bump can regress the
-      // whole session, so surface it on its own and never auto-merge it -- it
-      // must be boot-tested by hand before merge.
+      // The compositor comes from a stable COPR release. Patch and minor bumps
+      // must land in separate PRs (renovate lumps them together by default) so
+      // that only patches can auto-merge.
       matchDepNames: ["hyprland"],
-      groupName: "hyprland compositor",
+      separateMinorPatch: true,
+    },
+    {
+      // A patch release is ABI-stable, and a stale pin *breaks* the build: the
+      // COPR keeps only the newest aquamarine, so when its soname rolls the
+      // pinned hyprland becomes uninstallable. Land these unattended, outside
+      // the weekly window, once the PR image build is green.
+      matchDepNames: ["hyprland"],
+      matchUpdateTypes: ["patch"],
+      schedule: ["at any time"],
+      automerge: true,
+      automergeType: "pr",
+    },
+    {
+      // Minor/major can regress the whole session: boot-test by hand before merge.
+      matchDepNames: ["hyprland"],
+      matchUpdateTypes: ["minor", "major"],
       automerge: false,
     },
     {

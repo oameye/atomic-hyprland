@@ -20,7 +20,7 @@ OMARCHY_REF="v3.8.3"
 # (see .github/renovate.json5); every bump MUST be boot-tested before merge.
 HYPRLAND_COPR="lionheartp/Hyprland"
 # Exact stable hyprland release to install (NEVRA version only; dnf appends -N.fcNN).
-HYPRLAND_VERSION="0.56.0"
+HYPRLAND_VERSION="0.56.1"
 
 SATTY_TAG="v0.21.1"
 HYPRSHOT_TAG="1.3.0"

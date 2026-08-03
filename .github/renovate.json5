@@ -34,12 +34,6 @@
       automergeType: "pr",
     },
     {
-      // Minor/major can regress the whole session: boot-test by hand before merge.
-      matchDepNames: ["hyprland"],
-      matchUpdateTypes: ["minor", "major"],
-      automerge: false,
-    },
-    {
       matchDepNames: [
         "gabm/Satty",
         "Gustash/Hyprshot",
@@ -55,13 +49,20 @@
         "WhySoBad/hyprland-preview-share-picker",
         "ryanoasis/nerd-fonts",
       ],
-      // One utility each, and a moved release asset fails the build rather than
-      // shipping quietly, so the green build is evidence enough. Auto-merged on
-      // any update type: the group PR takes the highest type of its members, so
-      // patch-only automerge here would just mean splitting the weekly PR.
       groupName: "desktop support tools",
+      // A patch here is one utility's bugfixes, and a moved release asset fails the
+      // build rather than shipping quietly, so a green build carries it. Split from
+      // minor so the two land in separate PRs and only this one auto-merges.
+      separateMinorPatch: true,
       automerge: true,
       automergeType: "pr",
+    },
+    {
+      // Nothing above patch merges itself, whatever the dep: a minor can change
+      // behaviour or rename config options that no build check can see. Keep this
+      // rule last so it overrides the automerge settings above.
+      matchUpdateTypes: ["minor", "major"],
+      automerge: false,
     },
   ],
   customManagers: [

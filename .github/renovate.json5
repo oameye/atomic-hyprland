@@ -55,7 +55,13 @@
         "WhySoBad/hyprland-preview-share-picker",
         "ryanoasis/nerd-fonts",
       ],
+      // One utility each, and a moved release asset fails the build rather than
+      // shipping quietly, so the green build is evidence enough. Auto-merged on
+      // any update type: the group PR takes the highest type of its members, so
+      // patch-only automerge here would just mean splitting the weekly PR.
       groupName: "desktop support tools",
+      automerge: true,
+      automergeType: "pr",
     },
   ],
   customManagers: [

@@ -7,7 +7,7 @@
 # other scripts, not within this file itself.
 
 FEDORA_VERSION="44"
-OMARCHY_REF="v3.8.3"
+OMARCHY_REF="v4.0.2"
 
 # The entire hyprwm ecosystem (compositor, libs, satellites, Qt6 components),
 # plus uwsm and the uwsm session file, are installed from this COPR (see
